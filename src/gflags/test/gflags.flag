@@ -1,0 +1,4 @@
+--dir="dir from gflags.flag"
+--is_ture=false
+--double_val=8
+--int32_val=9

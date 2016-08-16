@@ -1,0 +1,9 @@
+cmake_minimum_required(VERSION 3.0)
+
+PROJECT (DATA_FUSION)
+ADD_SUBDIRECTORY(src ../bin)
+
+SET(CMAKE_BUILD_TYPE "Debug") 
+SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
+
+
