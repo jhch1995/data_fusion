@@ -4,7 +4,7 @@
 #include "bird_perspective_mapping.h"
 #include "opencv2/opencv.hpp"
 
-DEFINE_string(image_name, "./bird_perspective.png", "image_name");
+DEFINE_string(image_name, "./1.jpg", "image_name");
 DEFINE_double(fu, 309.4362, "fu");
 DEFINE_double(fv, 344.2161, "fv");
 DEFINE_double(cu, 317.9034, "cu");

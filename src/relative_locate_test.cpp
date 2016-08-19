@@ -11,11 +11,11 @@ int main(int argc, char *argv[])
 
     Posture posture;
     // ¸©Ñö½Ç
-    posture.alfa = (-1) * (-0.2) * CV_PI / 180;
+    posture.alfa = (1) * (0.2) * CV_PI / 180;
     // ºá¹ö½Ç
     posture.beta = 0.0 * CV_PI / 180;
     // Æ«º½½Ç
-    posture.gamma = (-3.5)* CV_PI / 180;
+    posture.gamma = (3.5)* CV_PI / 180;
 
     CameraParameter cam_para;
     cam_para.pixel_x_number = 1280; // ³ÉÏñµÄºáÏòÏñÔªÊý
@@ -39,8 +39,8 @@ int main(int argc, char *argv[])
     float x_end_offset = 3.25;
     float x_resolution = 0.02;
     float y_start_offset = 6.0;
-    float y_end_offset = 25.0;
-    float y_resolution = 0.08;
+    float y_end_offset = 50.0;
+    float y_resolution = 0.1;
 
     int ipm_height = static_cast<int>((y_end_offset - y_start_offset) / y_resolution);
     int ipm_width = static_cast<int>((x_end_offset - x_start_offset) / x_resolution);

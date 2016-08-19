@@ -102,11 +102,9 @@ void RelativeLocate::GetGeoCoordinate(int pixel_x, int pixel_y,
     }
 }
 
-void RelativeLocate::GetPixelCoordinate(double geo_x, double geo_y, double geo_z,
-        int* pixel_x, int* pixel_y)
+void RelativeLocate::GetPixelCoordinate(double geo_x, double geo_y, double geo_z, int* pixel_x, int* pixel_y)
 {
-    VectorR3 ray(geo_x - m_camera_position.x, geo_y - m_camera_position.y,
-            geo_z - m_camera_position.z);
+    VectorR3 ray(geo_x - m_camera_position.x, geo_y - m_camera_position.y, geo_z - m_camera_position.z);
     ray.Normalize();
 
     double x_res = m_camera_w_length / m_camera_para.pixel_x_number;

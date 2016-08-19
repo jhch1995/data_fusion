@@ -76,6 +76,27 @@ void BirdPerspectiveMapping::InitPitchTransformMatrix()
 //    std::cerr << "pitch_matrix: " << m_pitch_matrix << std::endl;
 }
 
+// 重新设定当前pitch
+void BirdPerspectiveMapping::SetPitchTransformMatrix(double pitch_new)
+{
+    // rotation matrix for pitch
+    m_pitch_matrix = cv::Mat::zeros(3, 3, CV_32FC1);
+
+    m_pitch_matrix.at<float>(0, 0) = 1;
+    m_pitch_matrix.at<float>(0, 1) = 0;
+    m_pitch_matrix.at<float>(0, 2) = 0;
+
+    m_pitch_matrix.at<float>(1, 0) = 0;
+    m_pitch_matrix.at<float>(1, 1) = -sin(pitch_new);
+    m_pitch_matrix.at<float>(1, 2) = -cos(pitch_new);
+
+    m_pitch_matrix.at<float>(2, 0) = 0;
+    m_pitch_matrix.at<float>(2, 1) = cos(pitch_new);
+    m_pitch_matrix.at<float>(2, 2) = -sin(pitch_new);
+
+}
+
+
 void BirdPerspectiveMapping::InitShiftMatrix()
 {
     // transformation from (xc, yc) in camera coordinates
@@ -150,10 +171,8 @@ void BirdPerspectiveMapping::GetXYLimitsFromUV(IPMPara* ipm_para)
 
 void BirdPerspectiveMapping::GetUVLimitsFromXY(IPMPara* ipm_para)
 {
-    ipm_para->width = static_cast<int>((ipm_para->x_limits[1] - ipm_para->x_limits[0]) /
-            ipm_para->x_scale);
-    ipm_para->height = static_cast<int>((ipm_para->y_limits[1] - ipm_para->y_limits[0]) /
-            ipm_para->y_scale);
+    ipm_para->width = static_cast<int>((ipm_para->x_limits[1] - ipm_para->x_limits[0]) / ipm_para->x_scale);
+    ipm_para->height = static_cast<int>((ipm_para->y_limits[1] - ipm_para->y_limits[0]) / ipm_para->y_scale);
     // calc uv limits
     cv::Mat xy_limits_pts = cv::Mat::zeros(2, 4, CV_32FC1);
     xy_limits_pts.at<float>(0, 0) = ipm_para->x_limits[0];
@@ -260,6 +279,7 @@ void BirdPerspectiveMapping::TransformImage2Ground(const cv::Mat& in_points, cv:
         in_points4.at<float>(0, i) /= div;
         in_points4.at<float>(1, i) /= div;
     }
+//    std::cerr << "in_points4: " << in_points4 << std::endl;
     in_points2.copyTo(*out_points);
 }
 

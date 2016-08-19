@@ -1,21 +1,30 @@
 #include "imu_attitude_estimate.h"
+#include "datafusion_math.h"
+
 #include <stdio.h>
 
-#define R2D 180.0f/M_PI 
 using namespace common;
+
+
+ImuAttitudeEstimate::ImuAttitudeEstimate()
+{
+	m_AccAVSFactor[X_AXIS] = 20.0f;
+	m_AccAVSFactor[Y_AXIS] = 20.0f;
+	m_AccAVSFactor[Z_AXIS] = 20.0f;
+
+	m_FactorAccGyro[X_AXIS] = 0.05f;
+	m_FactorAccGyro[Y_AXIS] = 0.05f;
+	m_FactorAccGyro[Z_AXIS] = 0.05f;  
+	
+}
+
 
 void ImuAttitudeEstimate::Initialize( )
 {
-	gAttVar.mAccAVSFactor[X_AXIS] = 20.0f;
-	gAttVar.mAccAVSFactor[Y_AXIS] = 20.0f;
-	gAttVar.mAccAVSFactor[Z_AXIS] = 20.0f;
 
-	gAttVar.mFactorAccGyro[X_AXIS] = 0.05f;
-	gAttVar.mFactorAccGyro[Y_AXIS] = 0.05f;
-	gAttVar.mFactorAccGyro[Z_AXIS] = 0.05f;  
 }
 
-void ImuAttitudeEstimate::Get_Attitude(double (&att_new)[3], double AccData[3], double GyroData[3], double dt)
+void ImuAttitudeEstimate::UpdataAttitude( double AccData[3], double GyroData[3], double dt)
 {
 	double AccAngle[3];
 	double GyroRate[3];
@@ -27,33 +36,40 @@ void ImuAttitudeEstimate::Get_Attitude(double (&att_new)[3], double AccData[3], 
 	if( StartFlag == 0 )
 	{
 		StartFlag = 1;
-		gAttVar.mAtt[X_AXIS] = AccAngle[X_AXIS];
-		gAttVar.mAtt[Y_AXIS] = AccAngle[Y_AXIS];
-		gAttVar.mAtt[Z_AXIS] = 0.0f;	  
+		m_Att[X_AXIS] = AccAngle[X_AXIS];
+		m_Att[Y_AXIS] = AccAngle[Y_AXIS];
+		m_Att[Z_AXIS] = 0.0f;	  
 	}else{ 
 		// X
-		GyroRate[X_AXIS] =  GyroData[X_AXIS] + sinf(gAttVar.mAtt[X_AXIS])*tanf(gAttVar.mAtt[Y_AXIS])*GyroData[Y_AXIS] + cosf(gAttVar.mAtt[X_AXIS])*tanf(gAttVar.mAtt[Y_AXIS])*GyroData[Z_AXIS];
-		gAttVar.mGyroAngle[X_AXIS] = gAttVar.mGyroAngle[X_AXIS]+ GyroRate[X_AXIS]* dt;
-		gAttVar.mAtt[X_AXIS] = (gAttVar.mAtt[X_AXIS] + GyroRate[X_AXIS]* dt)+ gAttVar.mFactorAccGyro[X_AXIS]*(AccAngle[X_AXIS] - gAttVar.mAtt[X_AXIS]);
+		GyroRate[X_AXIS] =  GyroData[X_AXIS] + sinf(m_Att[X_AXIS])*tanf(m_Att[Y_AXIS])*GyroData[Y_AXIS] + cosf(m_Att[X_AXIS])*tanf(m_Att[Y_AXIS])*GyroData[Z_AXIS];
+		m_GyroAngle[X_AXIS] = m_GyroAngle[X_AXIS]+ GyroRate[X_AXIS]* dt;
+		m_Att[X_AXIS] = (m_Att[X_AXIS] + GyroRate[X_AXIS]* dt)+ m_FactorAccGyro[X_AXIS]*(AccAngle[X_AXIS] - m_Att[X_AXIS]);
 		// Y
-		GyroRate[Y_AXIS] = cosf(gAttVar.mAtt[X_AXIS])*GyroData[Y_AXIS] - sinf(gAttVar.mAtt[X_AXIS])*GyroData[Z_AXIS] ;
-		gAttVar.mGyroAngle[Y_AXIS] = gAttVar.mGyroAngle[Y_AXIS]+ GyroRate[Y_AXIS] * dt;
-		gAttVar.mAtt[Y_AXIS] = (gAttVar.mAtt[Y_AXIS] + GyroRate[Y_AXIS]*dt)+ gAttVar.mFactorAccGyro[Y_AXIS]*(AccAngle[Y_AXIS] - gAttVar.mAtt[Y_AXIS]);	
+		GyroRate[Y_AXIS] = cosf(m_Att[X_AXIS])*GyroData[Y_AXIS] - sinf(m_Att[X_AXIS])*GyroData[Z_AXIS] ;
+		m_GyroAngle[Y_AXIS] = m_GyroAngle[Y_AXIS]+ GyroRate[Y_AXIS] * dt;
+		m_Att[Y_AXIS] = (m_Att[Y_AXIS] + GyroRate[Y_AXIS]*dt)+ m_FactorAccGyro[Y_AXIS]*(AccAngle[Y_AXIS] - m_Att[Y_AXIS]);	
 		// Z
-		GyroRate[Z_AXIS] = sinf(gAttVar.mAtt[X_AXIS])/cosf(gAttVar.mAtt[Y_AXIS])*GyroData[Y_AXIS] + cosf(gAttVar.mAtt[X_AXIS])/cosf(gAttVar.mAtt[Y_AXIS])*GyroData[Z_AXIS]; 
-		gAttVar.mGyroAngle[Z_AXIS]  = gAttVar.mGyroAngle[Z_AXIS]+ GyroRate[Z_AXIS] * dt; 
-		gAttVar.mAtt[Z_AXIS] = (gAttVar.mAtt[Z_AXIS] + GyroRate[Z_AXIS]*dt);
+		GyroRate[Z_AXIS] = sinf(m_Att[X_AXIS])/cosf(m_Att[Y_AXIS])*GyroData[Y_AXIS] + cosf(m_Att[X_AXIS])/cosf(m_Att[Y_AXIS])*GyroData[Z_AXIS]; 
+		m_GyroAngle[Z_AXIS]  = m_GyroAngle[Z_AXIS]+ GyroRate[Z_AXIS] * dt; 
+		m_Att[Z_AXIS] = (m_Att[Z_AXIS] + GyroRate[Z_AXIS]*dt);
 
 	}	
 
-	att_new[X_AXIS]	= gAttVar.mAtt[X_AXIS];
-	att_new[Y_AXIS] = gAttVar.mAtt[Y_AXIS];
-	att_new[Z_AXIS] = gAttVar.mAtt[Z_AXIS];
+//	att_new[X_AXIS]	= m_Att[X_AXIS];
+//	att_new[Y_AXIS] = m_Att[Y_AXIS];
+//	att_new[Z_AXIS] = m_Att[Z_AXIS];
 
 //	printf("att index=%d, %6.2f, %6.2f, %6.2f\n", ++m_index_counter, att_new[0]*R2D, att_new[1]*R2D, att_new[2]*R2D);
   
-  
 }
+
+void ImuAttitudeEstimate::GetAttitude(double (&att)[3])
+{
+	att[X_AXIS]	= m_Att[X_AXIS];
+	att[Y_AXIS] = m_Att[Y_AXIS];
+	att[Z_AXIS] = m_Att[Z_AXIS];
+}
+
 
 int ImuAttitudeEstimate::LowpassFilter3f(double (&y_new)[3], double y_pre[3], double x_new[3], double dt, double filt_hz)
 {
