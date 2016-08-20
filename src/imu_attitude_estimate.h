@@ -47,6 +47,12 @@ public:
 	/// 一阶低通函数
 	int LowpassFilter3f(double (&y_new)[3], double y_pre[3], double x_new[3], double dt, double filt_hz);
 
+	int AccDataCalibation(double (&AccData_new)[3], double AccData_raw[3]);
+
+	int SetAccCalibationParam(double A0[3], double A1[3][3]);
+
+	int GyrocDataCalibation(double (&GyroData_new)[3], double GyroData_raw[3]);
+
 
 
 	enum
@@ -70,9 +76,17 @@ private:
 	double	m_SmoothAccAngle[3]; // 平滑之后的加速度计角度
 	double	m_RawAccAngle[3]; // 原始的加速度计角度
 	double  m_GyroAngle[3];
-	 
+	int m_AttInitCounter = 20;
 
+	
+	// Y1模组的加速度计校正参数
+	double	m_accel_range_scale;
+	double m_A0[3];// = {0.0628f, 0.0079f, -0.0003f};
+	double m_A1[3][3]; // = {0.9986f, -0.0027f, 0.0139f, 0.0164f, 0.9993f, -0.0176f, -0.0159f, 0.0064f, 0.9859f };
 
+	double m_gyro_range_scale;
+	double m_GyroDrift[3]; // = {0.0155f, -0.0421f, -0.0217f};  // 陀螺仪零偏，在线估计
+	
 
 };
 
