@@ -53,6 +53,8 @@ public:
 
 	int GyrocDataCalibation(double (&GyroData_new)[3], double GyroData_raw[3]);
 
+	void ResetState();
+
 
 
 	enum

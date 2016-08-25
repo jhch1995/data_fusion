@@ -33,14 +33,14 @@ void CAN_VehicleEstimate::Initialize( )
 void CAN_VehicleEstimate::UpdateVehicleState(double steer_angle, double vehicle_speed           , double dt )
 {
 	double d_fai = 0.0f;
-	if(fabs(steer_angle) > m_min_steer_angle)
+	if(fabs(steer_angle) > m_min_steer_angle*D2R)
 	{
 		m_virtual_front_angle = m_k_steer2wheel_angle*steer_angle;
 		m_beta = atanf(m_vehicle_L/2.0f*tanf(m_virtual_front_angle)/m_vehicle_L);
 		d_fai = vehicle_speed/m_vehicle_L*tanf(m_virtual_front_angle)*cosf(m_beta)*dt;
 	}else{
 		m_virtual_front_angle = 0.0f;
-		m_beta = 0.0f;
+//		m_beta = 0.0f;
 		d_fai = 0.0f;
 		
 	}
@@ -51,7 +51,7 @@ void CAN_VehicleEstimate::UpdateVehicleState(double steer_angle, double vehicle_
 	m_vehicle_pos[0] = m_vehicle_pos[0] + m_vehicle_vel[0]*dt;
 	m_vehicle_pos[1] = m_vehicle_pos[1] + m_vehicle_vel[1]*dt;
 
-	printf("pos: %f %f vel: %f %f\n", m_vehicle_pos[0], m_vehicle_pos[1], m_vehicle_vel[0], m_vehicle_vel[1]);
+//	printf("pos: %f %f vel: %f %f\n", m_vehicle_pos[0], m_vehicle_pos[1], m_vehicle_vel[0], m_vehicle_vel[1]);
 }
 
 void CAN_VehicleEstimate::GetVelPos(double (&vel)[2], double (&pos)[2])

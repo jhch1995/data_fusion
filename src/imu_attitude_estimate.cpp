@@ -56,7 +56,7 @@ void ImuAttitudeEstimate::UpdataAttitude( double AccData[3], double GyroData[3],
 	AccAngle[X_AXIS] = (atan2f(-AccData[Y_AXIS], -AccData[Z_AXIS]));  	 // Calculating pitch ACC angle
 	AccAngle[Y_AXIS] = (atan2f(AccData[X_AXIS], sqrtf(AccData[Z_AXIS]*AccData[Z_AXIS] + AccData[Y_AXIS]*AccData[Y_AXIS])));   //Calculating roll ACC angle
 
-	std::cout<<"AccAngle "<<AccAngle[0]*R2D<<"  "<<AccAngle[1]*R2D<<std::endl;
+//	std::cout<<"AccAngle "<<AccAngle[0]*R2D<<"  "<<AccAngle[1]*R2D<<std::endl;
 	if( StartFlag == 0 )
 	{
 		m_AttInitCounter--;
@@ -101,6 +101,14 @@ void ImuAttitudeEstimate::GetAttitude(double (&att)[3])
 	att[Y_AXIS] = m_Att[Y_AXIS];
 	att[Z_AXIS] = m_Att[Z_AXIS];
 }
+
+void ImuAttitudeEstimate::ResetState()
+{
+//	m_Att[X_AXIS] = 0.0;
+//	m_Att[Y_AXIS] = 0.0;
+	m_Att[Z_AXIS] = 0.0;
+}
+
 
 
 int ImuAttitudeEstimate::LowpassFilter3f(double (&y_new)[3], double y_pre[3], double x_new[3], double dt, double filt_hz)
@@ -164,9 +172,9 @@ int ImuAttitudeEstimate::AccDataCalibation(double (&AccData_NED)[3], double AccD
 	AccData_NED[1] = -AccData_IMU[1];
 	AccData_NED[2] = -AccData_IMU[0];
 	
-	printf("AccData_raw: %f %f %f\n", AccData_raw[0], AccData_raw[1], AccData_raw[2]);
-	printf("AccData_t: %f %f %f\n", AccData_t[0], AccData_t[1], AccData_t[2]);
-	printf("AccData_IMU: %f %f %f\n", AccData_IMU[0], AccData_IMU[1], AccData_IMU[2]);
+//	printf("AccData_raw: %f %f %f\n", AccData_raw[0], AccData_raw[1], AccData_raw[2]);
+//	printf("AccData_t: %f %f %f\n", AccData_t[0], AccData_t[1], AccData_t[2]);
+//	printf("AccData_IMU: %f %f %f\n", AccData_IMU[0], AccData_IMU[1], AccData_IMU[2]);
 
 	return 1;
 
