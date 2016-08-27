@@ -48,19 +48,26 @@ void CAN_VehicleEstimate::UpdateVehicleState(double steer_angle, double vehicle_
 	m_vehicle_vel[0] = vehicle_speed*cosf(m_fai + m_beta);  // X
 	m_vehicle_vel[1] = vehicle_speed*sinf(m_fai + m_beta);  // Y
 
-	m_vehicle_pos[0] = m_vehicle_pos[0] + m_vehicle_vel[0]*dt;
-	m_vehicle_pos[1] = m_vehicle_pos[1] + m_vehicle_vel[1]*dt;
-
-//	printf("pos: %f %f vel: %f %f\n", m_vehicle_pos[0], m_vehicle_pos[1], m_vehicle_vel[0], m_vehicle_vel[1]);
+	if(dt < 0.05)
+	{
+		m_vehicle_pos[0] = m_vehicle_pos[0] + m_vehicle_vel[0]*dt;
+		m_vehicle_pos[1] = m_vehicle_pos[1] + m_vehicle_vel[1]*dt;
+	}
+	
+	
+	printf("steer_angle: %f  vehicle_speed: %f dt: %f \n", steer_angle*R2D, vehicle_speed, dt );
+	printf("pos: %f %f vel: %f %f\n", m_vehicle_pos[0], m_vehicle_pos[1], m_vehicle_vel[0], m_vehicle_vel[1]);
 }
 
-void CAN_VehicleEstimate::GetVelPos(double (&vel)[2], double (&pos)[2])
+void CAN_VehicleEstimate::GetVelPosFai(double (&vel)[2], double (&pos)[2], double& fai)
 {
 	vel[0] = m_vehicle_vel[0];
 	vel[1] = m_vehicle_vel[1];
 
 	pos[0] = m_vehicle_pos[0];
 	pos[1] = m_vehicle_pos[1];
+
+	fai = m_fai;
 }
 
 void CAN_VehicleEstimate::ResetState()
