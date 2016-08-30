@@ -37,7 +37,8 @@ ImuAttitudeEstimate::ImuAttitudeEstimate()
 	m_GyroDrift[0] = 0.0217;
 	m_GyroDrift[1] = 0.0421;
 	m_GyroDrift[2] = -0.0155;
-	
+
+	m_AttInitCounter = 30;
 	
 }
 

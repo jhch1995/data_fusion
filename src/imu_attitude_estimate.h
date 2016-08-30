@@ -69,7 +69,6 @@ public:
 
 private:
 	bool m_isFirstTimeUpdate; // 判断是否是第一次更新姿态
-	int m_index_counter = 0;
 
 	double  m_AccAVSFactor[3]; // 加速度计平滑的参数
 	double  m_FactorAccGyro[3]; // 加速度计修正的姿态的系数
@@ -78,7 +77,7 @@ private:
 	double	m_SmoothAccAngle[3]; // 平滑之后的加速度计角度
 	double	m_RawAccAngle[3]; // 原始的加速度计角度
 	double  m_GyroAngle[3];
-	int m_AttInitCounter = 20;
+	int m_AttInitCounter;// = 20;
 
 	
 	// Y1模组的加速度计校正参数
