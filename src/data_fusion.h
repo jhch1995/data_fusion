@@ -57,7 +57,7 @@ public:
 	{
 		
 		int ERR = pthread_create(&tid,NULL,thread_rounter,(void *)this);//启动线程执行例程
-//		return ERR;
+		return ERR;
 	}
 
 
@@ -114,10 +114,6 @@ private:
 	std::queue<StructAtt> queue_att;// 定义队列;
 
 	// lane
-	CameraPara camera_para;// parameter set up	
-	IPMPara ipm_para;// ipm para
-	bool isFirstTime_Lane;
-
 	double att_cur[3] ;		
 	double vehicle_vel[2];
 	double vehicle_pos[2];

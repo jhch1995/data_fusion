@@ -17,10 +17,7 @@
 #include <math.h>
 #include <vector>
 #include <queue> 
-
 #include "data_fusion.h"
-
-
 using namespace std;
 
 
@@ -41,6 +38,8 @@ cv::Mat xy_feature_pre = cv::Mat::zeros(2, pts_num, CV_32FC1);; // …œ“ª÷°µƒ÷–≥µµ
 cv::Mat xy_feature_predict; 
 cv::Mat lane_coeffs = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
 cv::Mat lane_coeffs_pre = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
+cv::Mat lane_coeffs_predict = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
+double image_timestamp;
 
 // Õ‚≤ølane
 bool isFirstTime_Lane = 1;
@@ -50,6 +49,29 @@ double vehicle_vel[2];
 double vehicle_pos[2];
 double vehicle_pos_pre[2] = {0.0, 0.0};
 double vehicle_fai_pre = 0.0;
+
+
+// ∂¡»Îlog
+string buffer_log;
+string data_flag;	
+stringstream ss_log;
+stringstream ss_tmp;
+ifstream infile_log("data/log.txt");	   // ofstream
+double log_data[2];
+
+struct StructAtt
+{
+	double timestamp;
+	double att[3];
+};
+
+struct StructVehicleState
+{
+	double timestamp;
+	double pos[2];
+	double vel[2];
+	double fai;
+};
 
 
 DEFINE_string(image_name, "./1.jpg", "image_name");
@@ -68,31 +90,6 @@ DEFINE_double(y_start_offset, 1.0, "y start offset");
 DEFINE_double(y_end_offset, 50.0, "y end offset");
 DEFINE_double(x_res, 0.05, "x resolution");
 DEFINE_double(y_res, 0.1, "y resolution");
-
-// ∂¡»Îlog
-string buffer_log;
-string data_flag;	
-stringstream ss_log;
-stringstream ss_tmp;
-ifstream infile_log("data/log.txt");	   // ofstream
-double log_data[2];
-
-
-
-
-struct StructAtt
-{
-	double timestamp;
-	double att[3];
-};
-
-struct StructVehicleState
-{
-	double timestamp;
-	double pos[2];
-	double vel[2];
-	double fai;
-};
 
 void LoadImage(cv::Mat* image, string image_name)
 {
@@ -139,19 +136,12 @@ int polyfit1(std::vector<float>* lane_coeffs, const cv::Mat& xy_feature, int ord
 		return 1;
 }
 
-
-void *read_thread(void *)
-{
-	std::cout<<"333"<<endl;
-	sleep(1);
-}
-
 int main(int argc, char *argv[])
 {
 	// ≥ı ºªØ
 	google::InitGoogleLogging(argv[0]);
 	FLAGS_log_dir = "./log/";
-	// parameter set up
+	
 	CameraPara camera_para;
 	camera_para.fu = FLAGS_fu;
 	camera_para.fv = FLAGS_fv;
@@ -164,7 +154,6 @@ int main(int argc, char *argv[])
 	camera_para.image_height = FLAGS_image_height;
 	BirdPerspectiveMapping bp_mapping(camera_para);
 
-	// ipm para
 	IPMPara ipm_para;
 	ipm_para.x_limits[0] = FLAGS_x_start_offset;
 	ipm_para.x_limits[1] = FLAGS_x_end_offset;
@@ -178,19 +167,11 @@ int main(int argc, char *argv[])
 	data_fusion.Initialize(camera_para, ipm_para);	
 //	data_fusion.exec_task();
 
-	// 
-	cv::Mat lane_coeffs_predict = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
-	double image_timestamp;
-
-	
-	
-
 	// Õ‚≤ølane—≠ª∑øÿ÷∆
 	//int start_image_index = 30; // ¥”ƒƒ“ª÷°ø™ º
-	int image_cal_step = 10;// √ø∏Ù∂‡…Ÿ÷°º∆À„“ª¥Œ≥µµ¿œﬂ‘§≤‚
+	int image_cal_step = 4;// √ø∏Ù∂‡…Ÿ÷°º∆À„“ª¥Œ≥µµ¿œﬂ‘§≤‚
 	int image_cal_counter = 0;  //º∆ ˝
-	bool is_lane_match_image = 0;
-		
+	bool is_lane_match_image = 0;		
     while(getline(infile_log, buffer_log))				
 	{	
 		ss_tmp.clear();
@@ -207,14 +188,13 @@ int main(int argc, char *argv[])
 			string image_name;
 			int image_index;
 			ss_log>>camera_raw_timestamp[0]>>camera_raw_timestamp[1]>>camera_add>>camera_flag>>image_index;
-			image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6;
-			
+			image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6;			
 			image_index = image_index + 1; // image «¥”0ø™ ºº∆ ˝µƒ
 			if(++image_cal_counter >= image_cal_step)
 			{
-				printf("image_index: %d\n", image_index);				
+				//printf("image_index: %d\n", image_index);	
+				LOG(INFO)<<"image_index: "<<image_index;
 				image_cal_counter = 0; // ÷ÿ÷√
-
 				// ≤È’“∆•≈‰µƒ≥µµ¿œﬂ±Í◊¢ ˝æ›
 				is_lane_match_image = 0; // Ω¯»Î≤È’“∆•≈‰µƒlane
 				while(!is_lane_match_image)
@@ -263,16 +243,16 @@ int main(int argc, char *argv[])
 									org_image.at<float>(y2, x1) * (1-x) * y + org_image.at<float>(y2, x2) * x * y;
 						ipm_image.at<float>(i, j) = static_cast<float>(val);
 					}
-				}	
-
+				}
+				
 				// ÷¥––‘§≤‚lane
+				lane_coeffs.copyTo(lane_coeffs_pre);				
 				data_fusion.GetLanePredictParameter(lane_coeffs_predict, image_timestamp, lane_coeffs_pre, lane_num, m_order );
 				
 
 				/// µ±«∞lane
 				xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);			
-				uv_feature_pts = cv::Mat::zeros(2, 4, CV_32FC1);
-				lane_coeffs.copyTo(lane_coeffs_pre);
+				uv_feature_pts = cv::Mat::zeros(2, 4, CV_32FC1);				
 				for(int k=0; k<lane_num; k++)
 				{
 					for(int i1 = 0; i1<pts_num; i1++)
@@ -281,19 +261,12 @@ int main(int argc, char *argv[])
 						uv_feature_pts.at<float>(1, i1) = uv_feature[1][k*pts_num + i1];
 					}		
 					// get these points on the ground plane
-					bp_mapping.TransformImage2Ground(uv_feature_pts, &xy_feature);	
-					// ≥µµ¿œﬂƒ‚∫œ	Y = AX(X «◊›÷·)
+					bp_mapping.TransformImage2Ground(uv_feature_pts, &xy_feature);						
 					std::vector<float> lane_coeffs_t;
-					polyfit1(&lane_coeffs_t, xy_feature, m_order );
+					polyfit1(&lane_coeffs_t, xy_feature, m_order); // ≥µµ¿œﬂƒ‚∫œ	Y = AX(X «◊›÷·);
 					
 					lane_coeffs.at<float>(0, k) = lane_coeffs_t[0];
 					lane_coeffs.at<float>(1, k) = lane_coeffs_t[1];
-					// ±£¥ÊÃÿ’˜µ„ ƒø«∞÷ª±£¥Ê÷–º‰≥µµ¿œﬂ
-					if( k == 1)
-					{
-						xy_feature.copyTo(xy_feature_pre);					
-//						std::cout<<"cur coeffs: "<<lane_coeffs_t[0]<<" "<<lane_coeffs_t[1]<<endl;
-					}
 					
 				}
 
@@ -341,7 +314,7 @@ int main(int argc, char *argv[])
 				{
 					i_index += 1;
 					y_predict[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
-					float x_t = lane_coeffs_predict.at<float>(0, 0) + lane_coeffs_predict.at<float>(1, 0)*i;
+					float x_t = lane_coeffs_predict.at<float>(0, 1) + lane_coeffs_predict.at<float>(1, 1)*i;
 					x_predict[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
 
 					if (x_predict[i_index] < 0 || x_predict[i_index] > ipm_para.width )

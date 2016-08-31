@@ -1,5 +1,7 @@
 #include "data_fusion.h"
 
+//# define LOG(INFO) std::cout
+
 
 using namespace common;
 
@@ -11,7 +13,7 @@ DataFusion::DataFusion()
 
 void DataFusion::Initialize(CameraPara camera_para_t, IPMPara ipm_para_t )
 {
-	infile_log.open("data/log.txt");	   // ofstream
+	infile_log.open("data/log_t.txt");	   // ofstream
 	
 	/// CAN
 	is_steer_angle_OK = 0; // 当前是否steer数据已经有了
@@ -24,29 +26,7 @@ void DataFusion::Initialize(CameraPara camera_para_t, IPMPara ipm_para_t )
 	imu_timestamp = 0.0f;
 	pre_imu_timestamp = 0.0f; // IMU数据上次得到的时刻 
 
-	// parameter set up
-	camera_para.fu = camera_para_t.fu;
-	camera_para.fv = camera_para_t.fv;
-	camera_para.cu = camera_para_t.cu;
-	camera_para.cv = camera_para_t.cv;
-	camera_para.height = camera_para_t.height; // m
-	camera_para.pitch = camera_para_t.pitch* CV_PI / 180;
-	camera_para.yaw = camera_para_t.yaw* CV_PI / 180;
-	camera_para.image_width = camera_para_t.image_width;
-	camera_para.image_height = camera_para_t.image_height;
-	BirdPerspectiveMapping bp_mapping(camera_para);
-
-	// ipm para
-	ipm_para.x_limits[0] = ipm_para_t.x_limits[0];
-	ipm_para.x_limits[1] = ipm_para_t.x_limits[1];
-	ipm_para.y_limits[0] = ipm_para_t.y_limits[0];
-	ipm_para.y_limits[1] = ipm_para_t.y_limits[1];
-	ipm_para.x_scale = ipm_para_t.x_scale;
-	ipm_para.y_scale = ipm_para_t.y_scale;
-	bp_mapping.GetUVLimitsFromXY(&ipm_para);
-
 	// 外部lane
-	isFirstTime_Lane = 1;
 	att_cur[0] = 0.0;
 	att_cur[1] = 0.0;
 	att_cur[2] = 0.0;
@@ -91,15 +71,7 @@ int DataFusion::data_fusion_main()
 					{
 						m_camera_match_state = 1; // 时间戳已经匹配
 						m_new_lane_parameter_get = 0;
-
-//						att_pre[0] = att_cur[0];
-//						att_pre[1] = att_cur[1];
-//						att_pre[2] = att_cur[2];
-//						
-//						vehicle_pos_pre[0] = vehicle_pos[0];
-//						vehicle_pos_pre[1] = vehicle_pos[1];
-//						vehicle_fai_pre = vehicle_fai;
-
+						
 						imu_attitude_estimate.GetAttitude(att_cur);
 						can_vehicle_estimate.GetVelPosFai(vehicle_vel, vehicle_pos, vehicle_fai);						
 						
@@ -248,20 +220,28 @@ int DataFusion::polyfit(std::vector<float>* lane_coeffs, const cv::Mat& xy_featu
 int DataFusion::GetLanePredictParameter(cv::Mat& lane_coeffs_predict, double image_timestamp, cv::Mat lane_coeffs_pre, double lane_num, double m_order )
 {
 	// 更新时间戳
-	m_cur_image_stamptime = image_timestamp;
-	
+	m_cur_image_stamptime = image_timestamp;	
 	m_new_lane_parameter_get = 1;
 	m_camera_match_state = 0; // 重置为初始状态	
+
+	// 根据时间戳，进行查找，直到本地camera时间戳与get的时间戳匹配
+	data_fusion_main();
+	
 	if(isFirsttimeGetParameter)
 	{
+		std::cout<<"isFirsttimeGetParameter=1"<<endl;
 		isFirsttimeGetParameter = 0;
 		m_pre_image_stamptime = image_timestamp;
+
+		att_pre[0] = att_cur[0];
+		att_pre[1] = att_cur[1];
+		att_pre[2] = att_cur[2];
+		vehicle_pos_pre[0] = vehicle_pos[0];
+		vehicle_pos_pre[1] = vehicle_pos[1];
+		
 		lane_coeffs_pre.copyTo(lane_coeffs_predict);
 	}else
 	{
-		// 根据时间戳，进行查找，知道本地camera时间戳与get的时间戳匹配
-		data_fusion_main();
-		
 		if(m_camera_match_state == 1)
 		{			
 			LanePredict(lane_coeffs_predict, lane_coeffs_pre, lane_num, m_order);
@@ -279,32 +259,13 @@ int DataFusion::GetLanePredictParameter(cv::Mat& lane_coeffs_predict, double ima
 // lane_coeffs_pre: 每一列代表一个样本
 int DataFusion::LanePredict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pre, double lane_num, double m_order)
 {
-/// iput:
-//	m_order = 1;
-//	lane_num = 1;
-	
-
-
 /// init:(待定)
 	int lane_points_nums = 5; // 每一天车道线取的样本点数量
 	double X[5] = {2.0, 5.0, 10.0, 20.0, 35.0};
+	LOG(INFO)<<"lane_coeffs_pre: "<<lane_coeffs_pre<<endl<<endl;
 
-//	att_cur[0] = 0;  // 通过get获得
-//	att_cur[1] = 0;
-//	att_cur[2] = 0;
-//	vehicle_pos[0] = 0;
-//	vehicle_pos[1] = 0;
 
 // 计算汽车在两帧之间的状态变化	
-	if (isFirstTime_Lane)
-	{
-		isFirstTime_Lane = 0;
-		att_pre[0] = att_cur[0];
-		att_pre[1] = att_cur[1];
-		att_pre[2] = att_cur[2];
-		vehicle_pos_pre[0] = vehicle_pos[0];
-		vehicle_pos_pre[1] = vehicle_pos[1];
-	}
 	// 对pos进行坐标系转换，转到以pre时刻为初始坐标
 	double d_pos_tmp[2]; // 前后两帧在初始坐标系下的汽车运动
 	double d_pos_new_c[2]; // 在以pre为坐标下的汽车运动
@@ -320,14 +281,13 @@ int DataFusion::LanePredict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pr
 	Rn2c_kT[1][0] = -Rn2c_kT[0][1];
 	Rn2c_kT[1][1] = Rn2c_kT[0][0];
 	
-	LOG(INFO)<<"dyaw: "<<dyaw; 
-	LOG(INFO)<<"vehicle_pos: "<<vehicle_pos[0]<<vehicle_pos[1];
-	LOG(INFO)<<"vehicle_pos_pre: "<<vehicle_pos_pre[0]<<vehicle_pos_pre[1]; 
-	LOG(INFO)<<"d_pos_new_c: "<<d_pos_new_c[0]<<d_pos_new_c[1]; 
+	LOG(INFO)<<"dyaw: "<<dyaw<<endl; 
+	LOG(INFO)<<"vehicle_pos: "<<vehicle_pos[0]<<" "<<vehicle_pos[1]<<endl;
+	LOG(INFO)<<"vehicle_pos_pre: "<<vehicle_pos_pre[0]<<" "<<vehicle_pos_pre[1]<<endl; 
+	LOG(INFO)<<"d_pos_new_c: "<<d_pos_new_c[0]<<" "<<d_pos_new_c[1]<<endl; 
 	LOG(INFO)<<"vehicle_fai_pre: "<<vehicle_fai_pre; 	
 	
 // 从车道线参数中获取特征点,并预测特征点
-
 	cv::Mat xy_feature_pre = cv::Mat::zeros(2, lane_points_nums, CV_32FC1);; // 上一帧的中车道线的特征点
 	cv::Mat xy_feature_predict = cv::Mat::zeros(2, lane_points_nums, CV_32FC1); //  预测的当前帧的中车道线的特征点
 	for(int lane_index=0; lane_index<lane_num; lane_index++)
@@ -339,11 +299,13 @@ int DataFusion::LanePredict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pr
 			xy_feature_pre.at<float>(1, points_index) = lane_coeffs_pre.at<float>(0, lane_index) + lane_coeffs_pre.at<float>(1, lane_index)*X[points_index];
 
 			// NED坐标系下的
-			double dx = xy_feature_pre.at<float>(1, points_index) - d_pos_new_c[0];
-			double dy = xy_feature_pre.at<float>(0, points_index) - d_pos_new_c[1];
+			double dx = xy_feature_pre.at<float>(0, points_index) - d_pos_new_c[0];
+			double dy = xy_feature_pre.at<float>(1, points_index) - d_pos_new_c[1];
 			xy_feature_predict.at<float>(1, points_index) = Rn2c_kT[0][0]*dx + Rn2c_kT[0][1]*dy;
 			xy_feature_predict.at<float>(0, points_index) = Rn2c_kT[1][0]*dx + Rn2c_kT[1][1]*dy;
 		}
+
+		LOG(INFO)<<"xy_feature_predict: "<<xy_feature_predict<< endl << endl; 
 		
 		// 车道线拟合	Y = AX(X是纵轴)
 		std::vector<float> lane_coeffs_t;
@@ -352,7 +314,7 @@ int DataFusion::LanePredict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pr
 		lane_coeffs_predict.at<float>(0, lane_index) = lane_coeffs_t[0];
 		lane_coeffs_predict.at<float>(1, lane_index) = lane_coeffs_t[1];
 
-		LOG(INFO)<<"predict_lane_coeffs: "<<lane_coeffs_t[0]<<" "<<lane_coeffs_t[1]; 	
+		LOG(INFO)<<"predict_lane_coeffs: "<<lane_coeffs_t[0]<<" "<<lane_coeffs_t[1]<<endl; 	
 		
 	}
 
