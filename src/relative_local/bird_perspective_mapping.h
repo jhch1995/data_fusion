@@ -102,7 +102,7 @@ public:
     ///        coordinates that makes an angle yaw clockwise (from Y-axis) with Y-axis
     void GetVanishingPoint(cv::Point2f* pt);
 
-	void SetPitchTransformMatrix(double pitch_new);
+    void SetPitchTransformMatrix(double pitch_new);
 
 private:
     void InitYawTransformMatrix();
