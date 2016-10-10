@@ -13,7 +13,7 @@ DataFusion::DataFusion()
 
 void DataFusion::Initialize(CameraPara camera_para_t, IPMPara ipm_para_t )
 {
-    infile_log.open("data/log_t.txt");       // ofstream
+    infile_log.open("data/log.txt");       // ofstream
     
     /// CAN
     is_steer_angle_OK = 0; // 当前是否steer数据已经有了

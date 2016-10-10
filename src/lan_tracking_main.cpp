@@ -20,6 +20,9 @@
 #include "data_fusion.h"
 using namespace std;
 
+#include <dirent.h>
+
+
 
 /// lane
 int m_order = 1;
@@ -57,6 +60,8 @@ string data_flag;
 stringstream ss_log;
 stringstream ss_tmp;
 ifstream infile_log("data/log.txt");       // ofstream
+
+
 double log_data[2];
 
 struct StructAtt
@@ -136,6 +141,76 @@ int polyfit1(std::vector<float>* lane_coeffs, const cv::Mat& xy_feature, int ord
         return 1;
 }
 
+// 获取指定路径下的文件名(主要用于获取图片所在文件夹名字)
+string get_file_name(string file_path)
+{
+    DIR *dp;
+    struct dirent *dirp;
+    char *file_name_t;
+    int n=0;
+    const char *filePath = file_path.data();
+    if((dp=opendir(filePath))==NULL)
+        printf("can't open %s", filePath);
+    
+    while(((dirp=readdir(dp))!=NULL))
+    {
+         if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))
+            continue;
+        file_name_t = dirp->d_name;
+        printf("%d: %s\n ",++n, file_name_t);
+    }
+
+    if(n == 1)
+    {
+        string str_file_name(file_name_t);
+        return str_file_name;
+    }else
+    {
+        printf("error: too many files!!! \n");
+        return 0;
+    }  
+}
+
+// 读取图片文件夹中所有文件最小和最大的index
+bool get_max_min_image_frame_index(int &max_index, int &min_index, string file_path)
+{
+    DIR *dp;
+    struct dirent *dirp;
+    char *file_name_t;
+    bool is_first_time = 1;
+    const char *filePath = file_path.data();
+    if((dp=opendir(filePath))==NULL)
+    {
+        printf("can't open %s", filePath); 
+        return 0;
+    }       
+
+    while(((dirp=readdir(dp))!=NULL))
+    {
+        if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))
+           continue;
+        
+        file_name_t = dirp->d_name;
+        string str_name(file_name_t);
+        int number = std::atoi( str_name.c_str());
+        if(is_first_time)
+        {
+            is_first_time = 0;
+            max_index = number;
+            min_index = number;
+        }else
+        {
+            if(number > max_index)
+                max_index = number;
+            if(number < min_index)
+                min_index = number;
+        }
+    }
+
+    printf("max:%d, min:%d\n", max_index, min_index);
+    return 1;    
+}
+
 int main(int argc, char *argv[])
 {
 // 初始化
@@ -168,170 +243,202 @@ int main(int argc, char *argv[])
 //    data_fusion.exec_task_data_fusion(); // 在线运行的时候应该是在用独立线程持续运行的
 
 // 本地利用标注的数据测试
+   
+    string str_image_frame_add = "data/doing/frame/";
+
+    string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字
+    
+    string frame_file_addr = str_image_frame_add + frame_file_name;// 获取图片的max,min index
+
+    int max_frame_index, min_frame_index;
+    get_max_min_image_frame_index(max_frame_index, min_frame_index, frame_file_addr);
+
     // 外部lane循环控制
     //int start_image_index = 30; // 从哪一帧开始
     int image_cal_step = 4;// 每隔多少帧计算一次车道线预测
     int image_cal_counter = 0;  //计数
-    bool is_lane_match_image = 0;        
-    while(getline(infile_log, buffer_log))                
-    {    
-        ss_tmp.clear();
-        ss_tmp.str(buffer_log);
-        ss_tmp>>log_data[0]>>log_data[1]>>data_flag;
-        ss_log.clear();
-        ss_log.str(buffer_log);
-
-        if(data_flag == "cam_frame")
+    bool is_lane_match_image = 0;    
+    bool is_camera_index_mached = 0; // 是否已经从log中寻找到当前图像的匹配的时间戳
+    bool is_have_first_matched = 0; // 是否完成了第一次的匹配
+    for(int image_index = min_frame_index; image_index <= max_frame_index; image_index++)
+    {
+        is_camera_index_mached = 0;
+        while(!is_camera_index_mached)
         {
-            /// IPM
-            double camera_raw_timestamp[2];
-            string camera_flag, camera_add, image_index_str;
-            string image_name;
-            int image_index;
-            ss_log>>camera_raw_timestamp[0]>>camera_raw_timestamp[1]>>camera_add>>camera_flag>>image_index;
-            image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6;            
-            image_index = image_index + 1; // image是从0开始计数的
-            if(++image_cal_counter >= image_cal_step)
+            getline(infile_log, buffer_log);
+            ss_tmp.clear();
+            ss_tmp.str(buffer_log);
+            ss_tmp>>log_data[0]>>log_data[1]>>data_flag;
+            ss_log.clear();
+            ss_log.str(buffer_log);
+
+            if(data_flag == "cam_frame")
             {
-                //printf("image_index: %d\n", image_index);    
-                LOG(INFO)<<"image_index: "<<image_index;
-                image_cal_counter = 0; // 重置
-                // 查找匹配的车道线标注数据
-                is_lane_match_image = 0; // 进入查找匹配的lane
-                while(!is_lane_match_image)
-                {
-                    getline(infile_lane, buffer_lane);
-                    ss_lane.clear();
-                    ss_lane.str(buffer_lane);
-                    ss_lane>>lane_index>>lane_timestamp
-                        >>uv_feature[0][0]>>uv_feature[1][0]>>uv_feature[0][1]>>uv_feature[1][1]>>uv_feature[0][2]>>uv_feature[1][2]>>uv_feature[0][3]>>uv_feature[1][3]
-                        >>uv_feature[0][4]>>uv_feature[1][4]>>uv_feature[0][5]>>uv_feature[1][5]>>uv_feature[0][6]>>uv_feature[1][6]>>uv_feature[0][7]>>uv_feature[1][7]
-                        >>uv_feature[0][8]>>uv_feature[1][8]>>uv_feature[0][9]>>uv_feature[1][9]>>uv_feature[0][10]>>uv_feature[1][10]>>uv_feature[0][11]>>uv_feature[1][11];
-                    if(lane_index == image_index)
+                /// IPM
+                double camera_raw_timestamp[2];
+                string camera_flag, camera_add, image_index_str;
+                string image_name;
+                int log_image_index;
+                ss_log>>camera_raw_timestamp[0]>>camera_raw_timestamp[1]>>camera_flag>>camera_add>>log_image_index;
+                image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6; 
+
+                // 匹配图片的时间戳
+                int data_length = camera_add.length();
+                int pos1 = camera_add.find_last_of('_');
+                int pos2 = camera_add.find_last_of('.');
+                string log_str_file_name = camera_add.substr(pos1+1, pos2-1-pos1);
+
+                if(log_str_file_name.compare(frame_file_name) == 0 && log_image_index ==  image_index)
+                { // 文件名和index已经匹配
+                    is_camera_index_mached = 1;
+                    is_have_first_matched = 1;
+
+                    if(++image_cal_counter >= image_cal_step)
                     {
-                        is_lane_match_image = 1;
-                    }else if(lane_index < image_index)
-                    {
-                        continue;
-                    }else{
-                        printf("error: lane index is bigger than image index!!!\n");
-                        break;
-                    }
+                        //printf("image_index: %d\n", image_index);    
+                        LOG(INFO)<<"image_index: "<<image_index;
+                        image_cal_counter = 0; // 重置
+                        // 查找匹配的车道线标注数据
+                        is_lane_match_image = 0; // 进入查找匹配的lane
+                        while(!is_lane_match_image)
+                        {
+                            getline(infile_lane, buffer_lane);
+                            ss_lane.clear();
+                            ss_lane.str(buffer_lane);
+                            ss_lane>>lane_index>>lane_timestamp
+                                >>uv_feature[0][0]>>uv_feature[1][0]>>uv_feature[0][1]>>uv_feature[1][1]>>uv_feature[0][2]>>uv_feature[1][2]>>uv_feature[0][3]>>uv_feature[1][3]
+                                >>uv_feature[0][4]>>uv_feature[1][4]>>uv_feature[0][5]>>uv_feature[1][5]>>uv_feature[0][6]>>uv_feature[1][6]>>uv_feature[0][7]>>uv_feature[1][7]
+                                >>uv_feature[0][8]>>uv_feature[1][8]>>uv_feature[0][9]>>uv_feature[1][9]>>uv_feature[0][10]>>uv_feature[1][10]>>uv_feature[0][11]>>uv_feature[1][11];
+                            if(lane_index == image_index)
+                            {
+                                is_lane_match_image = 1;
+                            }else if(lane_index < image_index)
+                            {
+                                continue;
+                            }else{
+                                printf("error: lane index is bigger than image index!!!\n");
+                                break;
+                            }
+                        }
+
+                        stringstream ss;
+                        ss << image_index;
+                        ss >> image_index_str;
+//                        char str_iamge_name_index[20]; // 新数据格式，补全8位
+//                        sprintf(str_iamge_name_index, "%08d", image_index);
+                        image_name = frame_file_addr + "/" + image_index_str + ".jpg";
+
+                        cv::Mat org_image;
+                        LoadImage(&org_image, image_name);
+                        cv::Mat ipm_image = cv::Mat::zeros(ipm_para.height+1, ipm_para.width+1, CV_32FC1);
+                        for (int i = 0; i < ipm_para.height; ++i) 
+                        {
+                            int base = i * ipm_para.width;
+                            for (int j = 0; j < ipm_para.width; ++j) 
+                            {
+                                int offset = base + j;
+                                float ui = ipm_para.uv_grid.at<float>(0, offset);
+                                float vi = ipm_para.uv_grid.at<float>(1, offset);
+                                if (ui < ipm_para.u_limits[0] || ui > ipm_para.u_limits[1] || vi < ipm_para.v_limits[0] || vi > ipm_para.v_limits[1])
+                                    continue;
+                                int x1 = int(ui), x2 = int(ui + 1);
+                                int y1 = int(vi), y2 = int(vi + 1);
+                                float x = ui - x1, y = vi - y1;
+                                float val = org_image.at<float>(y1, x1) * (1 - x) * (1-y) +    org_image.at<float>(y1, x2) * x * (1-y) +
+                                            org_image.at<float>(y2, x1) * (1-x) * y + org_image.at<float>(y2, x2) * x * y;
+                                ipm_image.at<float>(i, j) = static_cast<float>(val);
+                            }
+                        }
+                        
+                        // 执行预测lane
+                        lane_coeffs.copyTo(lane_coeffs_pre);                
+                        data_fusion.GetLanePredictParameter(lane_coeffs_predict, image_timestamp, lane_coeffs_pre, lane_num, m_order );
+                        
+
+                        /// 当前lane
+                        xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);            
+                        uv_feature_pts = cv::Mat::zeros(2, 4, CV_32FC1);                
+                        for(int k=0; k<lane_num; k++)
+                        {
+                            for(int i1 = 0; i1<pts_num; i1++)
+                            {
+                                uv_feature_pts.at<float>(0, i1) = uv_feature[0][k*pts_num + i1];
+                                uv_feature_pts.at<float>(1, i1) = uv_feature[1][k*pts_num + i1];
+                            }        
+                            // get these points on the ground plane
+                            bp_mapping.TransformImage2Ground(uv_feature_pts, &xy_feature);                        
+                            std::vector<float> lane_coeffs_t;
+                            polyfit1(&lane_coeffs_t, xy_feature, m_order); // 车道线拟合    Y = AX(X是纵轴);
+                            
+                            lane_coeffs.at<float>(0, k) = lane_coeffs_t[0];
+                            lane_coeffs.at<float>(1, k) = lane_coeffs_t[1];
+                            
+                        }
+
+                        /// 在IPM中标注当前lane
+                        std::vector<int> x(ipm_para.height+2);
+                        std::vector<int> y(ipm_para.height+2);
+                        int i_index = -1;            
+                        for (float i = ipm_para.y_limits[0]; i < ipm_para.y_limits[1]; i+=ipm_para.y_scale) // x
+                        {
+                            i_index += 1;
+                            y[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
+                            float x_t = lane_coeffs.at<float>(0, 1) + lane_coeffs.at<float>(1, 1)*i;
+                            x[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
+
+                            if (x[i_index] < 0 || x[i_index] > ipm_para.width )
+                            {
+                                continue;
+                            }else{
+                                ipm_image.at<float>(y[i_index], x[i_index]) = 0.9;
+                            }            
+                        }    
+
+                        /// 在IPM中标注上一帧lane
+                        i_index = -1;            
+                        for (float i = ipm_para.y_limits[0]; i < ipm_para.y_limits[1]; i+=ipm_para.y_scale) // x
+                        {
+                            i_index += 1;
+                            y[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
+                            float x_t = lane_coeffs_pre.at<float>(0, 1) + lane_coeffs_pre.at<float>(1, 1)*i;
+                            x[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
+
+                            if (x[i_index] < 0 || x[i_index] > ipm_para.width )
+                            {
+                                continue;
+                            }else{
+                                ipm_image.at<float>(y[i_index], x[i_index]) = 0.75;
+                            }            
+                        }
+
+                        /// 在IPM中标注预测lane
+                        std::vector<int> x_predict(ipm_para.height+2);
+                        std::vector<int> y_predict(ipm_para.height+2);
+                        i_index = -1;            
+                        for (float i = ipm_para.y_limits[0]; i < ipm_para.y_limits[1]; i+=ipm_para.y_scale) // x
+                        {
+                            i_index += 1;
+                            y_predict[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
+                            float x_t = lane_coeffs_predict.at<float>(0, 1) + lane_coeffs_predict.at<float>(1, 1)*i;
+                            x_predict[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
+
+                            if (x_predict[i_index] < 0 || x_predict[i_index] > ipm_para.width )
+                            {
+                                continue;
+                            }else{
+                                ipm_image.at<float>(y_predict[i_index], x_predict[i_index]) = 0.1; // 黑色
+                            }            
+                        }    
+                        
+                        cv::imshow("ipm", ipm_image);
+                        if(cv::waitKey(50))
+                        {}
+                        
+                    }  
                 }
-
-                stringstream ss;
-                ss << image_index;
-                ss >> image_index_str;
-                image_name = "data/1/" + image_index_str + ".jpg";
-
-                cv::Mat org_image;
-                LoadImage(&org_image, image_name);
-                cv::Mat ipm_image = cv::Mat::zeros(ipm_para.height+1, ipm_para.width+1, CV_32FC1);
-                for (int i = 0; i < ipm_para.height; ++i) 
-                {
-                    int base = i * ipm_para.width;
-                    for (int j = 0; j < ipm_para.width; ++j) 
-                    {
-                        int offset = base + j;
-                        float ui = ipm_para.uv_grid.at<float>(0, offset);
-                        float vi = ipm_para.uv_grid.at<float>(1, offset);
-                        if (ui < ipm_para.u_limits[0] || ui > ipm_para.u_limits[1] || vi < ipm_para.v_limits[0] || vi > ipm_para.v_limits[1])
-                            continue;
-                        int x1 = int(ui), x2 = int(ui + 1);
-                        int y1 = int(vi), y2 = int(vi + 1);
-                        float x = ui - x1, y = vi - y1;
-                        float val = org_image.at<float>(y1, x1) * (1 - x) * (1-y) +    org_image.at<float>(y1, x2) * x * (1-y) +
-                                    org_image.at<float>(y2, x1) * (1-x) * y + org_image.at<float>(y2, x2) * x * y;
-                        ipm_image.at<float>(i, j) = static_cast<float>(val);
-                    }
-                }
-                
-                // 执行预测lane
-                lane_coeffs.copyTo(lane_coeffs_pre);                
-                data_fusion.GetLanePredictParameter(lane_coeffs_predict, image_timestamp, lane_coeffs_pre, lane_num, m_order );
-                
-
-                /// 当前lane
-                xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);            
-                uv_feature_pts = cv::Mat::zeros(2, 4, CV_32FC1);                
-                for(int k=0; k<lane_num; k++)
-                {
-                    for(int i1 = 0; i1<pts_num; i1++)
-                    {
-                        uv_feature_pts.at<float>(0, i1) = uv_feature[0][k*pts_num + i1];
-                        uv_feature_pts.at<float>(1, i1) = uv_feature[1][k*pts_num + i1];
-                    }        
-                    // get these points on the ground plane
-                    bp_mapping.TransformImage2Ground(uv_feature_pts, &xy_feature);                        
-                    std::vector<float> lane_coeffs_t;
-                    polyfit1(&lane_coeffs_t, xy_feature, m_order); // 车道线拟合    Y = AX(X是纵轴);
-                    
-                    lane_coeffs.at<float>(0, k) = lane_coeffs_t[0];
-                    lane_coeffs.at<float>(1, k) = lane_coeffs_t[1];
-                    
-                }
-
-                /// 在IPM中标注当前lane
-                std::vector<int> x(ipm_para.height+2);
-                std::vector<int> y(ipm_para.height+2);
-                int i_index = -1;            
-                for (float i = ipm_para.y_limits[0]; i < ipm_para.y_limits[1]; i+=ipm_para.y_scale) // x
-                {
-                    i_index += 1;
-                    y[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
-                    float x_t = lane_coeffs.at<float>(0, 1) + lane_coeffs.at<float>(1, 1)*i;
-                    x[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
-
-                    if (x[i_index] < 0 || x[i_index] > ipm_para.width )
-                    {
-                        continue;
-                    }else{
-                        ipm_image.at<float>(y[i_index], x[i_index]) = 0.9;
-                    }            
-                }    
-
-                /// 在IPM中标注上一帧lane
-                i_index = -1;            
-                for (float i = ipm_para.y_limits[0]; i < ipm_para.y_limits[1]; i+=ipm_para.y_scale) // x
-                {
-                    i_index += 1;
-                    y[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
-                    float x_t = lane_coeffs_pre.at<float>(0, 1) + lane_coeffs_pre.at<float>(1, 1)*i;
-                    x[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
-
-                    if (x[i_index] < 0 || x[i_index] > ipm_para.width )
-                    {
-                        continue;
-                    }else{
-                        ipm_image.at<float>(y[i_index], x[i_index]) = 0.75;
-                    }            
-                }
-
-                /// 在IPM中标注预测lane
-                std::vector<int> x_predict(ipm_para.height+2);
-                std::vector<int> y_predict(ipm_para.height+2);
-                i_index = -1;            
-                for (float i = ipm_para.y_limits[0]; i < ipm_para.y_limits[1]; i+=ipm_para.y_scale) // x
-                {
-                    i_index += 1;
-                    y_predict[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
-                    float x_t = lane_coeffs_predict.at<float>(0, 1) + lane_coeffs_predict.at<float>(1, 1)*i;
-                    x_predict[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
-
-                    if (x_predict[i_index] < 0 || x_predict[i_index] > ipm_para.width )
-                    {
-                        continue;
-                    }else{
-                        ipm_image.at<float>(y_predict[i_index], x_predict[i_index]) = 0.1; // 黑色
-                    }            
-                }    
-                
-                cv::imshow("ipm", ipm_image);
-                if(cv::waitKey(50))
-                {}
-                
-            }    
+            }                
         }
+        
 
     }
     
