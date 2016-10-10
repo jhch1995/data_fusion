@@ -88,7 +88,7 @@ DEFINE_double(x_start_offset, -7.0, "x start offset");
 DEFINE_double(x_end_offset, 7.0, "x start offset");
 DEFINE_double(y_start_offset, 1.0, "y start offset");
 DEFINE_double(y_end_offset, 50.0, "y end offset");
-DEFINE_double(x_res, 0.05, "x resolution");
+DEFINE_double(x_res, 0.04, "x resolution");
 DEFINE_double(y_res, 0.1, "y resolution");
 
 void LoadImage(cv::Mat* image, string image_name)
@@ -138,7 +138,7 @@ int polyfit1(std::vector<float>* lane_coeffs, const cv::Mat& xy_feature, int ord
 
 int main(int argc, char *argv[])
 {
-    // 初始化
+// 初始化
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";
     
@@ -165,8 +165,9 @@ int main(int argc, char *argv[])
     
     DataFusion data_fusion;
     data_fusion.Initialize(camera_para, ipm_para);    
-//    data_fusion.exec_task();
+//    data_fusion.exec_task_data_fusion(); // 在线运行的时候应该是在用独立线程持续运行的
 
+// 本地利用标注的数据测试
     // 外部lane循环控制
     //int start_image_index = 30; // 从哪一帧开始
     int image_cal_step = 4;// 每隔多少帧计算一次车道线预测
@@ -321,7 +322,7 @@ int main(int argc, char *argv[])
                     {
                         continue;
                     }else{
-                        ipm_image.at<float>(y_predict[i_index], x_predict[i_index]) = 0.1;
+                        ipm_image.at<float>(y_predict[i_index], x_predict[i_index]) = 0.1; // 黑色
                     }            
                 }    
                 

@@ -24,9 +24,15 @@ public:
 
 
     void UpdateVehicleState(double steer_angle, double vehicle_speed           , double dt );
+
+    void UpdateVehicleState_imu(double yaw, double vehicle_speed, double dt );
+        
         
     // 获取当前汽车的位置速度
     void GetVelPosFai(double (&vel)[2], double (&pos)[2], double& fai);
+
+    // 获取当前汽车的位置速度
+    void GetVelPosXY(double (&vel)[2], double (&pos)[2]);
 
     // 重置汽车的状态数据
     // 包括: 速度、位置、航向角

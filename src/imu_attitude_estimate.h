@@ -55,7 +55,10 @@ public:
 
     void ResetState();
 
+    
 
+
+private:
 
     enum
     {
@@ -63,11 +66,7 @@ public:
       Y_AXIS,
       Z_AXIS
     };
-
-//    def_attitude_T gAttVar;
-
-
-private:
+    
     bool m_isFirstTimeUpdate; // 判断是否是第一次更新姿态
 
     double  m_AccAVSFactor[3]; // 加速度计平滑的参数
@@ -81,12 +80,15 @@ private:
 
     
     // Y1模组的加速度计校正参数
-    double    m_accel_range_scale;
+    double m_accel_range_scale;
     double m_A0[3];// = {0.0628f, 0.0079f, -0.0003f};
     double m_A1[3][3]; // = {0.9986f, -0.0027f, 0.0139f, 0.0164f, 0.9993f, -0.0176f, -0.0159f, 0.0064f, 0.9859f };
 
     double m_gyro_range_scale;
     double m_GyroDrift[3]; // = {0.0155f, -0.0421f, -0.0217f};  // 陀螺仪零偏，在线估计
+
+    // gyro calibation
+    double mGyroOffset[3];
     
 
 };

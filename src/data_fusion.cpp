@@ -35,6 +35,7 @@ void DataFusion::Initialize(CameraPara camera_para_t, IPMPara ipm_para_t )
     vehicle_pos[0] = 0.0;
     vehicle_pos[1] = 0.0;
     vehicle_fai = 0.0;
+    vehicle_yaw = 0.0;
     
     att_pre[0] = 0.0;
     att_pre[1] = 0.0;
@@ -64,18 +65,19 @@ int DataFusion::data_fusion_main()
                 ss_tmp.str(buffer_log);
                 ss_tmp>>camera_timestamp_raw[0]>>camera_timestamp_raw[1]>>data_flag;
                 double camera_timestamp;
+                // 读取log，度过读到camera数据
                 if(data_flag == "cam_frame")
                 {
                     camera_timestamp = camera_timestamp_raw[0] + camera_timestamp_raw[1]*1e-6;
-                    if( camera_timestamp == m_cur_image_stamptime)
+                    if( fabs(camera_timestamp - m_extern_call_cur_image_stamptime) < 0.001)
                     {
                         m_camera_match_state = 1; // 时间戳已经匹配
                         m_new_lane_parameter_get = 0;
-                        
+                        // 更新当前车状态数据
                         imu_attitude_estimate.GetAttitude(att_cur);
-                        can_vehicle_estimate.GetVelPosFai(vehicle_vel, vehicle_pos, vehicle_fai);                        
+                        can_vehicle_estimate.GetVelPosXY(vehicle_vel, vehicle_pos);                        
                         
-                    }else if( camera_timestamp > m_cur_image_stamptime)
+                    }else if( camera_timestamp - m_extern_call_cur_image_stamptime > 0.1) // 时间戳匹配错误 防止死循环
                     {
                         m_camera_match_state = -1; // 本地时间戳已经超时
                     }
@@ -92,7 +94,7 @@ int DataFusion::data_fusion_main()
 }
 
 
-int DataFusion::run_fusion( string buffer_log,     string data_flag)
+int DataFusion::run_fusion( string buffer_log, string data_flag)
 {
     ss_log.clear();
     ss_log.str(buffer_log);
@@ -149,33 +151,58 @@ int DataFusion::run_fusion( string buffer_log,     string data_flag)
         is_steer_angle_OK = 1;        
     }else if(data_flag == "speed")
     {    
-        if( is_steer_angle_OK == 1)
+//        if( is_steer_angle_OK == 1)
+//        {
+//            is_steer_angle_OK = 0;
+//            double speed_raw_timestamp[2];    
+//            string speed_str;
+//            ss_log>>speed_raw_timestamp[0]>>speed_raw_timestamp[1]>>speed_str>>speed_can;    
+//            speed_can = speed_can/3.6;// km/h-->m/s
+//            speed_timestamp = speed_raw_timestamp[0] + speed_raw_timestamp[1]*1e-6;
+//            can_timestamp = speed_timestamp;
+
+//            if(isFirstTime_can)
+//            {
+//                can_timestamp_pre = speed_timestamp;                    
+//                isFirstTime_can = 0;
+//            }else
+//            {
+//                double dt_can = can_timestamp - can_timestamp_pre;
+//                can_vehicle_estimate.UpdateVehicleState(steer_angle_deg*D2R, speed_can, dt_can );
+//                can_timestamp_pre = can_timestamp;
+//                
+//                // save queue
+//                struct_vehicle_state.timestamp = can_timestamp;
+//                can_vehicle_estimate.GetVelPosFai(struct_vehicle_state.vel, struct_vehicle_state.pos, struct_vehicle_state.fai);
+
+//                //printf("steer: %f speed: %f  dt: %f\n", steer_angle_deg, speed_can, dt_can);
+//                //printf("vel: %f, %f pos: %f, %f\n", struct_vehicle_state.vel[0], struct_vehicle_state.vel[1], struct_vehicle_state.pos[0], struct_vehicle_state.pos[1]);
+//            }
+//        }
+
+        // 利用imu+speed计算汽车运动
+        double speed_raw_timestamp[2];    
+        string speed_str;
+        ss_log>>speed_raw_timestamp[0]>>speed_raw_timestamp[1]>>speed_str>>speed_can;    
+        speed_can = speed_can/3.6;// km/h-->m/s
+        speed_timestamp = speed_raw_timestamp[0] + speed_raw_timestamp[1]*1e-6;
+        can_timestamp = speed_timestamp;
+        
+        if(is_first_speed_data)
         {
-            is_steer_angle_OK = 0;
-            double speed_raw_timestamp[2];    
-            string speed_str;
-            ss_log>>speed_raw_timestamp[0]>>speed_raw_timestamp[1]>>speed_str>>speed_can;    
-            speed_can = speed_can/3.6;// km/h-->m/s
-            speed_timestamp = speed_raw_timestamp[0] + speed_raw_timestamp[1]*1e-6;
-            can_timestamp = speed_timestamp;
-
-            if(isFirstTime_can)
-            {
-                can_timestamp_pre = speed_timestamp;                    
-                isFirstTime_can = 0;
-            }else{
-                double dt_can = can_timestamp - can_timestamp_pre;
-                can_vehicle_estimate.UpdateVehicleState(steer_angle_deg*D2R, speed_can, dt_can );
-                can_timestamp_pre = can_timestamp;
-                
-                // save queue
-                struct_vehicle_state.timestamp = can_timestamp;
-                can_vehicle_estimate.GetVelPosFai(struct_vehicle_state.vel, struct_vehicle_state.pos, struct_vehicle_state.fai);
-
-//                printf("steer: %f speed: %f  dt: %f\n", steer_angle_deg, speed_can, dt_can);
-//                printf("vel: %f, %f pos: %f, %f\n", struct_vehicle_state.vel[0], struct_vehicle_state.vel[1], struct_vehicle_state.pos[0], struct_vehicle_state.pos[1]);
-            }
-        }            
+            is_first_speed_data = 0;
+            imu_attitude_estimate.GetAttitude(att_xy_pre);
+            can_timestamp_pre = speed_timestamp;  
+            
+        }else
+        {
+            double dt_can = can_timestamp - can_timestamp_pre;
+            imu_attitude_estimate.GetAttitude(att_xy_cur);
+            can_vehicle_estimate.UpdateVehicleState_imu(att_xy_cur[2], speed_can, dt_can );
+            can_timestamp_pre = can_timestamp;
+            
+        }
+        
     }
     return 1;
 }
@@ -220,18 +247,18 @@ int DataFusion::polyfit(std::vector<float>* lane_coeffs, const cv::Mat& xy_featu
 int DataFusion::GetLanePredictParameter(cv::Mat& lane_coeffs_predict, double image_timestamp, cv::Mat lane_coeffs_pre, double lane_num, double m_order )
 {
     // 更新时间戳
-    m_cur_image_stamptime = image_timestamp;    
+    m_extern_call_cur_image_stamptime = image_timestamp;    
     m_new_lane_parameter_get = 1;
     m_camera_match_state = 0; // 重置为初始状态    
 
-    // 根据时间戳，进行查找，直到本地camera时间戳与get的时间戳匹配
+    // 根据时间戳，进行查找和计算，直到本地camera时间戳与get的时间戳匹配
     data_fusion_main();
     
     if(isFirsttimeGetParameter)
     {
         std::cout<<"isFirsttimeGetParameter=1"<<endl;
         isFirsttimeGetParameter = 0;
-        m_pre_image_stamptime = image_timestamp;
+        m_extern_call_pre_image_stamptime = image_timestamp;
 
         att_pre[0] = att_cur[0];
         att_pre[1] = att_cur[1];
@@ -260,7 +287,7 @@ int DataFusion::GetLanePredictParameter(cv::Mat& lane_coeffs_predict, double ima
 int DataFusion::LanePredict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pre, double lane_num, double m_order)
 {
 /// init:(待定)
-    int lane_points_nums = 5; // 每一天车道线取的样本点数量
+    int lane_points_nums = 5; // 每一条车道线取的样本点数量
     double X[5] = {2.0, 5.0, 10.0, 20.0, 35.0};
     LOG(INFO)<<"lane_coeffs_pre: "<<lane_coeffs_pre<<endl<<endl;
 
@@ -271,8 +298,8 @@ int DataFusion::LanePredict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pr
     double d_pos_new_c[2]; // 在以pre为坐标下的汽车运动
     d_pos_tmp[0] = vehicle_pos[0] - vehicle_pos_pre[0];
     d_pos_tmp[1] = vehicle_pos[1] - vehicle_pos_pre[1];         
-    d_pos_new_c[0] = cosf(vehicle_fai_pre)*d_pos_tmp[0] + sinf(vehicle_fai_pre)*d_pos_tmp[1];
-    d_pos_new_c[1] = -sinf(vehicle_fai_pre)*d_pos_tmp[0] + cos(vehicle_fai_pre)*d_pos_tmp[1];
+    d_pos_new_c[0] = cosf(att_pre[2])*d_pos_tmp[0] + sinf(att_pre[2])*d_pos_tmp[1];
+    d_pos_new_c[1] = -sinf(att_pre[2])*d_pos_tmp[0] + cos(att_pre[2])*d_pos_tmp[1];
     
     double dyaw = att_cur[2] - att_pre[2]; 
     double Rn2c_kT[2][2];
@@ -325,6 +352,7 @@ int DataFusion::LanePredict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pr
     vehicle_pos_pre[0] = vehicle_pos[0];
     vehicle_pos_pre[1] = vehicle_pos[1];
     vehicle_fai_pre = vehicle_fai; //struct_vehicle_state.fai;
+    vehicle_yaw_pre = vehicle_yaw;
 
     return 1;
 }

@@ -201,3 +201,170 @@ int ImuAttitudeEstimate::GyrocDataCalibation(double (&GyroData_NED)[3], double G
 
 
 
+/*****************************************************************************
+*	Function:		 MPU6500_Gyro_calibration( void );
+*	Input:
+*				
+*	Output:
+*			
+*	Describe:
+*			陀螺仪上电校准
+*
+******************************************************************************/
+// TODO:
+//int ImuAttitudeEstimate:: GyroCalibration( void )
+//{
+//	double gyro_sum[3],gyro_avg[3],gyro_diff[3], accel_diff[3], last_average[3], best_avg[3], accel_start[3];
+//	double gyro_diff_norm, l_last_average, new_gyro_offset_length, new_gyro_offset_length1, acc_diff_norm;
+//	int16_t gyro_sample_num = 50; // the gyro sample numbers each cycle
+
+//	double pre_gyro_offset[3], new_gyro_offset[3];
+//	double best_gyro_diff;
+//	uint8_t converged, num_converged;
+//	uint8_t i,j_cal_cycle;
+//	double f_temp[4];
+
+// the strategy is to average 50 points over 0.5 seconds, then do it
+// again and see if the 2nd average is within a small margin of the first	
+//	pre_gyro_offset[X_AXIS] = mGyroOffset[X_AXIS];
+// 	pre_gyro_offset[Y_AXIS] = mGyroOffset[Y_AXIS];
+// 	pre_gyro_offset[Z_AXIS] = mGyroOffset[Z_AXIS]; 
+
+//	mGyroOffset[X_AXIS] = 0.0f;
+// 	mGyroOffset[Y_AXIS] = 0.0f;
+// 	mGyroOffset[Z_AXIS] = 0.0f;
+//	
+//	new_gyro_offset[X_AXIS] = 0.0f;
+// 	new_gyro_offset[Y_AXIS] = 0.0f;
+// 	new_gyro_offset[Z_AXIS] = 0.0f;
+
+//	last_average[X_AXIS] = 0.0f;
+// 	last_average[Y_AXIS] = 0.0f;
+// 	last_average[Z_AXIS] = 0.0f;
+
+//	converged = false;
+//	num_converged = 0;
+//		
+//	// we try to get a good calibration estimate for up to 30 seconds if the gyros are stable, we should get it in 1 second
+//    for ( j_cal_cycle = 0; j_cal_cycle <= 30*4 & num_converged<1; j_cal_cycle++) 
+//	{
+
+//		gyro_diff_norm = 0.0f;
+//		gyro_sum[X_AXIS] = 0.0;
+//		gyro_sum[Y_AXIS] = 0.0;
+//		gyro_sum[Z_AXIS] = 0.0;		
+
+//        accel_start[X_AXIS] = gAccGyroVar.mAccAvsSmoonth[X_AXIS];
+//		accel_start[Y_AXIS] = gAccGyroVar.mAccAvsSmoonth[Y_AXIS];
+//		accel_start[Z_AXIS] = gAccGyroVar.mAccAvsSmoonth[Z_AXIS];
+//		
+//        for ( i=0; i<gyro_sample_num; i++) {
+//            MPU6500_ACC_get(&gEngineVar.mAccData[0]); 		// Getting Accelerometer data	
+//			MPU6500_Gyro_get(&gEngineVar.mGyroData[0]); 	// Getting Gyroscope data
+
+//			gyro_sum[X_AXIS] += gAccGyroVar.mGyroRAWData[X_AXIS];
+//			gyro_sum[Y_AXIS] += gAccGyroVar.mGyroRAWData[Y_AXIS];
+//			gyro_sum[Z_AXIS] += gAccGyroVar.mGyroRAWData[Z_AXIS];
+
+//            Delay_ms(5);
+//        }
+//		
+//		accel_diff[X_AXIS] = gAccGyroVar.mAccAvsSmoonth[X_AXIS] - accel_start[X_AXIS];
+//		accel_diff[Y_AXIS] = gAccGyroVar.mAccAvsSmoonth[Y_AXIS] - accel_start[Y_AXIS];
+//		accel_diff[Z_AXIS] = gAccGyroVar.mAccAvsSmoonth[Z_AXIS] - accel_start[Z_AXIS];
+
+//		acc_diff_norm = sqrtf(accel_diff[X_AXIS]*accel_diff[X_AXIS] + accel_diff[Y_AXIS]*accel_diff[Y_AXIS] + accel_diff[Z_AXIS]*accel_diff[Z_AXIS]);
+//        if (acc_diff_norm >  0.2f) {
+//            // the accelerometers changed during the gyro sum. Skip this sample. This copes with doing gyro cal on a
+//            // steadily moving platform. The value 0.2 corresponds with around 5 degrees/second of rotation.
+//            
+//        }
+
+//		gyro_avg[X_AXIS] = gyro_sum [X_AXIS]/ gyro_sample_num;
+//		gyro_avg[Y_AXIS] = gyro_sum [Y_AXIS]/ gyro_sample_num;
+//		gyro_avg[Z_AXIS] = gyro_sum [Z_AXIS]/ gyro_sample_num;
+
+//		gyro_diff[X_AXIS] = last_average[X_AXIS] - gyro_avg[X_AXIS];
+//		gyro_diff[Y_AXIS] = last_average[Y_AXIS] - gyro_avg[Y_AXIS];
+//		gyro_diff[Z_AXIS] = last_average[Z_AXIS] - gyro_avg[Z_AXIS];		
+//        
+//        gyro_diff_norm = sqrtf(gyro_diff[X_AXIS]*gyro_diff[X_AXIS] + gyro_diff[Y_AXIS]*gyro_diff[Y_AXIS] + gyro_diff[Z_AXIS]*gyro_diff[Z_AXIS]);
+
+//		if (j_cal_cycle == 0) 
+//		{
+//			best_gyro_diff = gyro_diff_norm;
+
+//			best_avg[X_AXIS] = gyro_avg[X_AXIS];
+//			best_avg[Y_AXIS] = gyro_avg[Y_AXIS];
+//			best_avg[Z_AXIS] = gyro_avg[Z_AXIS];
+//			
+//        } else if (gyro_diff_norm < 0.1f*GYRO_1DEGREE_SCAL)   // ?? if LPF off, 0.1 maybe too small
+//        {
+//            // we want the average to be within 0.1 bit, which is 0.04 degrees/s
+//            last_average[X_AXIS] = (gyro_avg[X_AXIS] * 0.5f) + (last_average[X_AXIS] * 0.5f);
+//			last_average[Y_AXIS] = (gyro_avg[Y_AXIS] * 0.5f) + (last_average[Y_AXIS] * 0.5f);
+//			last_average[Z_AXIS] = (gyro_avg[Z_AXIS] * 0.5f) + (last_average[Z_AXIS] * 0.5f);			
+
+//			// last_average_length
+//			f_temp[0] = sqrtf(last_average[X_AXIS]*last_average[X_AXIS] + last_average[Y_AXIS]*last_average[Y_AXIS] + last_average[Z_AXIS]*last_average[Z_AXIS]);
+
+//			// new_gyro_offset_length
+//			f_temp[1] = sqrtf(new_gyro_offset[X_AXIS]*new_gyro_offset[X_AXIS] + new_gyro_offset[Y_AXIS]*new_gyro_offset[Y_AXIS] + new_gyro_offset[Z_AXIS]*new_gyro_offset[Z_AXIS]);	
+
+//			// l_last_average < new_gyro_offset_length
+//			if (!converged || f_temp[0]  < f_temp[1])  // the first time converged=0, so will goin the if
+//            {   
+//            	new_gyro_offset[X_AXIS] = last_average[X_AXIS];
+//				new_gyro_offset[Y_AXIS] = last_average[Y_AXIS];
+//				new_gyro_offset[Z_AXIS] = last_average[Z_AXIS];
+//            }
+//            if (!converged) {
+//                converged = true;
+//				num_converged++;
+//            }
+//        } else if (gyro_diff_norm < best_gyro_diff) 
+//        {
+//            best_gyro_diff = gyro_diff_norm;
+//			
+//            best_avg[X_AXIS] = (gyro_avg[X_AXIS] * 0.5f) + (last_average[X_AXIS] * 0.5f);
+//			best_avg[Y_AXIS] = (gyro_avg[Y_AXIS] * 0.5f) + (last_average[Y_AXIS] * 0.5f);
+//			best_avg[Z_AXIS] = (gyro_avg[Z_AXIS] * 0.5f) + (last_average[Z_AXIS] * 0.5f);
+//			
+//        }
+
+//		last_average[X_AXIS] = gyro_avg[X_AXIS];
+//		last_average[Y_AXIS] = gyro_avg[Y_AXIS];
+//		last_average[Z_AXIS] = gyro_avg[Z_AXIS];
+//    }
+
+//	// we've kept the user waiting long enough - use the best pair we found so far
+//	if (!converged) {
+
+//		// flag calibration as failed for this gyro
+//	    gAccGyroVar.gyro_cal_ok = false;
+
+//		gAccGyroVar.mGyroOffset[X_AXIS] = best_avg[X_AXIS];
+//		gAccGyroVar.mGyroOffset[Y_AXIS] = best_avg[Y_AXIS];
+//		gAccGyroVar.mGyroOffset[Z_AXIS] = best_avg[Z_AXIS];
+//	    
+//	} else {
+//	    gAccGyroVar.gyro_cal_ok = true;
+//		
+//		gAccGyroVar.mGyroOffset[X_AXIS] = new_gyro_offset[X_AXIS];
+//		gAccGyroVar.mGyroOffset[Y_AXIS] = new_gyro_offset[Y_AXIS];
+//		gAccGyroVar.mGyroOffset[Z_AXIS] = new_gyro_offset[Z_AXIS];
+//	
+//	}
+//	
+//}
+
+
+
+
+
+// TODO:
+//int ImuAttitudeEstimate::red_data()
+//{
+//    return 1;
+//}
+
