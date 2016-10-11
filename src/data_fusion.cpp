@@ -11,9 +11,9 @@ DataFusion::DataFusion()
 }
 
 
-void DataFusion::Initialize(CameraPara camera_para_t, IPMPara ipm_para_t )
+void DataFusion::Initialize( )
 {
-    infile_log.open("data/log.txt");       // ofstream
+    infile_log.open("data/doing/log.txt");       // ofstream
     
     /// CAN
     is_steer_angle_OK = 0; // 当前是否steer数据已经有了
@@ -69,6 +69,8 @@ int DataFusion::data_fusion_main()
                 if(data_flag == "cam_frame")
                 {
                     camera_timestamp = camera_timestamp_raw[0] + camera_timestamp_raw[1]*1e-6;
+//                    float dt = camera_timestamp - m_extern_call_cur_image_stamptime;
+//                    printf("dt: %f\n", dt);
                     if( fabs(camera_timestamp - m_extern_call_cur_image_stamptime) < 0.001)
                     {
                         m_camera_match_state = 1; // 时间戳已经匹配
@@ -323,7 +325,7 @@ int DataFusion::LanePredict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pr
         {
             // Y = aX + b, X = {5, 10, 20, 30, 50}        
             xy_feature_pre.at<float>(0, points_index) = X[points_index];
-            xy_feature_pre.at<float>(1, points_index) = lane_coeffs_pre.at<float>(0, lane_index) + lane_coeffs_pre.at<float>(1, lane_index)*X[points_index];
+            xy_feature_pre.at<float>(1, points_index) = lane_coeffs_pre.at<float>(0, lane_index) + lane_coeffs_pre.at<float>(1, lane_index)*X[points_index] + lane_coeffs_pre.at<float>(2, lane_index)*X[points_index]*X[points_index];
 
             // NED坐标系下的
             double dx = xy_feature_pre.at<float>(0, points_index) - d_pos_new_c[0];
@@ -337,9 +339,11 @@ int DataFusion::LanePredict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pr
         // 车道线拟合    Y = AX(X是纵轴)
         std::vector<float> lane_coeffs_t;
         polyfit(&lane_coeffs_t, xy_feature_predict, m_order );
-        
-        lane_coeffs_predict.at<float>(0, lane_index) = lane_coeffs_t[0];
-        lane_coeffs_predict.at<float>(1, lane_index) = lane_coeffs_t[1];
+
+        for(int i = 0; i<m_order+1; i++)
+        {
+            lane_coeffs_predict.at<float>(i, lane_index) = lane_coeffs_t[i];
+        }
 
         LOG(INFO)<<"predict_lane_coeffs: "<<lane_coeffs_t[0]<<" "<<lane_coeffs_t[1]<<endl;     
         

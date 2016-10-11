@@ -1,6 +1,5 @@
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
-
 #include "relative_locate.h"
 #include "bird_perspective_mapping.h"
 
@@ -18,23 +17,22 @@
 #include <vector>
 #include <queue> 
 #include "data_fusion.h"
-using namespace std;
 
 #include <dirent.h>
-
-
+using namespace std;
 
 /// lane
-int m_order = 1;
-int lane_num = 3;
-int pts_num = 4;    
+int m_order = 2;
+int lane_num = 2;
+int pts_num = 8;    
 //int frame_index = 0; // 图像帧序号
 int lane_index = 0; // 车道线的序号
 double lane_timestamp;
-int uv_feature[2][12];
+int uv_feature[2][16]; // 2: XY 16: 左右每条车道8个点
+int feature_nums = 8;
 string buffer_lane;
 stringstream ss_lane;
-ifstream infile_lane("data/lane_data.ini");       // ofstream
+ifstream infile_lane("data/doing/lane_data.txt");       // ofstream
 cv::Mat uv_feature_pts;
 cv::Mat xy_feature; 
 cv::Mat xy_feature_pre = cv::Mat::zeros(2, pts_num, CV_32FC1);; // 上一帧的中车道线的特征点
@@ -59,7 +57,7 @@ string buffer_log;
 string data_flag;    
 stringstream ss_log;
 stringstream ss_tmp;
-ifstream infile_log("data/log.txt");       // ofstream
+ifstream infile_log("data/doing/log.txt");       // ofstream
 
 
 double log_data[2];
@@ -239,17 +237,13 @@ int main(int argc, char *argv[])
     bp_mapping.GetUVLimitsFromXY(&ipm_para);
     
     DataFusion data_fusion;
-    data_fusion.Initialize(camera_para, ipm_para);    
+    data_fusion.Initialize();    
 //    data_fusion.exec_task_data_fusion(); // 在线运行的时候应该是在用独立线程持续运行的
 
-// 本地利用标注的数据测试
-   
+// 本地利用标注的数据测试   
     string str_image_frame_add = "data/doing/frame/";
-
-    string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字
-    
+    string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字    
     string frame_file_addr = str_image_frame_add + frame_file_name;// 获取图片的max,min index
-
     int max_frame_index, min_frame_index;
     get_max_min_image_frame_index(max_frame_index, min_frame_index, frame_file_addr);
 
@@ -305,10 +299,11 @@ int main(int argc, char *argv[])
                             getline(infile_lane, buffer_lane);
                             ss_lane.clear();
                             ss_lane.str(buffer_lane);
-                            ss_lane>>lane_index>>lane_timestamp
+                            ss_lane>>lane_index
                                 >>uv_feature[0][0]>>uv_feature[1][0]>>uv_feature[0][1]>>uv_feature[1][1]>>uv_feature[0][2]>>uv_feature[1][2]>>uv_feature[0][3]>>uv_feature[1][3]
                                 >>uv_feature[0][4]>>uv_feature[1][4]>>uv_feature[0][5]>>uv_feature[1][5]>>uv_feature[0][6]>>uv_feature[1][6]>>uv_feature[0][7]>>uv_feature[1][7]
-                                >>uv_feature[0][8]>>uv_feature[1][8]>>uv_feature[0][9]>>uv_feature[1][9]>>uv_feature[0][10]>>uv_feature[1][10]>>uv_feature[0][11]>>uv_feature[1][11];
+                                >>uv_feature[0][8]>>uv_feature[1][8]>>uv_feature[0][9]>>uv_feature[1][9]>>uv_feature[0][10]>>uv_feature[1][10]>>uv_feature[0][11]>>uv_feature[1][11]
+                                >>uv_feature[0][12]>>uv_feature[1][12]>>uv_feature[0][13]>>uv_feature[1][13]>>uv_feature[0][14]>>uv_feature[1][14]>>uv_feature[0][15]>>uv_feature[1][15];
                             if(lane_index == image_index)
                             {
                                 is_lane_match_image = 1;
@@ -321,12 +316,12 @@ int main(int argc, char *argv[])
                             }
                         }
 
-                        stringstream ss;
-                        ss << image_index;
-                        ss >> image_index_str;
-//                        char str_iamge_name_index[20]; // 新数据格式，补全8位
-//                        sprintf(str_iamge_name_index, "%08d", image_index);
-                        image_name = frame_file_addr + "/" + image_index_str + ".jpg";
+//                        stringstream ss;
+//                        ss << image_index;
+//                        ss >> image_index_str;
+                        char str_iamge_name_index[20]; // 新数据格式，补全8位
+                        sprintf(str_iamge_name_index, "%08d", image_index);
+                        image_name = frame_file_addr + "/" + str_iamge_name_index + ".jpg";
 
                         cv::Mat org_image;
                         LoadImage(&org_image, image_name);
@@ -352,12 +347,11 @@ int main(int argc, char *argv[])
                         
                         // 执行预测lane
                         lane_coeffs.copyTo(lane_coeffs_pre);                
-                        data_fusion.GetLanePredictParameter(lane_coeffs_predict, image_timestamp, lane_coeffs_pre, lane_num, m_order );
-                        
+                        data_fusion.GetLanePredictParameter(lane_coeffs_predict, image_timestamp, lane_coeffs_pre, lane_num, m_order );                        
 
                         /// 当前lane
                         xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);            
-                        uv_feature_pts = cv::Mat::zeros(2, 4, CV_32FC1);                
+                        uv_feature_pts = cv::Mat::zeros(2, pts_num, CV_32FC1);                
                         for(int k=0; k<lane_num; k++)
                         {
                             for(int i1 = 0; i1<pts_num; i1++)
@@ -369,9 +363,11 @@ int main(int argc, char *argv[])
                             bp_mapping.TransformImage2Ground(uv_feature_pts, &xy_feature);                        
                             std::vector<float> lane_coeffs_t;
                             polyfit1(&lane_coeffs_t, xy_feature, m_order); // 车道线拟合    Y = AX(X是纵轴);
-                            
-                            lane_coeffs.at<float>(0, k) = lane_coeffs_t[0];
-                            lane_coeffs.at<float>(1, k) = lane_coeffs_t[1];
+
+                            for(int i = 0; i<m_order+1; i++)
+                            {
+                                lane_coeffs.at<float>(i, k) = lane_coeffs_t[i];
+                            }
                             
                         }
 
@@ -383,7 +379,7 @@ int main(int argc, char *argv[])
                         {
                             i_index += 1;
                             y[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
-                            float x_t = lane_coeffs.at<float>(0, 1) + lane_coeffs.at<float>(1, 1)*i;
+                            float x_t = lane_coeffs.at<float>(0, 1) + lane_coeffs.at<float>(1, 1)*i + lane_coeffs.at<float>(2, 1)*i*i;
                             x[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
 
                             if (x[i_index] < 0 || x[i_index] > ipm_para.width )
@@ -400,7 +396,7 @@ int main(int argc, char *argv[])
                         {
                             i_index += 1;
                             y[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
-                            float x_t = lane_coeffs_pre.at<float>(0, 1) + lane_coeffs_pre.at<float>(1, 1)*i;
+                            float x_t = lane_coeffs_pre.at<float>(0, 1) + lane_coeffs_pre.at<float>(1, 1)*i + lane_coeffs_pre.at<float>(2, 1)*i*i;
                             x[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
 
                             if (x[i_index] < 0 || x[i_index] > ipm_para.width )
@@ -419,7 +415,7 @@ int main(int argc, char *argv[])
                         {
                             i_index += 1;
                             y_predict[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
-                            float x_t = lane_coeffs_predict.at<float>(0, 1) + lane_coeffs_predict.at<float>(1, 1)*i;
+                            float x_t = lane_coeffs_predict.at<float>(0, 1) + lane_coeffs_predict.at<float>(1, 1)*i + lane_coeffs_predict.at<float>(2, 1)*i*i;
                             x_predict[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
 
                             if (x_predict[i_index] < 0 || x_predict[i_index] > ipm_para.width )
@@ -431,7 +427,7 @@ int main(int argc, char *argv[])
                         }    
                         
                         cv::imshow("ipm", ipm_image);
-                        if(cv::waitKey(50))
+                        if(cv::waitKey(200)) // 值太小IPM图会显示黑色 ???
                         {}
                         
                     }  

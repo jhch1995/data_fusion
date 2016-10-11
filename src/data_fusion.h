@@ -36,7 +36,7 @@ public:
     
     ~DataFusion() {}
 
-    void Initialize(CameraPara camera_para_t, IPMPara ipm_para_t );
+    void Initialize( );
 
     // TODO:
     int red_data();
