@@ -61,7 +61,7 @@ void CAN_VehicleEstimate::UpdateVehicleState(double steer_angle, double vehicle_
 
 void CAN_VehicleEstimate::UpdateVehicleState_imu(double yaw, double vehicle_speed           , double dt )
 {
-
+    m_yaw = yaw;
     m_vehicle_vel[0] = vehicle_speed*cosf(yaw);  // X
     m_vehicle_vel[1] = vehicle_speed*sinf(yaw);  // Y
 
@@ -76,13 +76,15 @@ void CAN_VehicleEstimate::UpdateVehicleState_imu(double yaw, double vehicle_spee
 //    printf("pos: %f %f vel: %f %f\n", m_vehicle_pos[0], m_vehicle_pos[1], m_vehicle_vel[0], m_vehicle_vel[1]);
 }
 
-void CAN_VehicleEstimate::GetVelPosXY(double (&vel)[2], double (&pos)[2])
+void CAN_VehicleEstimate::GetVehicleState(double (&vel)[2], double (&pos)[2], double &yaw)
 {
     vel[0] = m_vehicle_vel[0];
     vel[1] = m_vehicle_vel[1];
 
     pos[0] = m_vehicle_pos[0];
     pos[1] = m_vehicle_pos[1];
+
+    yaw = m_yaw;
 
 }
 

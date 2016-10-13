@@ -32,7 +32,7 @@ public:
     void GetVelPosFai(double (&vel)[2], double (&pos)[2], double& fai);
 
     // 获取当前汽车的位置速度
-    void GetVelPosXY(double (&vel)[2], double (&pos)[2]);
+    void GetVehicleState(double (&vel)[2], double (&pos)[2], double &yaw);
 
     // 重置汽车的状态数据
     // 包括: 速度、位置、航向角
@@ -54,6 +54,7 @@ private:
     
     double m_vehicle_vel[2];
     double m_vehicle_pos[2];
+    double m_yaw; // 汽车航向角(相对车道线，定时会清零)
 
 };
 

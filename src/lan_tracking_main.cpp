@@ -41,6 +41,9 @@ cv::Mat lane_coeffs = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
 cv::Mat lane_coeffs_pre = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
 cv::Mat lane_coeffs_predict = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
 double image_timestamp;
+double image_timestamp_pre;
+bool is_first_lane_predict = 1;
+
 
 // 外部lane
 bool isFirstTime_Lane = 1;
@@ -90,7 +93,7 @@ DEFINE_int32(image_height, 720, "image height");
 DEFINE_double(x_start_offset, -7.0, "x start offset");
 DEFINE_double(x_end_offset, 7.0, "x start offset");
 DEFINE_double(y_start_offset, 1.0, "y start offset");
-DEFINE_double(y_end_offset, 50.0, "y end offset");
+DEFINE_double(y_end_offset, 70.0, "y end offset");
 DEFINE_double(x_res, 0.04, "x resolution");
 DEFINE_double(y_res, 0.1, "y resolution");
 
@@ -238,7 +241,8 @@ int main(int argc, char *argv[])
     
     DataFusion data_fusion;
     data_fusion.Initialize();    
-//    data_fusion.exec_task_data_fusion(); // 在线运行的时候应该是在用独立线程持续运行的
+    int r_1 = data_fusion.exec_task_read_data(); // 读取数据的线程 
+    int r_2 = data_fusion.exec_task_run_fusion(); // 在线运行的时候应该是在用独立线程持续运行的
 
 // 本地利用标注的数据测试   
     string str_image_frame_add = "data/doing/frame/";
@@ -249,7 +253,7 @@ int main(int argc, char *argv[])
 
     // 外部lane循环控制
     //int start_image_index = 30; // 从哪一帧开始
-    int image_cal_step = 4;// 每隔多少帧计算一次车道线预测
+    int image_cal_step = 10;// 每隔多少帧计算一次车道线预测
     int image_cal_counter = 0;  //计数
     bool is_lane_match_image = 0;    
     bool is_camera_index_mached = 0; // 是否已经从log中寻找到当前图像的匹配的时间戳
@@ -316,9 +320,6 @@ int main(int argc, char *argv[])
                             }
                         }
 
-//                        stringstream ss;
-//                        ss << image_index;
-//                        ss >> image_index_str;
                         char str_iamge_name_index[20]; // 新数据格式，补全8位
                         sprintf(str_iamge_name_index, "%08d", image_index);
                         image_name = frame_file_addr + "/" + str_iamge_name_index + ".jpg";
@@ -346,8 +347,12 @@ int main(int argc, char *argv[])
                         }
                         
                         // 执行预测lane
+                        if(is_first_lane_predict)
+                        {
+                            image_timestamp_pre = image_timestamp;
+                        }
                         lane_coeffs.copyTo(lane_coeffs_pre);                
-                        data_fusion.GetLanePredictParameter(lane_coeffs_predict, image_timestamp, lane_coeffs_pre, lane_num, m_order );                        
+                        data_fusion.GetLanePredictParameter_new(lane_coeffs_predict, image_timestamp, image_timestamp_pre, image_timestamp_pre = image_timestamp;
 
                         /// 当前lane
                         xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);            

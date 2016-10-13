@@ -67,12 +67,14 @@ void ImuAttitudeEstimate::UpdataAttitude( double AccData[3], double GyroData[3],
             m_Att[X_AXIS] = AccAngle[X_AXIS];
             m_Att[Y_AXIS] = AccAngle[Y_AXIS];
             m_Att[Z_AXIS] = 0.0;    
-        }else{
+        }else
+        {
             m_Att[X_AXIS] = 0.0;
             m_Att[Y_AXIS] = 0.0;
             m_Att[Z_AXIS] = 0.0;    
         }
-    }else{ 
+    }else
+    { 
         // X
         GyroRate[X_AXIS] =  GyroData[X_AXIS] + sinf(m_Att[X_AXIS])*tanf(m_Att[Y_AXIS])*GyroData[Y_AXIS] + cosf(m_Att[X_AXIS])*tanf(m_Att[Y_AXIS])*GyroData[Z_AXIS];
         m_GyroAngle[X_AXIS] = m_GyroAngle[X_AXIS]+ GyroRate[X_AXIS]* dt;
