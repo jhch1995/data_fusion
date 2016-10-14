@@ -241,8 +241,8 @@ int main(int argc, char *argv[])
     
     DataFusion data_fusion;
     data_fusion.Initialize();    
-    int r_1 = data_fusion.exec_task_read_data(); // 读取数据的线程 
-    int r_2 = data_fusion.exec_task_run_fusion(); // 在线运行的时候应该是在用独立线程持续运行的
+    data_fusion.exec_task_read_data(); // 读取数据的线程 
+    data_fusion.exec_task_run_fusion(); // 在线运行的时候应该是在用独立线程持续运行的
 
 // 本地利用标注的数据测试   
     string str_image_frame_add = "data/doing/frame/";
@@ -281,7 +281,6 @@ int main(int argc, char *argv[])
                 image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6; 
 
                 // 匹配图片的时间戳
-                int data_length = camera_add.length();
                 int pos1 = camera_add.find_last_of('_');
                 int pos2 = camera_add.find_last_of('.');
                 string log_str_file_name = camera_add.substr(pos1+1, pos2-1-pos1);
@@ -304,10 +303,10 @@ int main(int argc, char *argv[])
                             ss_lane.clear();
                             ss_lane.str(buffer_lane);
                             ss_lane>>lane_index
-                                >>uv_feature[0][0]>>uv_feature[1][0]>>uv_feature[0][1]>>uv_feature[1][1]>>uv_feature[0][2]>>uv_feature[1][2]>>uv_feature[0][3]>>uv_feature[1][3]
-                                >>uv_feature[0][4]>>uv_feature[1][4]>>uv_feature[0][5]>>uv_feature[1][5]>>uv_feature[0][6]>>uv_feature[1][6]>>uv_feature[0][7]>>uv_feature[1][7]
-                                >>uv_feature[0][8]>>uv_feature[1][8]>>uv_feature[0][9]>>uv_feature[1][9]>>uv_feature[0][10]>>uv_feature[1][10]>>uv_feature[0][11]>>uv_feature[1][11]
-                                >>uv_feature[0][12]>>uv_feature[1][12]>>uv_feature[0][13]>>uv_feature[1][13]>>uv_feature[0][14]>>uv_feature[1][14]>>uv_feature[0][15]>>uv_feature[1][15];
+                                    >>uv_feature[0][0]>>uv_feature[1][0]>>uv_feature[0][1]>>uv_feature[1][1]>>uv_feature[0][2]>>uv_feature[1][2]>>uv_feature[0][3]>>uv_feature[1][3]
+                                    >>uv_feature[0][4]>>uv_feature[1][4]>>uv_feature[0][5]>>uv_feature[1][5]>>uv_feature[0][6]>>uv_feature[1][6]>>uv_feature[0][7]>>uv_feature[1][7]
+                                    >>uv_feature[0][8]>>uv_feature[1][8]>>uv_feature[0][9]>>uv_feature[1][9]>>uv_feature[0][10]>>uv_feature[1][10]>>uv_feature[0][11]>>uv_feature[1][11]
+                                    >>uv_feature[0][12]>>uv_feature[1][12]>>uv_feature[0][13]>>uv_feature[1][13]>>uv_feature[0][14]>>uv_feature[1][14]>>uv_feature[0][15]>>uv_feature[1][15];
                             if(lane_index == image_index)
                             {
                                 is_lane_match_image = 1;
@@ -353,7 +352,7 @@ int main(int argc, char *argv[])
                             image_timestamp_pre = image_timestamp;
                         }
                         lane_coeffs.copyTo(lane_coeffs_pre);                
-                        data_fusion.GetLanePredictParameter_new(lane_coeffs_predict, image_timestamp, image_timestamp_pre, lane_coeffs_pre, lane_num, m_order );
+                        data_fusion.get_lane_predict_parameter(lane_coeffs_predict, image_timestamp, image_timestamp_pre, lane_coeffs_pre, lane_num, m_order );
                         image_timestamp_pre = image_timestamp;
 
                         /// 当前lane
@@ -410,7 +409,7 @@ int main(int argc, char *argv[])
                             {
                                 continue;
                             }else{
-                                ipm_image.at<float>(y[i_index], x[i_index]) = 0.75;
+                                ipm_image.at<float>(y[i_index], x[i_index]) = 0.45;
                             }            
                         }
 
