@@ -1,19 +1,13 @@
 #include "data_fusion.h"
 #include <unistd.h>
 
-
 # define DATA_FROM_LOG 1  // 从log中读取数据
 # define DATA_FROM_ONLINE 0 //在线读取数据
 
-
-
 using namespace common;
-
 DataFusion::DataFusion()
 {
-
 }
-
 
 void DataFusion::Initialize( )
 {
@@ -26,6 +20,7 @@ void DataFusion::Initialize( )
 
     // IMU
     acc_filt_hz = 5.0f; // 加速度计的低通截止频率
+    gyro_filt_hz = 20.0;
     isFirstTime_att = 1; // 是否是第一次进入
     imu_timestamp = 0.0f;
     pre_imu_timestamp = 0.0f; // IMU数据上次得到的时刻 
@@ -53,24 +48,21 @@ void DataFusion::Initialize( )
     isFirsttimeGetParameter = 1;
     m_new_lane_parameter_get = 0;
 
-    //
 }
 
 // 读取数据,两种方式:
 //      1.离线从log 
 //      2.在线
-int DataFusion::red_data()
+int DataFusion::read_data( )
 {    
     double log_data[2], timestamp_raw[2];
     string data_flag;
     while(1)
     {  
+        //更新is_continue_read_data
         update_read_data_state();
-        
-        // is_continue_read_data 由 run根据外部调用的timestamp和当前数据的时间戳控制
         if(DATA_FROM_LOG && is_continue_read_data)
         {
-//            printf("read data \n");
             if(is_first_read_data) // 第一次进入读取数据
             {
                 getline(infile_log, buffer_log);
@@ -105,12 +97,12 @@ int DataFusion::red_data()
                 {            
                     double AccData_raw[3]; // acc原始坐标系下的
                     double AccData_NED[3]; // 大地坐标系
-                    double AccDataFilter[3]; // 一阶低通之后的数据
+                    static double AccDataFilter[3]; // 一阶低通之后的数据
                     double GyroData_raw[3];
-                    double GyroData_NED[3];            
-                    double imu_temperature;    
+                    double GyroData_NED[3];  
+                    static double GyroDataFilter[3]; // 一阶低通之后的数据
+                    double imu_temperature, imu_timestamp;    
                     string imu_flag;
-                    double imu_timestamp;
 
                     ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>imu_flag>>AccData_raw[0]>>AccData_raw[1]>>AccData_raw[2]
                             >>GyroData_raw[0]>>GyroData_raw[1]>>GyroData_raw[2]>>imu_temperature;
@@ -124,21 +116,27 @@ int DataFusion::red_data()
                         pre_imu_timestamp = imu_timestamp;
                         AccDataFilter[0] = AccData_NED[0];
                         AccDataFilter[1] = AccData_NED[1];
-                        AccDataFilter[2] = AccData_NED[2];                    
-                    }else{
+                        AccDataFilter[2] = AccData_NED[2];  
+
+                        GyroDataFilter[0] = GyroData_NED[0];
+                        GyroDataFilter[1] = GyroData_NED[1];
+                        GyroDataFilter[2] = GyroData_NED[2]; 
+                    }else
+                    {
                         double dt_imu = imu_timestamp - pre_imu_timestamp;                    
-                        imu_attitude_estimate.LowpassFilter3f(AccDataFilter, AccDataFilter, AccData_NED, dt_imu, acc_filt_hz);                        
+                        imu_attitude_estimate.LowpassFilter3f(AccDataFilter, AccDataFilter, AccData_NED, dt_imu, acc_filt_hz);    
+                        imu_attitude_estimate.LowpassFilter3f(GyroDataFilter, GyroDataFilter, GyroData_NED, dt_imu, gyro_filt_hz);       
                         pre_imu_timestamp = imu_timestamp;    
                     }                    
                     imu_data.timestamp = imu_timestamp;
                     update_current_data_timestamp(imu_timestamp);
 
-                    imu_data.acc[0] = AccData_NED[0];
-                    imu_data.acc[1] = AccData_NED[1];
-                    imu_data.acc[2] = AccData_NED[2];
-                    imu_data.gyro[0] = GyroData_NED[0];
-                    imu_data.gyro[1] = GyroData_NED[1];
-                    imu_data.gyro[2] = GyroData_NED[2];
+                    imu_data.acc[0] = AccDataFilter[0];
+                    imu_data.acc[1] = AccDataFilter[1];
+                    imu_data.acc[2] = AccDataFilter[2];
+                    imu_data.gyro[0] = GyroDataFilter[0];
+                    imu_data.gyro[1] = GyroDataFilter[1];
+                    imu_data.gyro[2] = GyroDataFilter[2];
                     data_gsensor_update = 1;
               
                 }else if(data_flag == "speed")
@@ -146,17 +144,32 @@ int DataFusion::red_data()
                     double speed_raw_timestamp[2];    
                     string speed_str;
                     ss_log>>speed_raw_timestamp[0]>>speed_raw_timestamp[1]>>speed_str>>speed_can;  
-                    speed_timestamp = speed_raw_timestamp[0] + speed_raw_timestamp[1]*1e-6;
-                    speed_can = speed_can/3.6;// km/h-->m/s       
+                    speed_timestamp = speed_raw_timestamp[0] + speed_raw_timestamp[1]*1e-6;   
 
                     can_speed_data.timestamp = speed_raw_timestamp[0] + speed_raw_timestamp[1]*1e-6;
                     update_current_data_timestamp(can_speed_data.timestamp);
                     can_speed_data.speed= speed_can/3.6;// km/h-->m/s   
                     data_speed_update = 1;
+                }else if(data_flag == "brake_signal")
+                {
+                    string str_t[10],str_speed;
+                    int data_t[10];
+                    double raw_timestamp[2];  
+                    double speed_can;
+                    ss_log>>raw_timestamp[0]>>raw_timestamp[1]
+                        >>str_t[0]>>data_t[0]>>str_t[1]>>data_t[1]>>str_t[2]>>data_t[2]>>str_t[3]>>data_t[3]>>str_t[4]>>data_t[4]
+                        >>str_t[5]>>data_t[5]>>str_t[6]>>data_t[6]>>str_t[7]>>data_t[7]>>str_t[8]>>data_t[8]>>str_t[9]>>data_t[9]
+                        >>str_speed>>speed_can;  
+                    can_speed_data.timestamp = raw_timestamp[0] + raw_timestamp[1]*1e-6;;
+                    update_current_data_timestamp(can_speed_data.timestamp);
+                    can_speed_data.speed= speed_can/3.6;// km/h-->m/s   
+                    data_speed_update = 1;  
+
+//                    printf("speed_can=%f\n", speed_can);
                 }
             } 
         }
-        usleep(10);
+        usleep(1);
     }
 }
 
@@ -414,7 +427,11 @@ void DataFusion::delete_history_save_data( )
     {
         // 检测出比当前m_call_predict_timestamp早data_save_length秒前的数据，并删除
         vector_att.erase(vector_att.begin(), vector_att.begin()+delete_conter);  
+
+//        printf("delete_att_data,delete_conter=%d,  att_data_length=%d\n", delete_conter, att_data_length);
     }
+
+    
 
     // 汽车运动数据
     int vehicle_data_length = vector_vehicle_state.size(); 
@@ -472,7 +489,7 @@ int DataFusion::run_fusion_new( )
         if(data_speed_update)
         {    
             // 利用imu+speed计算汽车运动
-            double cur_can_timestamp = can_speed_data.timestamp;        
+            double cur_can_timestamp = can_speed_data.timestamp; 
             if(is_first_speed_data)
             {
                 is_first_speed_data = 0;
@@ -483,7 +500,7 @@ int DataFusion::run_fusion_new( )
             {
                 double dt_can = cur_can_timestamp - pre_can_timestamp;                
                 imu_attitude_estimate.GetAttitude(att_xy_cur);
-                can_vehicle_estimate.UpdateVehicleState_imu(att_xy_cur[2], speed_can, dt_can );
+                can_vehicle_estimate.UpdateVehicleState_imu(att_xy_cur[2], can_speed_data.speed, dt_can );
                 pre_can_timestamp = cur_can_timestamp;
 
                 // save vehicle state            
@@ -579,7 +596,6 @@ int DataFusion::GetLanePredictParameter(cv::Mat& lane_coeffs_predict, double ima
 }
 
 // 根据时间戳查找对应的数据
-// TODO:
 int DataFusion::get_timestamp_data(double (&vehicle_pos)[2], double (&att)[3], double timestamp_search)
 {
     // vector_att
@@ -652,11 +668,19 @@ int DataFusion::GetLanePredictParameter_new(cv::Mat& lane_coeffs_predict, double
 
     if(data_search_cur && data_search_pre)
     {
-        LanePredict(lane_coeffs_predict, lane_coeffs_pre, lane_num, m_order);
-    }else if( !data_search_cur )
+        LanePredict_new(lane_coeffs_predict, lane_coeffs_pre, lane_num, m_order, vehicle_pos_pre, att_pre, vehicle_pos, att_cur);
+        LOG(INFO)<<"LanePredict_new-vehicle_pos_pre "<<vehicle_pos_pre[0]<<" "<<vehicle_pos_pre[1]<<endl;   
+        LOG(INFO)<<"LanePredict_new-vehicle_pos_cur "<<vehicle_pos[0]<<" "<<vehicle_pos[1]<<endl; 
+        LOG(INFO)<<"LanePredict_new-att_cur "<<att_cur[0]<<" "<<att_cur[1]<<" "<<att_cur[2]<<" "<<endl; 
+        LOG(INFO)<<"LanePredict_new-att_pre "<<att_pre[0]<<" "<<att_pre[1]<<" "<<att_pre[2]<<" "<<endl; 
+    }
+    
+    if( !data_search_cur )
     {
         std::cout<<"!!!error cur--camera timestamp dismatch"<<endl;
-    }else if(!data_search_pre)
+    }
+
+    if(!data_search_pre)
     {
         std::cout<<"!!!error pre--camera timestamp dismatch"<<endl;
     }
@@ -736,21 +760,13 @@ int DataFusion::LanePredict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pr
 
 // lane_coeffs_pre: 每一列代表一个样本
 int DataFusion::LanePredict_new(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pre, double lane_num, double m_order, 
-                                          StructVehicleState pre_vehicle_state, StructVehicleState cur_vehicle_state, 
-                                          StructAtt pre_att_xy, StructAtt cur_att_xy)
+                                            double vehicle_pos_pre[2],  double att_pre[3],
+                                            double vehicle_pos_cur[2],  double att_cur[3])
 {
     /// init:(待定)
     int lane_points_nums = 5; // 每一条车道线取的样本点数量
     double X[5] = {2.0, 5.0, 10.0, 20.0, 35.0};
     LOG(INFO)<<"lane_coeffs_pre: "<<lane_coeffs_pre<<endl<<endl;
-
-    // 传递数据
-    double vehicle_pos_cur[2], vehicle_pos_pre[2], att_pre[2], att_cur[3];
-    memcpy(vehicle_pos_pre, pre_vehicle_state.pos, sizeof(pre_vehicle_state.pos));
-    memcpy(vehicle_pos_cur, cur_vehicle_state.pos, sizeof(cur_vehicle_state.pos));
-    memcpy(att_pre, pre_att_xy.att, sizeof(pre_att_xy.att));
-    memcpy(att_cur, cur_att_xy.att, sizeof(cur_att_xy.att));    
-
 
     // 计算汽车在两帧之间的状态变化    
     // 对pos进行坐标系转换，转到以pre时刻为初始坐标
@@ -772,7 +788,7 @@ int DataFusion::LanePredict_new(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeff
     LOG(INFO)<<"vehicle_pos: "<<vehicle_pos_cur[0]<<" "<<vehicle_pos_cur[1]<<endl;
     LOG(INFO)<<"vehicle_pos_pre: "<<vehicle_pos_pre[0]<<" "<<vehicle_pos_pre[1]<<endl; 
     LOG(INFO)<<"d_pos_new_c: "<<d_pos_new_c[0]<<" "<<d_pos_new_c[1]<<endl; 
-    LOG(INFO)<<"vehicle_fai_pre: "<<vehicle_fai_pre;     
+    LOG(INFO)<<"vehicle_yaw_pre: "<<att_pre[2]*180/3.14<<endl;     
     
     // 从车道线参数中获取特征点,并预测特征点
     cv::Mat xy_feature_pre = cv::Mat::zeros(2, lane_points_nums, CV_32FC1);; // 上一帧的中车道线的特征点
@@ -803,7 +819,7 @@ int DataFusion::LanePredict_new(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeff
             lane_coeffs_predict.at<float>(i, lane_index) = lane_coeffs_t[i];
         }
 
-        LOG(INFO)<<"predict_lane_coeffs: "<<lane_coeffs_t[0]<<" "<<lane_coeffs_t[1]<<endl;     
+        LOG(INFO)<<"predict_lane_coeffs: "<<lane_coeffs_t[0]<<" "<<lane_coeffs_t[1]<<" "<<lane_coeffs_t[2]<<endl;     
         
     }
 

@@ -65,10 +65,13 @@ void CAN_VehicleEstimate::UpdateVehicleState_imu(double yaw, double vehicle_spee
     m_vehicle_vel[0] = vehicle_speed*cosf(yaw);  // X
     m_vehicle_vel[1] = vehicle_speed*sinf(yaw);  // Y
 
-    if(dt < 0.05)
+    if(dt < 1)
     {
         m_vehicle_pos[0] = m_vehicle_pos[0] + m_vehicle_vel[0]*dt;
         m_vehicle_pos[1] = m_vehicle_pos[1] + m_vehicle_vel[1]*dt;
+    }else
+    {
+//        printf()
     }
     
     

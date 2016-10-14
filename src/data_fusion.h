@@ -53,8 +53,7 @@ public:
 
     void Initialize( );
 
-    // TODO:
-    int red_data();
+    int read_data();
     
     int data_fusion_main();
     
@@ -87,9 +86,9 @@ public:
     int LanePredict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pre, double lane_num, double m_order);
 
     int LanePredict_new(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pre, double lane_num, double m_order, 
-                                  StructVehicleState pre_vehicle_state, StructVehicleState cur_vehicle_state, 
-                                  StructAtt pre_att_xy, StructAtt cur_att_xy);
-
+                                  double vehicle_pos_pre[2],  double att_pre[3],
+                                  double vehicle_pos_cur[2],  double att_cur[3]);
+    
     static void *thread_run_fusion(void *tmp)//线程执行函数
     {
         DataFusion *p = (DataFusion *)tmp;
@@ -108,7 +107,7 @@ public:
     {
         DataFusion *p = (DataFusion *)tmp;
         //通过p指针间接访问类的非静态成员
-        p->red_data();
+        p->read_data();
     }
     pthread_t read_data_id;
     int exec_task_read_data()
@@ -150,6 +149,7 @@ private:
     // IMU
     ImuAttitudeEstimate imu_attitude_estimate;
     double acc_filt_hz; // 加速度计的低通截止频率
+    double gyro_filt_hz; //陀螺仪的低通截止频率
     bool isFirstTime_att; // 是否是第一次进入
     double imu_timestamp;
     double pre_imu_timestamp; // IMU数据上次得到的时刻 

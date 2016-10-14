@@ -85,8 +85,8 @@ DEFINE_double(fu, 1506.64297, "fu");
 DEFINE_double(fv, 1504.18761, "fv");
 DEFINE_double(cu, 664.30351, "cu");
 DEFINE_double(cv, 340.94998, "cv");
-DEFINE_double(camera_height, 1.3, "camera height mm");    // ??? mm
-DEFINE_double(pitch, -1.8, "pitch angle (degree)");
+DEFINE_double(camera_height, 1.2, "camera height mm");    // ??? mm
+DEFINE_double(pitch, -0.5, "pitch angle (degree)"); // -1.8
 DEFINE_double(yaw, 0.0, "yaw angle (degree)");
 DEFINE_int32(image_width, 1280, "image width");
 DEFINE_int32(image_height, 720, "image height");
@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
 
     // 外部lane循环控制
     //int start_image_index = 30; // 从哪一帧开始
-    int image_cal_step = 10;// 每隔多少帧计算一次车道线预测
+    int image_cal_step = 4;// 每隔多少帧计算一次车道线预测
     int image_cal_counter = 0;  //计数
     bool is_lane_match_image = 0;    
     bool is_camera_index_mached = 0; // 是否已经从log中寻找到当前图像的匹配的时间戳
@@ -349,10 +349,12 @@ int main(int argc, char *argv[])
                         // 执行预测lane
                         if(is_first_lane_predict)
                         {
+                            is_first_lane_predict = 0;
                             image_timestamp_pre = image_timestamp;
                         }
                         lane_coeffs.copyTo(lane_coeffs_pre);                
-                        data_fusion.GetLanePredictParameter_new(lane_coeffs_predict, image_timestamp, image_timestamp_pre, image_timestamp_pre = image_timestamp;
+                        data_fusion.GetLanePredictParameter_new(lane_coeffs_predict, image_timestamp, image_timestamp_pre, lane_coeffs_pre, lane_num, m_order );
+                        image_timestamp_pre = image_timestamp;
 
                         /// 当前lane
                         xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);            
@@ -427,7 +429,7 @@ int main(int argc, char *argv[])
                             {
                                 continue;
                             }else{
-                                ipm_image.at<float>(y_predict[i_index], x_predict[i_index]) = 0.1; // 黑色
+                                ipm_image.at<float>(y_predict[i_index], x_predict[i_index]) = 0.1; // 黑色 预测
                             }            
                         }    
                         
