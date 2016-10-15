@@ -77,6 +77,13 @@ public:
                           double vehicle_pos_pre[2],  double att_pre[3],
                           double vehicle_pos_cur[2],  double att_cur[3]);
 
+    int get_predict_feature(std::vector<cv::Point2f>& vector_feature_predict, std::vector<cv::Point2f> vector_feature_pre ,
+                                                int64 image_timestamp_pre, int64 image_timestamp_cur);
+
+    int feature_predict(std::vector<cv::Point2f>& vector_feature_predict, std::vector<cv::Point2f> vector_feature_pre ,
+                                        double vehicle_pos_pre[2], double att_pre[3], double vehicle_pos_cur[2], double att_cur[3]);
+
+    // 数据融合的线程
     static void *thread_run_fusion(void *tmp)//线程执行函数
     {
         DataFusion *p = (DataFusion *)tmp;        
@@ -89,7 +96,7 @@ public:
         return ERR;
     }
 
-    // read data
+    // read data 线程
     static void *thread_read_data(void *tmp)//线程执行函数
     {
         DataFusion *p = (DataFusion *)tmp;        
@@ -102,14 +109,15 @@ public:
         return ERR;
     }
 
-private:
-    double m_call_predict_timestamp; // 当前外部图像处理模块处理的图片生成的时间戳
-    
+private:  
     // 读入log
     string buffer_log;
     stringstream ss_log;
     stringstream ss_tmp;
     ifstream infile_log;       // ofstream
+
+    // 外部调用特征点预测的时间
+    double m_call_predict_timestamp; // 当前外部图像处理模块处理的图片生成的时间戳
     
     /// CAN
     CAN_VehicleEstimate can_vehicle_estimate;
@@ -131,10 +139,8 @@ private:
     char m_is_first_speed_data; //  1: 第一次获取到speed数据 0:不是第一次    
 
     // read data
-    bool m_is_first_read_data; // 是否是第一次进入读取函数，初始化cur_timestamp
-    bool m_is_first_read_gsensor; 
-   
-    bool m_data_gsensor_update;
+    bool m_is_first_read_gsensor;    
+    bool m_data_gsensor_update; // 分别对应的数据是否已经更新
     bool m_data_speed_update;
     bool m_data_image_update;
 
@@ -162,19 +168,13 @@ private:
     };
     StructCanSpeedData m_can_speed_data;
 
-//    struct StructFeaturePredict
-//    {
-//        double timestamp_pre;
-//        double timestamp_cur;
-//    };
-
     // 读取数据控制
-    double m_cur_fusion_timestamp; // 当前在进行计算的时间点，跟外部调用预测的时间戳进行比对
-    double m_cur_data_timestamp; // 当前数据的时间戳
-    bool m_is_first_fusion_timestamp; // 第一次更新
-    bool m_is_first_data_timestamp; // 第一次更新
+    double m_cur_fusion_timestamp; // 当前在进行计算的时间点，
+    double m_cur_data_timestamp; // 当前数据的时间戳, 跟外部调用预测的时间戳进行比对
+    bool m_is_first_fusion_timestamp; // 第一次fusion更新
+    bool m_is_first_data_timestamp; // 第一次read data更新
     double m_data_save_length; // 保存历史数据的长度(时间为单位: s)
-    bool m_is_continue_read_data; // 1:继续读取数据  2:暂停读取数据 由fusion控制
+    bool m_is_continue_read_data; // 1:继续读取数据  0:暂停读取数据 由data_timestamp控制
 };
 
 
