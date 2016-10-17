@@ -274,7 +274,7 @@ int DataFusion::run_fusion( )
             m_data_speed_update = 0;        
         }        
         delete_history_save_data();
-        usleep(1); // 1000us
+        usleep(1); // 1us
     }
         
     return 1;
@@ -409,8 +409,7 @@ int DataFusion::get_lane_predict_parameter(cv::Mat& lane_coeffs_predict, double 
 // 车道线预测
 // lane_coeffs_pre: 每一列代表一个样本
 int DataFusion::lane_predict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pre, double lane_num, double m_order, 
-                                    double vehicle_pos_pre[2],  double att_pre[3],
-                                    double vehicle_pos_cur[2],  double att_cur[3])
+                                    double vehicle_pos_pre[2],  double att_pre[3], double vehicle_pos_cur[2],  double att_cur[3])
 {
     /// init:(待定)
     int lane_points_nums = 5; // 每一条车道线取的样本点数量
