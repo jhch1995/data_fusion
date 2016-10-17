@@ -77,11 +77,11 @@ public:
                           double vehicle_pos_pre[2],  double att_pre[3],
                           double vehicle_pos_cur[2],  double att_cur[3]);
 
-    int get_predict_feature(std::vector<cv::Point2f>& vector_feature_predict, std::vector<cv::Point2f> vector_feature_pre ,
-                                                int64 image_timestamp_pre, int64 image_timestamp_cur);
+    int get_predict_feature(std::vector<cv::Point2f>* vector_feature_predict, const std::vector<cv::Point2f>& vector_feature_pre ,
+                                        int64 image_timestamp_pre, int64 image_timestamp_cur);
 
-    int feature_predict(std::vector<cv::Point2f>& vector_feature_predict, std::vector<cv::Point2f> vector_feature_pre ,
-                                        double vehicle_pos_pre[2], double att_pre[3], double vehicle_pos_cur[2], double att_cur[3]);
+    int feature_predict(std::vector<cv::Point2f>* vector_feature_predict, const std::vector<cv::Point2f>& vector_feature_pre ,
+                                  double vehicle_pos_pre[2], double att_pre[3], double vehicle_pos_cur[2], double att_cur[3]);
 
     // 数据融合的线程
     static void *thread_run_fusion(void *tmp)//线程执行函数

@@ -179,7 +179,7 @@ bool  DataFusion::update_read_data_state( )
     return m_is_continue_read_data;
 }
 
-// 删除设定最长记忆时间的历史数据
+// 根据设定最长记忆时间的历史数据，删除多余数据
 void DataFusion::delete_history_save_data( )
 {
     double dt;
@@ -220,8 +220,7 @@ void DataFusion::delete_history_save_data( )
     
 }
 
-
-
+// 进行汽车运动信息解算和航向角变化解算
 int DataFusion::run_fusion( )
 {
     double att_xy_cur[3]; // 当前stamp的角度
@@ -369,9 +368,9 @@ int DataFusion::get_timestamp_data(double (&vehicle_pos)[2], double (&att)[3], d
         return 0;    
 }
 
-
+// 获取预测的车道线参数(主要用来自己的本地测试)
 int DataFusion::get_lane_predict_parameter(cv::Mat& lane_coeffs_predict, double image_timestamp_cur, double image_timestamp_pre, 
-                                                     cv::Mat lane_coeffs_pre, double lane_num, double m_order )
+                                                            cv::Mat lane_coeffs_pre, double lane_num, double m_order )
 {
     bool data_search_cur = 0; // 搜索指定时间戳的数据
     bool data_search_pre = 0;    
@@ -407,6 +406,7 @@ int DataFusion::get_lane_predict_parameter(cv::Mat& lane_coeffs_predict, double 
 }
 
 
+// 车道线预测
 // lane_coeffs_pre: 每一列代表一个样本
 int DataFusion::lane_predict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pre, double lane_num, double m_order, 
                                     double vehicle_pos_pre[2],  double att_pre[3],
@@ -475,8 +475,8 @@ int DataFusion::lane_predict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_p
     return 1;
 }
 
-
-int DataFusion::get_predict_feature(std::vector<cv::Point2f>& vector_feature_predict, std::vector<cv::Point2f> vector_feature_pre ,
+// 给外部调用的接口:特征点预测
+int DataFusion::get_predict_feature(std::vector<cv::Point2f>* vector_feature_predict, const std::vector<cv::Point2f>& vector_feature_pre ,
                                                 int64 image_timestamp_pre, int64 image_timestamp_cur)
 {
     bool is_data_search_cur_ok; // 搜索指定时间戳的数据是否成功
@@ -517,8 +517,8 @@ int DataFusion::get_predict_feature(std::vector<cv::Point2f>& vector_feature_pre
 }
 
 
-// lane_coeffs_pre: 每一列代表一个样本
-int DataFusion::feature_predict(std::vector<cv::Point2f>& vector_feature_predict, std::vector<cv::Point2f> vector_feature_pre ,
+// 特征点预测
+int DataFusion::feature_predict(std::vector<cv::Point2f>* vector_feature_predict, const std::vector<cv::Point2f>& vector_feature_pre ,
                                         double vehicle_pos_pre[2], double att_pre[3], double vehicle_pos_cur[2], double att_cur[3])
 {
     // 计算汽车在两帧之间的状态变化    
@@ -540,7 +540,7 @@ int DataFusion::feature_predict(std::vector<cv::Point2f>& vector_feature_predict
     // 预测特征点
     double feature_points_nums = vector_feature_pre.size();  
     cv::Point2f XY_pre, XY_predict;
-    vector_feature_predict.clear(); // 清空数据
+    vector_feature_predict->clear(); // 清空数据
     for(int points_index = 0; points_index<feature_points_nums; points_index++)
     {        
         XY_pre.x = (vector_feature_pre.begin()+points_index)->x;
@@ -551,7 +551,7 @@ int DataFusion::feature_predict(std::vector<cv::Point2f>& vector_feature_predict
         XY_predict.x = Rn2c_kT[0][0]*dx + Rn2c_kT[0][1]*dy;
         XY_predict.y = Rn2c_kT[1][0]*dx + Rn2c_kT[1][1]*dy;
 
-        vector_feature_predict.push_back(XY_predict);
+        vector_feature_predict->push_back(XY_predict);
     }   
 
     LOG(INFO)<<"lane_coeffs_pre: "<<vector_feature_pre<<endl;

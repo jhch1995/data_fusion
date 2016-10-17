@@ -8,6 +8,8 @@
 #include "common/math/polyfit.h"
 #include "common/base/log_level.h"
 
+#include "data_fusion.h"
+
 #include "datafusion_math.h"
 #include <iostream>
 #include <fstream>
@@ -15,11 +17,9 @@
 #include <sstream>
 #include <math.h>
 #include <vector>
-#include <queue> 
-#include "data_fusion.h"
+#include <queue>
 #include <dirent.h>
 using namespace std;
-
 
 DEFINE_string(image_name, "./1.jpg", "image_name");
 DEFINE_double(fu, 1506.64297, "fu");
@@ -39,14 +39,14 @@ DEFINE_double(x_res, 0.04, "x resolution");
 DEFINE_double(y_res, 0.1, "y resolution");
 
 // 读入log
-ifstream infile_log("data/doing/log.txt");       // ofstream
+ifstream infile_log("data/doing/log.txt");       // 指定log的路径
 string buffer_log;
 string data_flag;    
 stringstream ss_log;
 stringstream ss_tmp;
 
 /// lane标注数据
-ifstream infile_lane("data/doing/lane_data.txt");       // ofstream
+ifstream infile_lane("data/doing/lane_data.txt");       // 指定车道线标注结果的路径
 int m_order = 2;
 int lane_num = 2;
 int pts_num = 8;
@@ -67,23 +67,28 @@ bool is_first_lane_predict = 1;
 
 void LoadImage(cv::Mat* image, string image_name);
 
+// 对图片进行IPM变化
 void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para);
 
+// 拟合曲线
 int polyfit_vector(std::vector<float>* lane_coeffs, std::vector<cv::Point2f>& vector_feature, int order );
 
+// 拟合曲线
 int polyfit1(std::vector<float>* lane_coeffs, const cv::Mat xy_feature, int order );
 
+// 获取指定路径下所有文件
 string get_file_name(string file_path);
 
-bool get_max_min_image_frame_index(int &max_index, int &min_index, string file_path);
+// 获取图片文件夹中所有的图片的最大最小序号
+bool get_max_min_image_index(int &max_index, int &min_index, string file_path);
 
-void ployfit_lane(cv::Mat &lane_coeffs, BirdPerspectiveMapping bp_mapping, cv::Mat uv_feature_pts);
-
+// 在IPM图上画车道线
 void mark_IPM_lane(cv::Mat &ipm_image, cv::Mat lane_coeffs, IPMPara ipm_para, float lane_color_value);
 
-void predict_feature();
+// 车道线预测
+void do_predict_feature();
 
-
+// 进行数据融合的类
 DataFusion data_fusion;
 
 int main(int argc, char *argv[])
@@ -113,8 +118,7 @@ int main(int argc, char *argv[])
     ipm_para.y_scale = FLAGS_y_res;
     bp_mapping.GetUVLimitsFromXY(&ipm_para);
 
-// 初始化融合函数    
-
+// 初始化融合函数
     data_fusion.Initialize();    
     data_fusion.exec_task_read_data(); // 读取数据的线程 
     data_fusion.exec_task_run_fusion(); // 在线运行的时候应该是在用独立线程持续运行的
@@ -124,7 +128,7 @@ int main(int argc, char *argv[])
     string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字    
     string frame_file_addr = str_image_frame_add + frame_file_name;// 获取图片的max,min index
     int max_frame_index, min_frame_index;
-    get_max_min_image_frame_index(max_frame_index, min_frame_index, frame_file_addr);
+    get_max_min_image_index(max_frame_index, min_frame_index, frame_file_addr);
 
     // 外部lane循环控制
     int image_cal_step = 4;// 每隔多少帧计算一次车道线预测
@@ -201,51 +205,10 @@ int main(int argc, char *argv[])
                         cv::Mat org_image;
                         LoadImage(&org_image, image_name);
                         cv::Mat ipm_image = cv::Mat::zeros(ipm_para.height+1, ipm_para.width+1, CV_32FC1);
-                        image_IPM(ipm_image, org_image, ipm_para);                        
-
+                        image_IPM(ipm_image, org_image, ipm_para);
                         
                         // 执行预测lane
-                        predict_feature();
-//                        if(is_first_lane_predict)
-//                        {
-//                            is_first_lane_predict = 0;
-//                            image_timestamp_pre = image_timestamp;
-//                        }
-//                        lane_coeffs.copyTo(lane_coeffs_pre);                
-//                        //data_fusion.get_lane_predict_parameter(lane_coeffs_predict, image_timestamp, image_timestamp_pre, lane_coeffs_pre, lane_num, m_order );
-
-//                        std::vector<cv::Point2f> vector_feature_predict;
-//                        std::vector<cv::Point2f> vector_feature_pre;
-//                        int lane_points_nums = 5; // 每一条车道线取的样本点数量
-//                        double X[5] = {2.0, 5.0, 10.0, 20.0, 35.0};
-//                        cv::Point2f point_xy;
-//                        vector_feature_pre.clear();
-//                        for(int points_index = 0; points_index<lane_points_nums; points_index++)
-//                        {   
-//                            point_xy.x = X[points_index];
-//                            point_xy.y = lane_coeffs_pre.at<float>(0, 1) + lane_coeffs_pre.at<float>(1, 1)*X[points_index] + lane_coeffs_pre.at<float>(2, 1)*X[points_index]*X[points_index];
-//                            vector_feature_pre.push_back(point_xy);
-//                        }
-
-//                        int64 image_timestamp_pre_int = (int64)(image_timestamp_pre*1000);
-//                        int64 image_timestamp_cur_int = (int64)(image_timestamp*1000);
-
-//                        int r_1 = 0;
-//                        while(!r_1)
-//                        {
-//                            r_1 = data_fusion.get_predict_feature(vector_feature_predict, vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int);
-//                            printf("main timestamp diamatch, sleep\n");
-//                            usleep(100000);
-//                        }                        
-//                        
-//                        std::vector<float> lane_coeffs_t;
-//                        polyfit_vector(&lane_coeffs_t, vector_feature_predict, m_order );
-//                        for(int i = 0; i<m_order+1; i++)
-//                        {
-//                            lane_coeffs_predict.at<float>(i, 1) = lane_coeffs_t[i];
-//                        }
-//                                                
-//                        image_timestamp_pre = image_timestamp;
+                        do_predict_feature();
 
                         /// 拟合当前lane
                         xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);            
@@ -269,30 +232,13 @@ int main(int argc, char *argv[])
                             }                            
                         }
 
+                        // 画车道线
                         mark_IPM_lane(ipm_image, lane_coeffs, ipm_para, 0.9);// 在IPM中标注当前lane 白色
                         mark_IPM_lane(ipm_image, lane_coeffs_pre, ipm_para, 0.45);// 在IPM中标注上一帧lane 灰白
- 
-                        /// 在IPM中标注预测lane
-                        std::vector<int> x_predict(ipm_para.height+2);
-                        std::vector<int> y_predict(ipm_para.height+2);
-                        int i_index = -1;            
-                        for (float i = ipm_para.y_limits[0]; i < ipm_para.y_limits[1]; i+=ipm_para.y_scale) // x
-                        {
-                            i_index += 1;
-                            y_predict[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
-                            float x_t = lane_coeffs_predict.at<float>(0, 1) + lane_coeffs_predict.at<float>(1, 1)*i + lane_coeffs_predict.at<float>(2, 1)*i*i;
-                            x_predict[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
-
-                            if (x_predict[i_index] < 0 || x_predict[i_index] > ipm_para.width )
-                            {
-                                continue;
-                            }else{
-                                ipm_image.at<float>(y_predict[i_index], x_predict[i_index]) = 0.1; // 黑色 预测
-                            }            
-                        }    
+                        mark_IPM_lane(ipm_image, lane_coeffs_predict, ipm_para, 0.1);// 在IPM中标注预测lane 黑色
 
                         cv::imshow("ipm", ipm_image);
-                        if(cv::waitKey(200)) // 值太小IPM图会显示黑色 ???
+                        if(cv::waitKey(250)) // 值太小IPM图会显示黑色 ???
                         {}
                         
                     }  
@@ -420,7 +366,7 @@ string get_file_name(string file_path)
 }
 
 // 读取图片文件夹中所有文件最小和最大的index
-bool get_max_min_image_frame_index(int &max_index, int &min_index, string file_path)
+bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
 {
     DIR *dp;
     struct dirent *dirp;
@@ -460,28 +406,6 @@ bool get_max_min_image_frame_index(int &max_index, int &min_index, string file_p
 }
 
 
-// 拟合车道线: 目前还有点问题
-void ployfit_lane(cv::Mat &lane_coeffs, BirdPerspectiveMapping bp_mapping, cv::Mat uv_feature_pts)
-{
-    for(int k=0; k<lane_num; k++)
-    {
-        for(int i1 = 0; i1<pts_num; i1++)
-        {
-            uv_feature_pts.at<float>(0, i1) = uv_feature[0][k*pts_num + i1];
-            uv_feature_pts.at<float>(1, i1) = uv_feature[1][k*pts_num + i1];
-        }        
-        // get these points on the ground plane
-        bp_mapping.TransformImage2Ground(uv_feature_pts, &xy_feature);                        
-        std::vector<float> lane_coeffs_t;
-        polyfit1(&lane_coeffs_t, xy_feature, m_order); // 车道线拟合    Y = AX(X是纵轴);
-
-        for(int i = 0; i<m_order+1; i++)
-        {
-            lane_coeffs.at<float>(i, k) = lane_coeffs_t[i];
-        }                            
-    }
-}
-
 // 图片IPM
 void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
 {
@@ -505,7 +429,7 @@ void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
     }
 }
 
-// 标记 IPM lane
+//// 标记 IPM lane
 void mark_IPM_lane(cv::Mat &ipm_image, cv::Mat lane_coeffs, IPMPara ipm_para, float lane_color_value)
 {
     /// 在IPM中标注当前lane
@@ -530,9 +454,8 @@ void mark_IPM_lane(cv::Mat &ipm_image, cv::Mat lane_coeffs, IPMPara ipm_para, fl
 
 
 // 预测特征点并画图
-void predict_feature()
+void do_predict_feature()
 {
-    // 执行预测lane
     if(is_first_lane_predict)
     {
         is_first_lane_predict = 0;
@@ -558,11 +481,16 @@ void predict_feature()
     int64 image_timestamp_cur_int = (int64)(image_timestamp*1000);
 
     int r_1 = 0;
+    int main_sleep_counter = 0; //  一次外部调用，main sleep的次数
     while(!r_1)
     {
-        r_1 = data_fusion.get_predict_feature(vector_feature_predict, vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int);
-        printf("main timestamp diamatch, sleep\n");
-        usleep(100000);
+        r_1 = data_fusion.get_predict_feature(&vector_feature_predict, vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int);
+        if(main_sleep_counter > 0)
+        {
+            printf("main timestamp diamatch conunter:%d, so sleep\n",  main_sleep_counter);
+            usleep(100000);
+        }
+        main_sleep_counter++;       
     }                        
     
     std::vector<float> lane_coeffs_t;
