@@ -1,8 +1,4 @@
 #include "can_vehicle_estimate.h"
-#include "datafusion_math.h"
-
-#include <stdio.h>
-
 
 using namespace common;
 
@@ -22,7 +18,6 @@ CAN_VehicleEstimate::CAN_VehicleEstimate()
     m_vehicle_pos[1] = 0.0f;
     
 }
-
 
 void CAN_VehicleEstimate::Initialize( )
 {
@@ -52,14 +47,11 @@ void CAN_VehicleEstimate::UpdateVehicleState(double steer_angle, double vehicle_
         m_vehicle_pos[0] = m_vehicle_pos[0] + m_vehicle_vel[0]*dt;
         m_vehicle_pos[1] = m_vehicle_pos[1] + m_vehicle_vel[1]*dt;
     }
-    
-    
-//    printf("steer_angle: %f  vehicle_speed: %f dt: %f \n", steer_angle*R2D, vehicle_speed, dt );
-//    printf("pos: %f %f vel: %f %f\n", m_vehicle_pos[0], m_vehicle_pos[1], m_vehicle_vel[0], m_vehicle_vel[1]);
+
 }
 
 
-void CAN_VehicleEstimate::UpdateVehicleState_imu(double yaw, double vehicle_speed           , double dt )
+void CAN_VehicleEstimate::UpdateVehicleStateImu(double yaw, double vehicle_speed           , double dt )
 {
     m_yaw = yaw;
     m_vehicle_vel[0] = vehicle_speed*cosf(yaw);  // X
@@ -69,17 +61,10 @@ void CAN_VehicleEstimate::UpdateVehicleState_imu(double yaw, double vehicle_spee
     {
         m_vehicle_pos[0] = m_vehicle_pos[0] + m_vehicle_vel[0]*dt;
         m_vehicle_pos[1] = m_vehicle_pos[1] + m_vehicle_vel[1]*dt;
-    }else
-    {
-//        printf()
     }
-    
-    
-//    printf("steer_angle: %f  vehicle_speed: %f dt: %f \n", steer_angle*R2D, vehicle_speed, dt );
-//    printf("pos: %f %f vel: %f %f\n", m_vehicle_pos[0], m_vehicle_pos[1], m_vehicle_vel[0], m_vehicle_vel[1]);
 }
 
-void CAN_VehicleEstimate::GetVehicleState(double (&vel)[2], double (&pos)[2], double &yaw)
+void CAN_VehicleEstimate::GetVehicleState(double vel[2], double pos[2], double *yaw)
 {
     vel[0] = m_vehicle_vel[0];
     vel[1] = m_vehicle_vel[1];
@@ -87,20 +72,8 @@ void CAN_VehicleEstimate::GetVehicleState(double (&vel)[2], double (&pos)[2], do
     pos[0] = m_vehicle_pos[0];
     pos[1] = m_vehicle_pos[1];
 
-    yaw = m_yaw;
+    *yaw = m_yaw;
 
-}
-
-
-void CAN_VehicleEstimate::GetVelPosFai(double (&vel)[2], double (&pos)[2], double& fai)
-{
-    vel[0] = m_vehicle_vel[0];
-    vel[1] = m_vehicle_vel[1];
-
-    pos[0] = m_vehicle_pos[0];
-    pos[1] = m_vehicle_pos[1];
-
-    fai = m_fai;
 }
 
 void CAN_VehicleEstimate::ResetState()

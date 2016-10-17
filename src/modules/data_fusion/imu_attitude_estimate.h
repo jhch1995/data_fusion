@@ -1,13 +1,7 @@
-
 #ifndef IMU_ATTITUDE_ESTIMATE_H
 #define IMU_ATTITUDE_ESTIMATE_H
 
-#if defined(_MSC_VER) && (_MSC_VER >= 1600)
-#pragma execution_character_set("utf-8")
-#endif
-
 #include "common/relative_locate/linear_r3.h"
-
 
 class ImuAttitudeEstimate
 {
@@ -20,34 +14,27 @@ public:
 
     void Initialize( );
 
-    
-    /// @brief 获取摄像头姿态
-    ///
-    /// @param axis
     /// att_new:新的姿态
-    /// AccData: 加速度数据
-    /// GyroData: 陀螺仪数据
+    /// acc_data: 加速度数据
+    /// gyro_data: 陀螺仪数据
     /// dt: 前后两次量测数据更新的时间差
-    void UpdataAttitude( double AccData[3], double GyroData[3], double dt);
+    void UpdataAttitude( const double acc_data[3], const double gyro_data[3], double dt);
 
-    void GetAttitude(double (&att)[3]);
+    void GetAttitude(double att[3]);
 
     /// 一阶低通函数
-    int LowpassFilter3f(double (&y_new)[3], double y_pre[3], double x_new[3], double dt, double filt_hz);
+    int LowpassFilter3f(const double y_pre[3], const double x_new[3], double dt, const double filt_hz, double y_new[3] );
 
-    int AccDataCalibation(double (&AccData_new)[3], double AccData_raw[3]);
+    int AccDataCalibation(const double acc_data_raw[3], double acc_data_ned[3] );
 
     int SetAccCalibationParam(double A0[3], double A1[3][3]);
 
-    int GyrocDataCalibation(double (&GyroData_new)[3], double GyroData_raw[3]);
+    int GyrocDataCalibation(const double gyro_data_raw[3], double gyro_data_new[3] );
 
-    void ResetState();
-
-    
+    void ResetState();    
 
 
 private:
-
     enum
     {
       X_AXIS = 0,
@@ -55,28 +42,18 @@ private:
       Z_AXIS
     };
     
-    bool m_isFirstTimeUpdate; // 判断是否是第一次更新姿态
-
-    double  m_AccAVSFactor[3]; // 加速度计平滑的参数
-    double  m_FactorAccGyro[3]; // 加速度计修正的姿态的系数
-    double    m_Att[3];
-    double    m_SmoothAcc[2];
-    double    m_SmoothAccAngle[3]; // 平滑之后的加速度计角度
-    double    m_RawAccAngle[3]; // 原始的加速度计角度
-    double  m_GyroAngle[3];
-    int m_AttInitCounter;// = 20;
-
+    double m_factor_acc_gyro[3]; // 加速度计修正的姿态的系数
+    double m_att[3];
+    double m_gyro_angle[3];
+    int m_att_init_counter;// = 20;
     
     // Y1模组的加速度计校正参数
     double m_accel_range_scale;
     double m_A0[3];// = {0.0628f, 0.0079f, -0.0003f};
     double m_A1[3][3]; // = {0.9986f, -0.0027f, 0.0139f, 0.0164f, 0.9993f, -0.0176f, -0.0159f, 0.0064f, 0.9859f };
-
     double m_gyro_range_scale;
-    double m_GyroDrift[3]; // = {0.0155f, -0.0421f, -0.0217f};  // 陀螺仪零偏，在线估计
-
-    // gyro calibation
-    double mGyroOffset[3];
+    double m_gyro_drift[3]; // = {0.0155f, -0.0421f, -0.0217f};  // 陀螺仪零偏，在线估计    
+    double m_gyro_offset[3]; // gyro calibation;
     
 
 };

@@ -120,8 +120,8 @@ int main(int argc, char *argv[])
 
 // 初始化融合函数
     data_fusion.Initialize();    
-    data_fusion.exec_task_read_data(); // 读取数据的线程 
-    data_fusion.exec_task_run_fusion(); // 在线运行的时候应该是在用独立线程持续运行的
+    data_fusion.ExecTaskReadData(); // 读取数据的线程 
+    data_fusion.ExecTaskRunFusion(); // 在线运行的时候应该是在用独立线程持续运行的
 
 // 本地利用标注的数据测试   
     string str_image_frame_add = "data/doing/frame/";
@@ -482,7 +482,7 @@ void do_predict_feature()
     int main_sleep_counter = 0; //  一次外部调用，main sleep的次数
     while(!r_1)
     {
-        r_1 = data_fusion.get_predict_feature(&vector_feature_predict, vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int);
+        r_1 = data_fusion.GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
         if(main_sleep_counter > 0)
         {
             printf("main timestamp diamatch conunter:%d, so sleep\n",  main_sleep_counter);

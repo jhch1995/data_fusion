@@ -1,33 +1,19 @@
 #ifndef DATA_FUSION_H
 #define DATA_FUSION_H
 
-#if defined(_MSC_VER) && (_MSC_VER >= 1600)
-#pragma execution_character_set("utf-8")
-#endif
-
-#include "opencv2/opencv.hpp"
-#include "gflags/gflags.h"
-
-//#include "common/relative_locate/bird_perspective_mapping.h"
-//#include "datafusion_math.h"
-
-#include "common/base/stdint.h"
-#include "common/math/polyfit.h"
-#include "common/base/log_level.h"
-
 #include <fstream>
 #include <string>
 #include <sstream>
 #include <math.h>
 #include <vector>
-#include <queue> 
 
+#include "opencv2/opencv.hpp"
 #include "common/relative_locate/linear_r3.h"
-
+#include "common/base/stdint.h"
+#include "common/base/log_level.h"
 
 #include "imu_attitude_estimate.h"
 #include "can_vehicle_estimate.h"
-
 
 using namespace std;
 
@@ -55,61 +41,60 @@ public:
 
     void Initialize( );
 
-    int read_data();
+    int ReadData();
     
-    void update_current_fusion_timestamp( double data_timestample);
+    void UpdateCurrentFusionTimestamp( double data_timestample);
 
-    void update_current_data_timestamp( double data_timestample);
+    void UpdateCurrentDataTimestamp( double data_timestample);
 
     // 判断是否还要继续读取数据
-    bool update_read_data_state( );
+    bool UpdateRreadDataState( );
 
     // 只保留设定时间长度的数据
-    void  delete_history_save_data( );
+    void  DeleteHistoryData( );
 
     // 根据时间戳查找对应的数据
-    int get_timestamp_data(double (&vehicle_pos)[2], double (&att)[3], double timestamp_search);
+    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3] );
         
-    int run_fusion( );
+    int RunFusion( );
     
-    int polyfit(std::vector<float>* lane_coeffs, const cv::Mat& xy_feature, int order );
+    int Polyfit(const cv::Mat& xy_feature, int order , std::vector<float>* lane_coeffs);
    
-    int get_lane_predict_parameter(cv::Mat& lane_coeffs_predict, double image_timestamp_cur, double image_timestamp_pre, 
-                                              cv::Mat lane_coeffs_pre, double lane_num, double m_order );
+    int GetLanePredictParameter(double image_timestamp_cur, double image_timestamp_pre, const cv::Mat &lane_coeffs_pre, 
+                                                double lane_num, double m_order, cv::Mat* lane_coeffs_predict );
   
-    int lane_predict(cv::Mat& lane_coeffs_predict, cv::Mat lane_coeffs_pre, double lane_num, double m_order, 
-                          double vehicle_pos_pre[2],  double att_pre[3],
-                          double vehicle_pos_cur[2],  double att_cur[3]);
+    int LanePredict( const cv::Mat& lane_coeffs_pre, const double lane_num, double m_order, 
+                          const double vehicle_pos_pre[2],  const double att_pre[3],
+                          const double vehicle_pos_cur[2],  const double att_cur[3], cv::Mat* lane_coeffs_predict);
 
-    int get_predict_feature(std::vector<cv::Point2f>* vector_feature_predict, const std::vector<cv::Point2f>& vector_feature_pre ,
-                                        int64 image_timestamp_pre, int64 image_timestamp_cur);
+    int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur, 
+                                      std::vector<cv::Point2f>* vector_feature_predict);
 
-    int feature_predict(std::vector<cv::Point2f>* vector_feature_predict, const std::vector<cv::Point2f>& vector_feature_pre ,
-                                  double vehicle_pos_pre[2], double att_pre[3], double vehicle_pos_cur[2], double att_cur[3]);
-
+    int FeaturePredict( const std::vector<cv::Point2f>& vector_feature_pre , double vehicle_pos_pre[2], double att_pre[3], 
+                                 double vehicle_pos_cur[2], double att_cur[3], std::vector<cv::Point2f>* vector_feature_predict);
     // 数据融合的线程
-    static void *thread_run_fusion(void *tmp)//线程执行函数
+    static void *ThreadRunFusion(void *tmp)//线程执行函数
     {
         DataFusion *p = (DataFusion *)tmp;        
-        p->run_fusion(); //通过p指针间接访问类的非静态成员;
+        p->RunFusion(); //通过p指针间接访问类的非静态成员;
     }
     pthread_t data_fusion_id;
-    int exec_task_run_fusion()
+    int ExecTaskRunFusion()
     {        
-        int ERR = pthread_create(&data_fusion_id, NULL, thread_run_fusion, (void *)this); //启动线程执行例程
+        int ERR = pthread_create(&data_fusion_id, NULL, ThreadRunFusion, (void *)this); //启动线程执行例程
         return ERR;
     }
 
     // read data 线程
-    static void *thread_read_data(void *tmp)//线程执行函数
+    static void *ThreadReadData(void *tmp)//线程执行函数
     {
         DataFusion *p = (DataFusion *)tmp;        
-        p->read_data(); //通过p指针间接访问类的非静态成员;
+        p->ReadData(); //通过p指针间接访问类的非静态成员;
     }
     pthread_t read_data_id;
-    int exec_task_read_data()
+    int ExecTaskReadData()
     {        
-        int ERR = pthread_create(&read_data_id, NULL, thread_read_data, (void *)this); //启动线程执行例程
+        int ERR = pthread_create(&read_data_id, NULL, ThreadReadData, (void *)this); //启动线程执行例程
         return ERR;
     }
 
@@ -124,13 +109,13 @@ private:
     double m_call_predict_timestamp; // 当前外部图像处理模块处理的图片生成的时间戳
     
     /// CAN
-    CAN_VehicleEstimate can_vehicle_estimate;
+    CAN_VehicleEstimate m_can_vehicle_estimate;
     double m_pre_can_timestamp ;
     StructVehicleState m_struct_vehicle_state;
     std::vector<StructVehicleState> m_vector_vehicle_state;
 
     // IMU
-    ImuAttitudeEstimate imu_attitude_estimate;
+    ImuAttitudeEstimate m_imu_attitude_estimate;
     double m_acc_filt_hz; // 加速度计的低通截止频率
     double m_gyro_filt_hz; //陀螺仪的低通截止频率
     bool m_isFirstTime_att; // 是否是第一次进入
