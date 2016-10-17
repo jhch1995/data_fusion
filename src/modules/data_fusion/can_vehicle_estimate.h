@@ -1,15 +1,13 @@
-
 #ifndef CAN_VEHICLE_ESTIMATE_H  
 #define CAN_VEHICLE_ESTIMATE_H
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1600)
 #pragma execution_character_set("utf-8")
 #endif
-
 #include <vector>
-#include "linear_r3.h"
-
 #include <math.h>
+#include "common/relative_locate/linear_r3.h"
+
 
 class CAN_VehicleEstimate
 {

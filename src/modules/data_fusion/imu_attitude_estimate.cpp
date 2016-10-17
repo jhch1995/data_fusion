@@ -1,23 +1,19 @@
 #include "imu_attitude_estimate.h"
 #include "datafusion_math.h"
-
 #include <stdio.h>
-
-using namespace common;
-
 
 ImuAttitudeEstimate::ImuAttitudeEstimate()
 {
-    m_AccAVSFactor[X_AXIS] = 20.0f;
-    m_AccAVSFactor[Y_AXIS] = 20.0f;
-    m_AccAVSFactor[Z_AXIS] = 20.0f;
+    m_AccAVSFactor[X_AXIS] = 20.0;
+    m_AccAVSFactor[Y_AXIS] = 20.0;
+    m_AccAVSFactor[Z_AXIS] = 20.0;
 
-    m_FactorAccGyro[X_AXIS] = 0.05f;
-    m_FactorAccGyro[Y_AXIS] = 0.05f;
-    m_FactorAccGyro[Z_AXIS] = 0.05f;  
+    m_FactorAccGyro[X_AXIS] = 0.05;
+    m_FactorAccGyro[Y_AXIS] = 0.05;
+    m_FactorAccGyro[Z_AXIS] = 0.05;  
 
     m_accel_range_scale = 8.0f/32768;
-    m_gyro_range_scale = 2000.0f/180*M_PI/32768;
+    m_gyro_range_scale = 2000.0f/180*3.141593/32768;
 
 
     m_A0[0] = 0.0628;

@@ -6,20 +6,8 @@
 #pragma execution_character_set("utf-8")
 #endif
 
-#include <vector>
-#include "linear_r3.h"
+#include "common/relative_locate/linear_r3.h"
 
-//struct def_attitude_T
-//{
-//    double mAccAVSFactor[3]; // 加速度计平滑的参数
-//    double mFactorAccGyro[3]; // 加速度计修正的姿态的系数
-//    double    mAtt[3];
-//    double    SmoothAcc[2];
-//    double    SmoothAccAngle[3]; // 平滑之后的加速度计角度
-//    double    RawAccAngle[3]; // 原始的加速度计角度
-//    double  mGyroAngle[3];
-//    
-//};
 
 class ImuAttitudeEstimate
 {

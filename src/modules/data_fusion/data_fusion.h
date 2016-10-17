@@ -8,11 +8,8 @@
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
 
-#include "relative_locate.h"
-#include "bird_perspective_mapping.h"
-#include "imu_attitude_estimate.h"
-#include "can_vehicle_estimate.h"
-#include "datafusion_math.h"
+//#include "common/relative_locate/bird_perspective_mapping.h"
+//#include "datafusion_math.h"
 
 #include "common/base/stdint.h"
 #include "common/math/polyfit.h"
@@ -24,6 +21,13 @@
 #include <math.h>
 #include <vector>
 #include <queue> 
+
+#include "common/relative_locate/linear_r3.h"
+
+
+#include "imu_attitude_estimate.h"
+#include "can_vehicle_estimate.h"
+
 
 using namespace std;
 

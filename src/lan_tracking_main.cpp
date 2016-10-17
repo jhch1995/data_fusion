@@ -1,7 +1,7 @@
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
-#include "relative_locate.h"
-#include "bird_perspective_mapping.h"
+#include "common/relative_locate/relative_locate.h"
+#include "common/relative_locate/bird_perspective_mapping.h"
 
 // ployfit
 #include "common/base/stdint.h"
