@@ -143,11 +143,11 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
     acc_data_t[1] = acc_data_raw[1]*m_accel_range_scale - m_A0[1];
     acc_data_t[2] = acc_data_raw[2]*m_accel_range_scale - m_A0[2];
 
-    acc_data_imu[0]= (m_A1[0][0]*acc_data_t[0] + m_A1[0][1]*acc_data_t[1] + m_A1[0][2]*acc_data_t[2])*ONE_G; // µØÀí×ø±êÏµZ
-    acc_data_imu[1]= (m_A1[1][0]*acc_data_t[0] + m_A1[1][1]*acc_data_t[1] + m_A1[1][2]*acc_data_t[2])*ONE_G; // µØÀí×ø±êÏµY
-    acc_data_imu[2]= (m_A1[2][0]*acc_data_t[0] + m_A1[2][1]*acc_data_t[1] + m_A1[2][2]*acc_data_t[2])*ONE_G;  // µØÀí×ø±êÏµX
+    acc_data_imu[0]= (m_A1[0][0]*acc_data_t[0] + m_A1[0][1]*acc_data_t[1] + m_A1[0][2]*acc_data_t[2])*ONE_G; // åœ°ç†åæ ‡ç³»Z
+    acc_data_imu[1]= (m_A1[1][0]*acc_data_t[0] + m_A1[1][1]*acc_data_t[1] + m_A1[1][2]*acc_data_t[2])*ONE_G; // åœ°ç†åæ ‡ç³»Y
+    acc_data_imu[2]= (m_A1[2][0]*acc_data_t[0] + m_A1[2][1]*acc_data_t[1] + m_A1[2][2]*acc_data_t[2])*ONE_G;  // åœ°ç†åæ ‡ç³»X
 
-    // IMUÔ­Ê¼×ø±êÏµ-->´óµØ×ø±êÏµ(NED)
+    // IMUåŸå§‹åæ ‡ç³»-->å¤§åœ°åæ ‡ç³»(NED)
     acc_data_ned[0] = -acc_data_imu[2];
     acc_data_ned[1] = -acc_data_imu[1];
     acc_data_ned[2] = -acc_data_imu[0];    
@@ -158,11 +158,11 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
 int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], double gyro_data_new[3] )
 {
     double gyro_data_imu[3];
-    gyro_data_imu[0] = gyro_data_raw[0]*m_gyro_range_scale - m_gyro_drift[0]; // µØÀí×ø±êÏµZ
-    gyro_data_imu[1] = gyro_data_raw[1]*m_gyro_range_scale - m_gyro_drift[1]; // µØÀí×ø±êÏµY
-    gyro_data_imu[2] = gyro_data_raw[2]*m_gyro_range_scale - m_gyro_drift[2]; // µØÀí×ø±êÏµX
+    gyro_data_imu[0] = gyro_data_raw[0]*m_gyro_range_scale - m_gyro_drift[0]; // åœ°ç†åæ ‡ç³»Z
+    gyro_data_imu[1] = gyro_data_raw[1]*m_gyro_range_scale - m_gyro_drift[1]; // åœ°ç†åæ ‡ç³»Y
+    gyro_data_imu[2] = gyro_data_raw[2]*m_gyro_range_scale - m_gyro_drift[2]; // åœ°ç†åæ ‡ç³»X
 
-    // IMUÔ­Ê¼×ø±êÏµ-->´óµØ×ø±êÏµ(NED)
+    // IMUåŸå§‹åæ ‡ç³»-->å¤§åœ°åæ ‡ç³»(NED)
     gyro_data_new[0] = -gyro_data_imu[2];
     gyro_data_new[1] = -gyro_data_imu[1];
     gyro_data_new[2] = -gyro_data_imu[0];    

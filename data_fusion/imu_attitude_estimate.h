@@ -14,15 +14,15 @@ public:
 
     void Initialize( );
 
-    /// att_new:ĞÂµÄ×ËÌ¬
-    /// acc_data: ¼ÓËÙ¶ÈÊı¾İ
-    /// gyro_data: ÍÓÂİÒÇÊı¾İ
-    /// dt: Ç°ºóÁ½´ÎÁ¿²âÊı¾İ¸üĞÂµÄÊ±¼ä²î
+    /// att_new:æ–°çš„å§¿æ€
+    /// acc_data: åŠ é€Ÿåº¦æ•°æ®
+    /// gyro_data: é™€èºä»ªæ•°æ®
+    /// dt: å‰åä¸¤æ¬¡é‡æµ‹æ•°æ®æ›´æ–°çš„æ—¶é—´å·®
     void UpdataAttitude( const double acc_data[3], const double gyro_data[3], double dt);
 
     void GetAttitude(double att[3]);
 
-    /// Ò»½×µÍÍ¨º¯Êı
+    /// ä¸€é˜¶ä½é€šå‡½æ•°
     int LowpassFilter3f(const double y_pre[3], const double x_new[3], double dt, const double filt_hz, double y_new[3] );
 
     int AccDataCalibation(const double acc_data_raw[3], double acc_data_ned[3] );
@@ -42,17 +42,17 @@ private:
       Z_AXIS
     };
     
-    double m_factor_acc_gyro[3]; // ¼ÓËÙ¶È¼ÆĞŞÕıµÄ×ËÌ¬µÄÏµÊı
+    double m_factor_acc_gyro[3]; // åŠ é€Ÿåº¦è®¡ä¿®æ­£çš„å§¿æ€çš„ç³»æ•°
     double m_att[3];
     double m_gyro_angle[3];
     int m_att_init_counter;// = 20;
     
-    // Y1Ä£×éµÄ¼ÓËÙ¶È¼ÆĞ£Õı²ÎÊı
+    // Y1æ¨¡ç»„çš„åŠ é€Ÿåº¦è®¡æ ¡æ­£å‚æ•°
     double m_accel_range_scale;
     double m_A0[3];// = {0.0628f, 0.0079f, -0.0003f};
     double m_A1[3][3]; // = {0.9986f, -0.0027f, 0.0139f, 0.0164f, 0.9993f, -0.0176f, -0.0159f, 0.0064f, 0.9859f };
     double m_gyro_range_scale;
-    double m_gyro_drift[3]; // = {0.0155f, -0.0421f, -0.0217f};  // ÍÓÂİÒÇÁãÆ«£¬ÔÚÏß¹À¼Æ    
+    double m_gyro_drift[3]; // = {0.0155f, -0.0421f, -0.0217f};  // é™€èºä»ªé›¶åï¼Œåœ¨çº¿ä¼°è®¡    
     double m_gyro_offset[3]; // gyro calibation;
     
 

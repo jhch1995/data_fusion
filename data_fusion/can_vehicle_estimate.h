@@ -21,27 +21,27 @@ public:
 
     void UpdateVehicleState(double steer_angle, double vehicle_speed           , double dt );
 
-    // ÀûÓÃIMU+speed¼ÆËã³µÁ¾ÔË¶¯ĞÅÏ¢
+    // åˆ©ç”¨IMU+speedè®¡ç®—è½¦è¾†è¿åŠ¨ä¿¡æ¯
     void UpdateVehicleStateImu(double yaw, double vehicle_speed, double dt );
 
-    // »ñÈ¡µ±Ç°Æû³µµÄÎ»ÖÃËÙ¶È
+    // è·å–å½“å‰æ±½è½¦çš„ä½ç½®é€Ÿåº¦
     void GetVehicleState(double vel[2], double pos[2], double *yaw);
 
-    // ÖØÖÃÆû³µµÄ×´Ì¬Êı¾İ
-    // °üÀ¨: ËÙ¶È¡¢Î»ÖÃ¡¢º½Ïò½Ç
+    // é‡ç½®æ±½è½¦çš„çŠ¶æ€æ•°æ®
+    // åŒ…æ‹¬: é€Ÿåº¦ã€ä½ç½®ã€èˆªå‘è§’
     void ResetState();
 
 
 private:
-    double m_vehicle_L; // Æû³µµÄÖá¾à    
-    double m_min_steer_angle; //×îĞ¡µÄÓĞĞ§·½ÏòÅÌ×ª½Ç£¬Ğ¡ÓÚÕâ¸ö½Ç¶È²»¼ÆËã    
-    double m_k_steer2wheel_angle; // ·½ÏòÅÌ×ª½Çµ½ĞéÄâÇ°ÂÖ×ª½ÇµÄÏµÊı    
-    double m_virtual_front_angle; // ĞéÄâÇ°ÂÖµÄ½Ç¶È    
-    double m_beta; // Æû³µ²à»¬½Ç    
-    double m_fai; // Æû³µº½Ïò½Ç(Ïà¶Ô³µµÀÏß£¬¶¨Ê±»áÇåÁã)    
+    double m_vehicle_L; // æ±½è½¦çš„è½´è·    
+    double m_min_steer_angle; //æœ€å°çš„æœ‰æ•ˆæ–¹å‘ç›˜è½¬è§’ï¼Œå°äºè¿™ä¸ªè§’åº¦ä¸è®¡ç®—    
+    double m_k_steer2wheel_angle; // æ–¹å‘ç›˜è½¬è§’åˆ°è™šæ‹Ÿå‰è½®è½¬è§’çš„ç³»æ•°    
+    double m_virtual_front_angle; // è™šæ‹Ÿå‰è½®çš„è§’åº¦    
+    double m_beta; // æ±½è½¦ä¾§æ»‘è§’    
+    double m_fai; // æ±½è½¦èˆªå‘è§’(ç›¸å¯¹è½¦é“çº¿ï¼Œå®šæ—¶ä¼šæ¸…é›¶)    
     double m_vehicle_vel[2];
     double m_vehicle_pos[2];
-    double m_yaw; // Æû³µº½Ïò½Ç(Ïà¶Ô³µµÀÏß£¬¶¨Ê±»áÇåÁã)
+    double m_yaw; // æ±½è½¦èˆªå‘è§’(ç›¸å¯¹è½¦é“çº¿ï¼Œå®šæ—¶ä¼šæ¸…é›¶)
 
 };
 

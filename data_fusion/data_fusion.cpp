@@ -1,8 +1,8 @@
 #include "data_fusion.h"
 #include <unistd.h>
 
-# define DATA_FROM_LOG 1  // ´ÓlogÖĞ¶ÁÈ¡Êı¾İ
-# define DATA_FROM_ONLINE 0 //ÔÚÏß¶ÁÈ¡Êı¾İ
+# define DATA_FROM_LOG 1  // ä»logä¸­è¯»å–æ•°æ®
+# define DATA_FROM_ONLINE 0 //åœ¨çº¿è¯»å–æ•°æ®
 
 using namespace common;
 DataFusion::DataFusion()
@@ -15,11 +15,11 @@ void DataFusion::Initialize( )
     m_pre_can_timestamp = 0.0f; /// CAN;
 
     // IMU
-    m_acc_filt_hz = 5.0f; // ¼ÓËÙ¶È¼ÆµÄµÍÍ¨½ØÖ¹ÆµÂÊ
+    m_acc_filt_hz = 5.0f; // åŠ é€Ÿåº¦è®¡çš„ä½é€šæˆªæ­¢é¢‘ç‡
     m_gyro_filt_hz = 20.0;
-    m_isFirstTime_att = 1; // ÊÇ·ñÊÇµÚÒ»´Î½øÈë
-    m_pre_imu_timestamp = 0.0f; // IMUÊı¾İÉÏ´ÎµÃµ½µÄÊ±¿Ì     
-    m_is_first_speed_data = 1; //  1: µÚÒ»´Î»ñÈ¡µ½speedÊı¾İ 0:²»ÊÇµÚÒ»´Î
+    m_isFirstTime_att = 1; // æ˜¯å¦æ˜¯ç¬¬ä¸€æ¬¡è¿›å…¥
+    m_pre_imu_timestamp = 0.0f; // IMUæ•°æ®ä¸Šæ¬¡å¾—åˆ°çš„æ—¶åˆ»     
+    m_is_first_speed_data = 1; //  1: ç¬¬ä¸€æ¬¡è·å–åˆ°speedæ•°æ® 0:ä¸æ˜¯ç¬¬ä¸€æ¬¡
     
     // read data
     m_is_first_read_gsensor = 1; 
@@ -27,24 +27,24 @@ void DataFusion::Initialize( )
     m_data_speed_update = 0;
     m_data_image_update = 0;
     
-    // ¶ÁÈ¡Êı¾İ¿ØÖÆ
-    m_is_first_fusion_timestamp = 1; // µÚÒ»´Î¸üĞÂ
-    m_is_first_data_timestamp = 1; // µÚÒ»´Î¸üĞÂ
-    m_data_save_length = 2; // ±£´æÀúÊ·Êı¾İµÄ³¤¶È(Ê±¼äÎªµ¥Î»: s)
-    m_is_continue_read_data = 1; // 1:¼ÌĞø¶ÁÈ¡Êı¾İ  2:ÔİÍ£¶ÁÈ¡Êı¾İ ÓÉfusion¿ØÖÆ   
+    // è¯»å–æ•°æ®æ§åˆ¶
+    m_is_first_fusion_timestamp = 1; // ç¬¬ä¸€æ¬¡æ›´æ–°
+    m_is_first_data_timestamp = 1; // ç¬¬ä¸€æ¬¡æ›´æ–°
+    m_data_save_length = 2; // ä¿å­˜å†å²æ•°æ®çš„é•¿åº¦(æ—¶é—´ä¸ºå•ä½: s)
+    m_is_continue_read_data = 1; // 1:ç»§ç»­è¯»å–æ•°æ®  2:æš‚åœè¯»å–æ•°æ® ç”±fusionæ§åˆ¶   
 
 }
 
-// ¶ÁÈ¡Êı¾İ,Á½ÖÖ·½Ê½:
-//      1.ÀëÏß´Ólog 
-// TODO: 2.ÔÚÏß
+// è¯»å–æ•°æ®,ä¸¤ç§æ–¹å¼:
+//      1.ç¦»çº¿ä»log 
+// TODO: 2.åœ¨çº¿
 int DataFusion::ReadData( )
 {    
     double log_data[2], timestamp_raw[2];
     string data_flag;
     while(1)
     {  
-        //¸üĞÂis_continue_read_data
+        //æ›´æ–°is_continue_read_data
         UpdateRreadDataState();
         if(DATA_FROM_LOG && m_is_continue_read_data)
         {
@@ -68,19 +68,19 @@ int DataFusion::ReadData( )
                 
             }else if(data_flag == "Gsensor")
             {            
-                double AccData_raw[3]; // accÔ­Ê¼×ø±êÏµÏÂµÄ
-                double AccData_NED[3]; // ´óµØ×ø±êÏµ
-                static double AccDataFilter[3]; // Ò»½×µÍÍ¨Ö®ºóµÄÊı¾İ
+                double AccData_raw[3]; // accåŸå§‹åæ ‡ç³»ä¸‹çš„
+                double AccData_NED[3]; // å¤§åœ°åæ ‡ç³»
+                static double AccDataFilter[3]; // ä¸€é˜¶ä½é€šä¹‹åçš„æ•°æ®
                 double GyroData_raw[3];
                 double GyroData_NED[3];  
-                static double GyroDataFilter[3]; // Ò»½×µÍÍ¨Ö®ºóµÄÊı¾İ
+                static double GyroDataFilter[3]; // ä¸€é˜¶ä½é€šä¹‹åçš„æ•°æ®
                 double imu_temperature, imu_timestamp;    
                 string imu_flag;
 
                 ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>imu_flag>>AccData_raw[0]>>AccData_raw[1]>>AccData_raw[2]
                         >>GyroData_raw[0]>>GyroData_raw[1]>>GyroData_raw[2]>>imu_temperature;
                 imu_timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;                 
-                m_imu_attitude_estimate.AccDataCalibation(AccData_raw, AccData_NED);// Ô­Ê¼Êı¾İĞ£Õı
+                m_imu_attitude_estimate.AccDataCalibation(AccData_raw, AccData_NED);// åŸå§‹æ•°æ®æ ¡æ­£
                 m_imu_attitude_estimate.GyrocDataCalibation(GyroData_raw, GyroData_NED);
 
                 if(m_is_first_read_gsensor)
@@ -130,7 +130,7 @@ int DataFusion::ReadData( )
 }
 
 
-// ¸üĞÂµ±Ç°fusionµÄÊ±¼ä´Á£¬ÓÃÓÚ¿ØÖÆ¶ÁÈ¡Êı¾İµÄ³¤¶È
+// æ›´æ–°å½“å‰fusionçš„æ—¶é—´æˆ³ï¼Œç”¨äºæ§åˆ¶è¯»å–æ•°æ®çš„é•¿åº¦
 void DataFusion::UpdateCurrentFusionTimestamp( double data_timestample)
 {
     if(m_is_first_fusion_timestamp)
@@ -146,7 +146,7 @@ void DataFusion::UpdateCurrentFusionTimestamp( double data_timestample)
     }
 }
 
-// ¸üĞÂµ±Ç°dataµÄÊ±¼ä´Á£¬ÓÃÓÚ¿ØÖÆ¶ÁÈ¡Êı¾İµÄ³¤¶È
+// æ›´æ–°å½“å‰dataçš„æ—¶é—´æˆ³ï¼Œç”¨äºæ§åˆ¶è¯»å–æ•°æ®çš„é•¿åº¦
 void DataFusion::UpdateCurrentDataTimestamp( double data_timestample)
 {
     if(m_is_first_data_timestamp)
@@ -163,14 +163,14 @@ void DataFusion::UpdateCurrentDataTimestamp( double data_timestample)
 }
 
 
-// ÅĞ¶ÏÊÇ·ñ»¹Òª¼ÌĞø¶ÁÈ¡Êı¾İ
+// åˆ¤æ–­æ˜¯å¦è¿˜è¦ç»§ç»­è¯»å–æ•°æ®
 bool  DataFusion::UpdateRreadDataState( )
 {
     double dt  = m_cur_data_timestamp - m_call_predict_timestamp;
-    // ÌáÇ°¶ÁÈ¡data_save_length³¤¶ÈµÄÊı¾İ
-    if(dt > 0 && dt >= m_data_save_length)  // Ê±¼ä³¬¹ıÁË
+    // æå‰è¯»å–data_save_lengthé•¿åº¦çš„æ•°æ®
+    if(dt > 0 && dt >= m_data_save_length)  // æ—¶é—´è¶…è¿‡äº†
     {
-        m_is_continue_read_data = 0; //  ÔİÍ£¶ÁÈ¡Êı¾İ
+        m_is_continue_read_data = 0; //  æš‚åœè¯»å–æ•°æ®
     }else
     {
         m_is_continue_read_data = 1;
@@ -179,7 +179,7 @@ bool  DataFusion::UpdateRreadDataState( )
     return m_is_continue_read_data;
 }
 
-// ¸ù¾İÉè¶¨×î³¤¼ÇÒäÊ±¼äµÄÀúÊ·Êı¾İ£¬É¾³ı¶àÓàÊı¾İ
+// æ ¹æ®è®¾å®šæœ€é•¿è®°å¿†æ—¶é—´çš„å†å²æ•°æ®ï¼Œåˆ é™¤å¤šä½™æ•°æ®
 void DataFusion::DeleteHistoryData( )
 {
     double dt;
@@ -196,11 +196,11 @@ void DataFusion::DeleteHistoryData( )
     
     if(delete_conter > 0)
     {
-        // ¼ì²â³ö±Èµ±Ç°m_call_predict_timestampÔçdata_save_lengthÃëÇ°µÄÊı¾İ£¬²¢É¾³ı
+        // æ£€æµ‹å‡ºæ¯”å½“å‰m_call_predict_timestampæ—©data_save_lengthç§’å‰çš„æ•°æ®ï¼Œå¹¶åˆ é™¤
         m_vector_att.erase(m_vector_att.begin(), m_vector_att.begin()+delete_conter);
     }    
 
-    // Æû³µÔË¶¯Êı¾İ
+    // æ±½è½¦è¿åŠ¨æ•°æ®
     int vehicle_data_length = m_vector_vehicle_state.size(); 
     delete_conter = 0;
     for(int i=0; i<vehicle_data_length; i++)
@@ -214,16 +214,16 @@ void DataFusion::DeleteHistoryData( )
     
     if(delete_conter > 0)
     {
-        // ¼ì²â³ö±Èµ±Ç°m_call_predict_timestampÔçdata_save_lengthÃëÇ°µÄÊı¾İ£¬²¢É¾³ı
+        // æ£€æµ‹å‡ºæ¯”å½“å‰m_call_predict_timestampæ—©data_save_lengthç§’å‰çš„æ•°æ®ï¼Œå¹¶åˆ é™¤
         m_vector_vehicle_state.erase(m_vector_vehicle_state.begin(), m_vector_vehicle_state.begin()+delete_conter);  
     }
     
 }
 
-// ½øĞĞÆû³µÔË¶¯ĞÅÏ¢½âËãºÍº½Ïò½Ç±ä»¯½âËã
+// è¿›è¡Œæ±½è½¦è¿åŠ¨ä¿¡æ¯è§£ç®—å’Œèˆªå‘è§’å˜åŒ–è§£ç®—
 int DataFusion::RunFusion( )
 {
-    double att_xy_cur[3]; // µ±Ç°stampµÄ½Ç¶È
+    double att_xy_cur[3]; // å½“å‰stampçš„è§’åº¦
     while(1)
     {
         // m_is_continue_read_data
@@ -251,7 +251,7 @@ int DataFusion::RunFusion( )
 
         if(m_data_speed_update)
         {    
-            // ÀûÓÃimu+speed¼ÆËãÆû³µÔË¶¯
+            // åˆ©ç”¨imu+speedè®¡ç®—æ±½è½¦è¿åŠ¨
             double cur_can_timestamp = m_can_speed_data.timestamp; 
             if(m_is_first_speed_data)
             {
@@ -280,7 +280,7 @@ int DataFusion::RunFusion( )
     return 1;
 }
 
-// ÄâºÏÇúÏß
+// æ‹Ÿåˆæ›²çº¿
 int DataFusion::Polyfit(const cv::Mat& xy_feature, int order, std::vector<float>* lane_coeffs )
 {  
     int feature_points_num = xy_feature.cols;
@@ -317,7 +317,7 @@ int DataFusion::Polyfit(const cv::Mat& xy_feature, int order, std::vector<float>
 }
 
 
-// ¸ù¾İÊ±¼ä´Á²éÕÒ¶ÔÓ¦µÄÊı¾İ
+// æ ¹æ®æ—¶é—´æˆ³æŸ¥æ‰¾å¯¹åº”çš„æ•°æ®
 int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3] )
 {
     // m_vector_att
@@ -332,7 +332,7 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
         
         dt_t = timestamp_t - timestamp_search;
         dt_t_pre = timestamp_t_1 - timestamp_search;
-        // Ñ¡È¡Àëtimestamp_search×î½üµÄÊ±¿Ì£¬2ÖÖÌõ¼şÂú×ãÒ»ÖÖ¼´¿É
+        // é€‰å–ç¦»timestamp_searchæœ€è¿‘çš„æ—¶åˆ»ï¼Œ2ç§æ¡ä»¶æ»¡è¶³ä¸€ç§å³å¯
         if(dt_t_pre<0 && dt_t>0)
         {
             att[0] = (m_vector_att.end()-i)->att[0];
@@ -352,7 +352,7 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
         
         dt_t = timestamp_t - timestamp_search;
         dt_t_pre = timestamp_t_1 - timestamp_search;
-        // Ñ¡È¡Àëtimestamp_search×î½üµÄÊ±¿Ì£¬2ÖÖÌõ¼şÂú×ãÒ»ÖÖ¼´¿É
+        // é€‰å–ç¦»timestamp_searchæœ€è¿‘çš„æ—¶åˆ»ï¼Œ2ç§æ¡ä»¶æ»¡è¶³ä¸€ç§å³å¯
         if(dt_t_pre<0 && dt_t>0)
         {
             vehicle_pos[0] = (m_vector_vehicle_state.end()-i)->pos[0];
@@ -368,17 +368,17 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
         return 0;    
 }
 
-// »ñÈ¡Ô¤²âµÄ³µµÀÏß²ÎÊı(Ö÷ÒªÓÃÀ´×Ô¼ºµÄ±¾µØ²âÊÔ)
+// è·å–é¢„æµ‹çš„è½¦é“çº¿å‚æ•°(ä¸»è¦ç”¨æ¥è‡ªå·±çš„æœ¬åœ°æµ‹è¯•)
 int DataFusion::GetLanePredictParameter(double image_timestamp_cur, double image_timestamp_pre, const cv::Mat &lane_coeffs_pre, 
                                                     double lane_num, double m_order, cv::Mat* lane_coeffs_predict )
 {
-    bool data_search_cur = 0; // ËÑË÷Ö¸¶¨Ê±¼ä´ÁµÄÊı¾İ
+    bool data_search_cur = 0; // æœç´¢æŒ‡å®šæ—¶é—´æˆ³çš„æ•°æ®
     bool data_search_pre = 0;    
     double att_cur[3], att_pre[3], vehicle_pos_cur[2], vehicle_pos_pre[2];
-    // ¸üĞÂÊ±¼ä´Á
+    // æ›´æ–°æ—¶é—´æˆ³
     m_call_predict_timestamp = image_timestamp_cur; 
    
-    // Ñ°ÕÒ¸úĞèÇóµÄ timestamp¶ÔÓ¦µÄatt,vehicleÊı¾İ
+    // å¯»æ‰¾è·Ÿéœ€æ±‚çš„ timestampå¯¹åº”çš„att,vehicleæ•°æ®
     data_search_cur = GetTimestampData( image_timestamp_cur, vehicle_pos_cur, att_cur);
     data_search_pre = GetTimestampData( image_timestamp_pre, vehicle_pos_pre, att_pre);
 
@@ -406,21 +406,21 @@ int DataFusion::GetLanePredictParameter(double image_timestamp_cur, double image
 }
 
 
-// ³µµÀÏßÔ¤²â
-// lane_coeffs_pre: Ã¿Ò»ÁĞ´ú±íÒ»¸öÑù±¾
+// è½¦é“çº¿é¢„æµ‹
+// lane_coeffs_pre: æ¯ä¸€åˆ—ä»£è¡¨ä¸€ä¸ªæ ·æœ¬
 int DataFusion::LanePredict( const cv::Mat& lane_coeffs_pre, double lane_num, double m_order, 
                                      const double vehicle_pos_pre[2], const double att_pre[3],
                                      const double vehicle_pos_cur[2],  const double att_cur[3], cv::Mat* lane_coeffs_predict)
 {
-    /// init:(´ı¶¨)
-    int lane_points_nums = 5; // Ã¿Ò»Ìõ³µµÀÏßÈ¡µÄÑù±¾µãÊıÁ¿
+    /// init:(å¾…å®š)
+    int lane_points_nums = 5; // æ¯ä¸€æ¡è½¦é“çº¿å–çš„æ ·æœ¬ç‚¹æ•°é‡
     double X[5] = {2.0, 5.0, 10.0, 20.0, 35.0};
     LOG(INFO)<<"lane_coeffs_pre: "<<lane_coeffs_pre<<endl<<endl;
 
-    // ¼ÆËãÆû³µÔÚÁ½Ö¡Ö®¼äµÄ×´Ì¬±ä»¯    
-    // ¶Ôpos½øĞĞ×ø±êÏµ×ª»»£¬×ªµ½ÒÔpreÊ±¿ÌÎª³õÊ¼×ø±ê
-    double d_pos_tmp[2]; // Ç°ºóÁ½Ö¡ÔÚ³õÊ¼×ø±êÏµÏÂµÄÆû³µÔË¶¯
-    double d_pos_new_c[2]; // ÔÚÒÔpreÎª×ø±êÏÂµÄÆû³µÔË¶¯
+    // è®¡ç®—æ±½è½¦åœ¨ä¸¤å¸§ä¹‹é—´çš„çŠ¶æ€å˜åŒ–    
+    // å¯¹posè¿›è¡Œåæ ‡ç³»è½¬æ¢ï¼Œè½¬åˆ°ä»¥preæ—¶åˆ»ä¸ºåˆå§‹åæ ‡
+    double d_pos_tmp[2]; // å‰åä¸¤å¸§åœ¨åˆå§‹åæ ‡ç³»ä¸‹çš„æ±½è½¦è¿åŠ¨
+    double d_pos_new_c[2]; // åœ¨ä»¥preä¸ºåæ ‡ä¸‹çš„æ±½è½¦è¿åŠ¨
     d_pos_tmp[0] = vehicle_pos_cur[0] - vehicle_pos_pre[0];
     d_pos_tmp[1] = vehicle_pos_cur[1] - vehicle_pos_pre[1];         
     d_pos_new_c[0] = cosf(att_pre[2])*d_pos_tmp[0] + sinf(att_pre[2])*d_pos_tmp[1];
@@ -439,9 +439,9 @@ int DataFusion::LanePredict( const cv::Mat& lane_coeffs_pre, double lane_num, do
     LOG(INFO)<<"d_pos_new_c: "<<d_pos_new_c[0]<<" "<<d_pos_new_c[1]<<endl; 
     LOG(INFO)<<"vehicle_yaw_pre: "<<att_pre[2]*180/3.14<<endl;     
     
-    // ´Ó³µµÀÏß²ÎÊıÖĞ»ñÈ¡ÌØÕ÷µã,²¢Ô¤²âÌØÕ÷µã
-    cv::Mat xy_feature_pre = cv::Mat::zeros(2, lane_points_nums, CV_32FC1);; // ÉÏÒ»Ö¡µÄÖĞ³µµÀÏßµÄÌØÕ÷µã
-    cv::Mat xy_feature_predict = cv::Mat::zeros(2, lane_points_nums, CV_32FC1); //  Ô¤²âµÄµ±Ç°Ö¡µÄÖĞ³µµÀÏßµÄÌØÕ÷µã
+    // ä»è½¦é“çº¿å‚æ•°ä¸­è·å–ç‰¹å¾ç‚¹,å¹¶é¢„æµ‹ç‰¹å¾ç‚¹
+    cv::Mat xy_feature_pre = cv::Mat::zeros(2, lane_points_nums, CV_32FC1);; // ä¸Šä¸€å¸§çš„ä¸­è½¦é“çº¿çš„ç‰¹å¾ç‚¹
+    cv::Mat xy_feature_predict = cv::Mat::zeros(2, lane_points_nums, CV_32FC1); //  é¢„æµ‹çš„å½“å‰å¸§çš„ä¸­è½¦é“çº¿çš„ç‰¹å¾ç‚¹
     for(int lane_index=0; lane_index<lane_num; lane_index++)
     {        
         for(int points_index = 0; points_index<lane_points_nums; points_index++)
@@ -450,7 +450,7 @@ int DataFusion::LanePredict( const cv::Mat& lane_coeffs_pre, double lane_num, do
             xy_feature_pre.at<float>(0, points_index) = X[points_index];
             xy_feature_pre.at<float>(1, points_index) = lane_coeffs_pre.at<float>(0, lane_index) + lane_coeffs_pre.at<float>(1, lane_index)*X[points_index] + lane_coeffs_pre.at<float>(2, lane_index)*X[points_index]*X[points_index];
 
-            // NED×ø±êÏµÏÂµÄ
+            // NEDåæ ‡ç³»ä¸‹çš„
             double dx = xy_feature_pre.at<float>(0, points_index) - d_pos_new_c[0];
             double dy = xy_feature_pre.at<float>(1, points_index) - d_pos_new_c[1];
             xy_feature_predict.at<float>(1, points_index) = Rn2c_kT[0][0]*dx + Rn2c_kT[0][1]*dy;
@@ -459,7 +459,7 @@ int DataFusion::LanePredict( const cv::Mat& lane_coeffs_pre, double lane_num, do
 
         LOG(INFO)<<"xy_feature_predict: "<<xy_feature_predict<< endl << endl; 
         
-        // ³µµÀÏßÄâºÏ    Y = AX(XÊÇ×İÖá)
+        // è½¦é“çº¿æ‹Ÿåˆ    Y = AX(Xæ˜¯çºµè½´)
         std::vector<float> lane_coeffs_t;
         Polyfit( xy_feature_predict, m_order, &lane_coeffs_t );
 
@@ -475,19 +475,19 @@ int DataFusion::LanePredict( const cv::Mat& lane_coeffs_pre, double lane_num, do
     return 1;
 }
 
-// ¸øÍâ²¿µ÷ÓÃµÄ½Ó¿Ú:ÌØÕ÷µãÔ¤²â
+// ç»™å¤–éƒ¨è°ƒç”¨çš„æ¥å£:ç‰¹å¾ç‚¹é¢„æµ‹
 int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur, 
                                                std::vector<cv::Point2f>* vector_feature_predict)
 {
-    bool is_data_search_cur_ok; // ËÑË÷Ö¸¶¨Ê±¼ä´ÁµÄÊı¾İÊÇ·ñ³É¹¦
+    bool is_data_search_cur_ok; // æœç´¢æŒ‡å®šæ—¶é—´æˆ³çš„æ•°æ®æ˜¯å¦æˆåŠŸ
     bool is_data_search_pre_ok;    
     double att_cur[3], att_pre[3], vehicle_pos_cur[2], vehicle_pos_pre[2];
     double image_timestamp_cur_t = image_timestamp_cur/1000.0;
     double image_timestamp_pre_t = image_timestamp_pre/1000.0;    
     
-    m_call_predict_timestamp = image_timestamp_cur/1000.0; // ¸üĞÂÊ±¼ä´Á
+    m_call_predict_timestamp = image_timestamp_cur/1000.0; // æ›´æ–°æ—¶é—´æˆ³
    
-    // Ñ°ÕÒ¸úĞèÇóµÄ timestamp¶ÔÓ¦µÄatt,vehicleÊı¾İ
+    // å¯»æ‰¾è·Ÿéœ€æ±‚çš„ timestampå¯¹åº”çš„att,vehicleæ•°æ®
     is_data_search_cur_ok = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur);
     is_data_search_pre_ok = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre);
 
@@ -517,14 +517,14 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
 }
 
 
-// ÌØÕ÷µãÔ¤²â
+// ç‰¹å¾ç‚¹é¢„æµ‹
 int DataFusion::FeaturePredict( const std::vector<cv::Point2f>& vector_feature_pre , double vehicle_pos_pre[2], double att_pre[3], 
                                          double vehicle_pos_cur[2], double att_cur[3], std::vector<cv::Point2f>* vector_feature_predict)
 {
-    // ¼ÆËãÆû³µÔÚÁ½Ö¡Ö®¼äµÄ×´Ì¬±ä»¯    
-    // ¶Ôpos½øĞĞ×ø±êÏµ×ª»»£¬×ªµ½ÒÔpreÊ±¿ÌÎª³õÊ¼×ø±ê
-    double d_pos_tmp[2]; // Ç°ºóÁ½Ö¡ÔÚ³õÊ¼×ø±êÏµÏÂµÄÆû³µÔË¶¯
-    double d_pos_new_c[2]; // ÔÚÒÔpreÎª×ø±êÏÂµÄÆû³µÔË¶¯
+    // è®¡ç®—æ±½è½¦åœ¨ä¸¤å¸§ä¹‹é—´çš„çŠ¶æ€å˜åŒ–    
+    // å¯¹posè¿›è¡Œåæ ‡ç³»è½¬æ¢ï¼Œè½¬åˆ°ä»¥preæ—¶åˆ»ä¸ºåˆå§‹åæ ‡
+    double d_pos_tmp[2]; // å‰åä¸¤å¸§åœ¨åˆå§‹åæ ‡ç³»ä¸‹çš„æ±½è½¦è¿åŠ¨
+    double d_pos_new_c[2]; // åœ¨ä»¥preä¸ºåæ ‡ä¸‹çš„æ±½è½¦è¿åŠ¨
     d_pos_tmp[0] = vehicle_pos_cur[0] - vehicle_pos_pre[0];
     d_pos_tmp[1] = vehicle_pos_cur[1] - vehicle_pos_pre[1];         
     d_pos_new_c[0] = cosf(att_pre[2])*d_pos_tmp[0] + sinf(att_pre[2])*d_pos_tmp[1];
@@ -537,16 +537,16 @@ int DataFusion::FeaturePredict( const std::vector<cv::Point2f>& vector_feature_p
     Rn2c_kT[1][0] = -Rn2c_kT[0][1];
     Rn2c_kT[1][1] = Rn2c_kT[0][0];  
     
-    // Ô¤²âÌØÕ÷µã
+    // é¢„æµ‹ç‰¹å¾ç‚¹
     double feature_points_nums = vector_feature_pre.size();  
     cv::Point2f XY_pre, XY_predict;
-    vector_feature_predict->clear(); // Çå¿ÕÊı¾İ
+    vector_feature_predict->clear(); // æ¸…ç©ºæ•°æ®
     for(int points_index = 0; points_index<feature_points_nums; points_index++)
     {        
         XY_pre.x = (vector_feature_pre.begin()+points_index)->x;
         XY_pre.y = (vector_feature_pre.begin()+points_index)->y;
         
-        double dx = XY_pre.x - d_pos_new_c[0];// NED×ø±êÏµÏÂµÄ
+        double dx = XY_pre.x - d_pos_new_c[0];// NEDåæ ‡ç³»ä¸‹çš„
         double dy = XY_pre.y - d_pos_new_c[1];
         XY_predict.x = Rn2c_kT[0][0]*dx + Rn2c_kT[0][1]*dy;
         XY_predict.y = Rn2c_kT[1][0]*dx + Rn2c_kT[1][1]*dy;

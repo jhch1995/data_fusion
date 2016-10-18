@@ -6,7 +6,7 @@ CAN_VehicleEstimate::CAN_VehicleEstimate()
 {
     m_vehicle_L = 2.637f;
         
-    m_min_steer_angle = 5.0f; //×îĞ¡µÄÓĞĞ§·½ÏòÅÌ×ª½Ç£¬Ğ¡ÓÚÕâ¸ö½Ç¶È²»¼ÆËã
+    m_min_steer_angle = 5.0f; //æœ€å°çš„æœ‰æ•ˆæ–¹å‘ç›˜è½¬è§’ï¼Œå°äºè¿™ä¸ªè§’åº¦ä¸è®¡ç®—
     m_k_steer2wheel_angle = 0.07f;
     m_virtual_front_angle = 0.0f;
     m_fai = 0.0f;

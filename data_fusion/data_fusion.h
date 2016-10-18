@@ -48,13 +48,13 @@ public:
 
     void UpdateCurrentDataTimestamp( double data_timestample);
 
-    // ÅĞ¶ÏÊÇ·ñ»¹Òª¼ÌĞø¶ÁÈ¡Êı¾İ
+    // åˆ¤æ–­æ˜¯å¦è¿˜è¦ç»§ç»­è¯»å–æ•°æ®
     bool UpdateRreadDataState( );
 
-    // Ö»±£ÁôÉè¶¨Ê±¼ä³¤¶ÈµÄÊı¾İ
+    // åªä¿ç•™è®¾å®šæ—¶é—´é•¿åº¦çš„æ•°æ®
     void  DeleteHistoryData( );
 
-    // ¸ù¾İÊ±¼ä´Á²éÕÒ¶ÔÓ¦µÄÊı¾İ
+    // æ ¹æ®æ—¶é—´æˆ³æŸ¥æ‰¾å¯¹åº”çš„æ•°æ®
     int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3] );
         
     int RunFusion( );
@@ -72,41 +72,41 @@ public:
 
     int FeaturePredict( const std::vector<cv::Point2f>& vector_feature_pre , double vehicle_pos_pre[2], double att_pre[3], 
                                  double vehicle_pos_cur[2], double att_cur[3], std::vector<cv::Point2f>* vector_feature_predict);
-    // Êı¾İÈÚºÏµÄÏß³Ì
-    static void *ThreadRunFusion(void *tmp)//Ïß³ÌÖ´ĞĞº¯Êı
+    // æ•°æ®èåˆçš„çº¿ç¨‹
+    static void *ThreadRunFusion(void *tmp)//çº¿ç¨‹æ‰§è¡Œå‡½æ•°
     {
         DataFusion *p = (DataFusion *)tmp;        
-        p->RunFusion(); //Í¨¹ıpÖ¸Õë¼ä½Ó·ÃÎÊÀàµÄ·Ç¾²Ì¬³ÉÔ±;
+        p->RunFusion(); //é€šè¿‡pæŒ‡é’ˆé—´æ¥è®¿é—®ç±»çš„éé™æ€æˆå‘˜;
     }
     pthread_t data_fusion_id;
     int ExecTaskRunFusion()
     {        
-        int ERR = pthread_create(&data_fusion_id, NULL, ThreadRunFusion, (void *)this); //Æô¶¯Ïß³ÌÖ´ĞĞÀı³Ì
+        int ERR = pthread_create(&data_fusion_id, NULL, ThreadRunFusion, (void *)this); //å¯åŠ¨çº¿ç¨‹æ‰§è¡Œä¾‹ç¨‹
         return ERR;
     }
 
-    // read data Ïß³Ì
-    static void *ThreadReadData(void *tmp)//Ïß³ÌÖ´ĞĞº¯Êı
+    // read data çº¿ç¨‹
+    static void *ThreadReadData(void *tmp)//çº¿ç¨‹æ‰§è¡Œå‡½æ•°
     {
         DataFusion *p = (DataFusion *)tmp;        
-        p->ReadData(); //Í¨¹ıpÖ¸Õë¼ä½Ó·ÃÎÊÀàµÄ·Ç¾²Ì¬³ÉÔ±;
+        p->ReadData(); //é€šè¿‡pæŒ‡é’ˆé—´æ¥è®¿é—®ç±»çš„éé™æ€æˆå‘˜;
     }
     pthread_t read_data_id;
     int ExecTaskReadData()
     {        
-        int ERR = pthread_create(&read_data_id, NULL, ThreadReadData, (void *)this); //Æô¶¯Ïß³ÌÖ´ĞĞÀı³Ì
+        int ERR = pthread_create(&read_data_id, NULL, ThreadReadData, (void *)this); //å¯åŠ¨çº¿ç¨‹æ‰§è¡Œä¾‹ç¨‹
         return ERR;
     }
 
 private:  
-    // ¶ÁÈëlog
+    // è¯»å…¥log
     string buffer_log;
     stringstream ss_log;
     stringstream ss_tmp;
     ifstream infile_log;       // ofstream
 
-    // Íâ²¿µ÷ÓÃÌØÕ÷µãÔ¤²âµÄÊ±¼ä
-    double m_call_predict_timestamp; // µ±Ç°Íâ²¿Í¼Ïñ´¦ÀíÄ£¿é´¦ÀíµÄÍ¼Æ¬Éú³ÉµÄÊ±¼ä´Á
+    // å¤–éƒ¨è°ƒç”¨ç‰¹å¾ç‚¹é¢„æµ‹çš„æ—¶é—´
+    double m_call_predict_timestamp; // å½“å‰å¤–éƒ¨å›¾åƒå¤„ç†æ¨¡å—å¤„ç†çš„å›¾ç‰‡ç”Ÿæˆçš„æ—¶é—´æˆ³
     
     /// CAN
     CAN_VehicleEstimate m_can_vehicle_estimate;
@@ -116,20 +116,20 @@ private:
 
     // IMU
     ImuAttitudeEstimate m_imu_attitude_estimate;
-    double m_acc_filt_hz; // ¼ÓËÙ¶È¼ÆµÄµÍÍ¨½ØÖ¹ÆµÂÊ
-    double m_gyro_filt_hz; //ÍÓÂİÒÇµÄµÍÍ¨½ØÖ¹ÆµÂÊ
-    bool m_isFirstTime_att; // ÊÇ·ñÊÇµÚÒ»´Î½øÈë
-    double m_pre_imu_timestamp; // IMUÊı¾İÉÏ´ÎµÃµ½µÄÊ±¿Ì 
-    double m_pre_att_timestamp; // attÉÏ´ÎµÃµ½µÄÊ±¿Ì 
+    double m_acc_filt_hz; // åŠ é€Ÿåº¦è®¡çš„ä½é€šæˆªæ­¢é¢‘ç‡
+    double m_gyro_filt_hz; //é™€èºä»ªçš„ä½é€šæˆªæ­¢é¢‘ç‡
+    bool m_isFirstTime_att; // æ˜¯å¦æ˜¯ç¬¬ä¸€æ¬¡è¿›å…¥
+    double m_pre_imu_timestamp; // IMUæ•°æ®ä¸Šæ¬¡å¾—åˆ°çš„æ—¶åˆ» 
+    double m_pre_att_timestamp; // attä¸Šæ¬¡å¾—åˆ°çš„æ—¶åˆ» 
     StructAtt m_struct_att;    
     std::vector<StructAtt> m_vector_att;
 
-    // imu+speedÔË¶¯ĞÅÏ¢½âËã
-    char m_is_first_speed_data; //  1: µÚÒ»´Î»ñÈ¡µ½speedÊı¾İ 0:²»ÊÇµÚÒ»´Î    
+    // imu+speedè¿åŠ¨ä¿¡æ¯è§£ç®—
+    char m_is_first_speed_data; //  1: ç¬¬ä¸€æ¬¡è·å–åˆ°speedæ•°æ® 0:ä¸æ˜¯ç¬¬ä¸€æ¬¡    
 
     // read data
     bool m_is_first_read_gsensor;    
-    bool m_data_gsensor_update; // ·Ö±ğ¶ÔÓ¦µÄÊı¾İÊÇ·ñÒÑ¾­¸üĞÂ
+    bool m_data_gsensor_update; // åˆ†åˆ«å¯¹åº”çš„æ•°æ®æ˜¯å¦å·²ç»æ›´æ–°
     bool m_data_speed_update;
     bool m_data_image_update;
 
@@ -157,13 +157,13 @@ private:
     };
     StructCanSpeedData m_can_speed_data;
 
-    // ¶ÁÈ¡Êı¾İ¿ØÖÆ
-    double m_cur_fusion_timestamp; // µ±Ç°ÔÚ½øĞĞ¼ÆËãµÄÊ±¼äµã£¬
-    double m_cur_data_timestamp; // µ±Ç°Êı¾İµÄÊ±¼ä´Á, ¸úÍâ²¿µ÷ÓÃÔ¤²âµÄÊ±¼ä´Á½øĞĞ±È¶Ô
-    bool m_is_first_fusion_timestamp; // µÚÒ»´Îfusion¸üĞÂ
-    bool m_is_first_data_timestamp; // µÚÒ»´Îread data¸üĞÂ
-    double m_data_save_length; // ±£´æÀúÊ·Êı¾İµÄ³¤¶È(Ê±¼äÎªµ¥Î»: s)
-    bool m_is_continue_read_data; // 1:¼ÌĞø¶ÁÈ¡Êı¾İ  0:ÔİÍ£¶ÁÈ¡Êı¾İ ÓÉdata_timestamp¿ØÖÆ
+    // è¯»å–æ•°æ®æ§åˆ¶
+    double m_cur_fusion_timestamp; // å½“å‰åœ¨è¿›è¡Œè®¡ç®—çš„æ—¶é—´ç‚¹ï¼Œ
+    double m_cur_data_timestamp; // å½“å‰æ•°æ®çš„æ—¶é—´æˆ³, è·Ÿå¤–éƒ¨è°ƒç”¨é¢„æµ‹çš„æ—¶é—´æˆ³è¿›è¡Œæ¯”å¯¹
+    bool m_is_first_fusion_timestamp; // ç¬¬ä¸€æ¬¡fusionæ›´æ–°
+    bool m_is_first_data_timestamp; // ç¬¬ä¸€æ¬¡read dataæ›´æ–°
+    double m_data_save_length; // ä¿å­˜å†å²æ•°æ®çš„é•¿åº¦(æ—¶é—´ä¸ºå•ä½: s)
+    bool m_is_continue_read_data; // 1:ç»§ç»­è¯»å–æ•°æ®  0:æš‚åœè¯»å–æ•°æ® ç”±data_timestampæ§åˆ¶
 };
 
 
