@@ -41,6 +41,7 @@ public:
 
     void Initialize( );
 
+    // 
     int ReadData();
     
     void UpdateCurrentFusionTimestamp( double data_timestample);
@@ -63,8 +64,7 @@ public:
     int GetLanePredictParameter(double image_timestamp_cur, double image_timestamp_pre, const cv::Mat &lane_coeffs_pre, 
                                                 double lane_num, double m_order, cv::Mat* lane_coeffs_predict );
   
-    int LanePredict( const cv::Mat& lane_coeffs_pre, const double lane_num, double m_order, 
-                          const double vehicle_pos_pre[2],  const double att_pre[3],
+    int LanePredict( const cv::Mat& lane_coeffs_pre, const double lane_num, double m_order, const double vehicle_pos_pre[2],  const double att_pre[3],
                           const double vehicle_pos_cur[2],  const double att_cur[3], cv::Mat* lane_coeffs_predict);
 
     int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur, 

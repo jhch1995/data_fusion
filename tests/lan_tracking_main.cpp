@@ -1,16 +1,3 @@
-#include "opencv2/opencv.hpp"
-#include "gflags/gflags.h"
-#include "common/relative_locate/relative_locate.h"
-#include "common/relative_locate/bird_perspective_mapping.h"
-
-// ployfit
-#include "common/base/stdint.h"
-#include "common/math/polyfit.h"
-#include "common/base/log_level.h"
-
-#include "data_fusion.h"
-
-#include "datafusion_math.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -19,6 +6,18 @@
 #include <vector>
 #include <queue>
 #include <dirent.h>
+
+#include "opencv2/opencv.hpp"
+#include "gflags/gflags.h"
+#include "common/base/stdint.h"
+#include "common/math/polyfit.h"
+#include "common/base/log_level.h"
+#include "common/relative_locate/relative_locate.h"
+#include "common/relative_locate/bird_perspective_mapping.h"
+
+#include "data_fusion.h"
+#include "datafusion_math.h"
+
 using namespace std;
 
 DEFINE_string(image_name, "./1.jpg", "image_name");
@@ -135,7 +134,6 @@ int main(int argc, char *argv[])
     int image_cal_counter = 0;  //每次循环计数
     bool is_lane_match_image = 0;    
     bool is_camera_index_mached = 0; // 是否已经从log中寻找到当前图像的匹配的时间戳
-    bool is_have_first_matched = 0; // 是否完成了第一次的匹配
     for(int image_index = min_frame_index; image_index <= max_frame_index; image_index++)
     {
         is_camera_index_mached = 0;
@@ -166,7 +164,6 @@ int main(int argc, char *argv[])
                 if(log_str_file_name.compare(frame_file_name) == 0 && log_image_index ==  image_index)
                 { // 文件名和index已经匹配
                     is_camera_index_mached = 1;
-                    is_have_first_matched = 1;
 
                     if(++image_cal_counter >= image_cal_step)
                     { 
