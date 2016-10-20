@@ -21,9 +21,15 @@ ImuAttitudeEstimate::ImuAttitudeEstimate()
     m_A1[2][1] = 0.0064;
     m_A1[2][2] = 0.9859;
 
-    m_gyro_drift[0] = 0.0217;
-    m_gyro_drift[1] = 0.0421;
-    m_gyro_drift[2] = -0.0155;
+    // nj    
+//    m_gyro_drift[0] = 0.00897;
+//    m_gyro_drift[1] = -0.0322
+//    m_gyro_drift[2] = -0.0214;
+
+    // Y-1
+    m_gyro_drift[0] = 0.0155;
+    m_gyro_drift[1] = -0.0421;
+    m_gyro_drift[2] = -0.0217;  
 
     m_att_init_counter = 30;
     
@@ -158,14 +164,14 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
 int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], double gyro_data_new[3] )
 {
     double gyro_data_imu[3];
-    gyro_data_imu[0] = gyro_data_raw[0]*m_gyro_range_scale - m_gyro_drift[0]; // 地理坐标系Z
-    gyro_data_imu[1] = gyro_data_raw[1]*m_gyro_range_scale - m_gyro_drift[1]; // 地理坐标系Y
-    gyro_data_imu[2] = gyro_data_raw[2]*m_gyro_range_scale - m_gyro_drift[2]; // 地理坐标系X
+    gyro_data_imu[0] = gyro_data_raw[0]*m_gyro_range_scale;// - m_gyro_drift[0]; // 地理坐标系Z
+    gyro_data_imu[1] = gyro_data_raw[1]*m_gyro_range_scale;// - m_gyro_drift[1]; // 地理坐标系Y
+    gyro_data_imu[2] = gyro_data_raw[2]*m_gyro_range_scale;// - m_gyro_drift[2]; // 地理坐标系X
 
     // IMU原始坐标系-->大地坐标系(NED)
-    gyro_data_new[0] = -gyro_data_imu[2];
-    gyro_data_new[1] = -gyro_data_imu[1];
-    gyro_data_new[2] = -gyro_data_imu[0];    
+    gyro_data_new[0] = -gyro_data_imu[2] - m_gyro_drift[0];
+    gyro_data_new[1] = -gyro_data_imu[1] - m_gyro_drift[1];
+    gyro_data_new[2] = -gyro_data_imu[0] - m_gyro_drift[2];    
     
     return 1;
 }

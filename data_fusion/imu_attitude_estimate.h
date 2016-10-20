@@ -2,6 +2,8 @@
 #define IMU_ATTITUDE_ESTIMATE_H
 
 #include "common/relative_locate/linear_r3.h"
+#include "datafusion_math.h"
+
 
 class ImuAttitudeEstimate
 {

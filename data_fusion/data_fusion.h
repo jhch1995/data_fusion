@@ -14,6 +14,8 @@
 
 #include "imu_attitude_estimate.h"
 #include "can_vehicle_estimate.h"
+#include "datafusion_math.h"
+
 
 using namespace std;
 

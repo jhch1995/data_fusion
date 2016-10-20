@@ -30,7 +30,7 @@ void DataFusion::Initialize( )
     // 读取数据控制
     m_is_first_fusion_timestamp = 1; // 第一次更新
     m_is_first_data_timestamp = 1; // 第一次更新
-    m_data_save_length = 2; // 保存历史数据的长度(时间为单位: s)
+    m_data_save_length = 1; // 保存历史数据的长度(时间为单位: s)
     m_is_continue_read_data = 1; // 1:继续读取数据  2:暂停读取数据 由fusion控制   
 
 }
@@ -95,7 +95,8 @@ int DataFusion::ReadData( )
                     GyroDataFilter[2] = GyroData_NED[2]; 
                 }else
                 {
-                    double dt_imu = imu_timestamp - m_pre_imu_timestamp;                    
+                    double dt_imu = imu_timestamp - m_pre_imu_timestamp; 
+                    dt_imu = 0.01; // 100hz
                     m_imu_attitude_estimate.LowpassFilter3f(AccDataFilter, AccData_NED, dt_imu, m_acc_filt_hz, AccDataFilter);    
                     m_imu_attitude_estimate.LowpassFilter3f(GyroDataFilter, GyroData_NED, dt_imu, m_gyro_filt_hz, GyroDataFilter);       
                     m_pre_imu_timestamp = imu_timestamp;    
@@ -236,7 +237,8 @@ int DataFusion::RunFusion( )
                 m_pre_att_timestamp = cur_att_timestamp; 
             }else
             {            
-                double dt_att = cur_att_timestamp - m_pre_att_timestamp;                
+                double dt_att = cur_att_timestamp - m_pre_att_timestamp;
+                dt_att = 0.01;
                 m_imu_attitude_estimate.UpdataAttitude(m_imu_data.acc, m_imu_data.gyro, dt_att);
                 m_pre_att_timestamp = cur_att_timestamp;
 
@@ -332,16 +334,27 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
         
         dt_t = timestamp_t - timestamp_search;
         dt_t_pre = timestamp_t_1 - timestamp_search;
-        // 选取离timestamp_search最近的时刻，2种条件满足一种即可
+        // 选取离timestamp_search最近的时刻
         if(dt_t_pre<0 && dt_t>0)
         {
-            att[0] = (m_vector_att.end()-i)->att[0];
-            att[1] = (m_vector_att.end()-i)->att[1];
-            att[2] = (m_vector_att.end()-i)->att[2];
+            if(fabs(dt_t)<=fabs(dt_t_pre))
+            {
+                att[0] = (m_vector_att.end()-i)->att[0];
+                att[1] = (m_vector_att.end()-i)->att[1];
+                att[2] = (m_vector_att.end()-i)->att[2];
+            }
+            else
+            {
+                att[0] = (m_vector_att.end()-i-1)->att[0];
+                att[1] = (m_vector_att.end()-i-1)->att[1];
+                att[2] = (m_vector_att.end()-i-1)->att[2];
+            }
+            
             att_data_search_ok = 1;
             break;
         }
     }
+    VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att: "<<"dt_t= "<<dt_t<<", dt_t_pre= "<<dt_t_pre<<endl; 
 
     // m_vector_vehicle_state
     int vehicle_data_length = m_vector_vehicle_state.size();
@@ -352,15 +365,25 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
         
         dt_t = timestamp_t - timestamp_search;
         dt_t_pre = timestamp_t_1 - timestamp_search;
-        // 选取离timestamp_search最近的时刻，2种条件满足一种即可
+        // 选取离timestamp_search最近的时刻
         if(dt_t_pre<0 && dt_t>0)
         {
-            vehicle_pos[0] = (m_vector_vehicle_state.end()-i)->pos[0];
-            vehicle_pos[1] = (m_vector_vehicle_state.end()-i)->pos[1];
+            if(fabs(dt_t)<=fabs(dt_t_pre))
+            {
+                vehicle_pos[0] = (m_vector_vehicle_state.end()-i)->pos[0];
+                vehicle_pos[1] = (m_vector_vehicle_state.end()-i)->pos[1];
+            }
+            else
+            {
+                vehicle_pos[0] = (m_vector_vehicle_state.end()-i-1)->pos[0];
+                vehicle_pos[1] = (m_vector_vehicle_state.end()-i-1)->pos[1];
+            }            
+            
             vehicle_data_search_ok = 1;
             break;
         }
     }
+    VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"pos: "<<"dt_t= "<<dt_t<<", dt_t_pre= "<<dt_t_pre<<endl; 
 
     if(att_data_search_ok && vehicle_data_search_ok)
         return 1;
@@ -448,7 +471,8 @@ int DataFusion::LanePredict( const cv::Mat& lane_coeffs_pre, double lane_num, do
         {
             // Y = aX + b, X = {5, 10, 20, 30, 50}        
             xy_feature_pre.at<float>(0, points_index) = X[points_index];
-            xy_feature_pre.at<float>(1, points_index) = lane_coeffs_pre.at<float>(0, lane_index) + lane_coeffs_pre.at<float>(1, lane_index)*X[points_index] + lane_coeffs_pre.at<float>(2, lane_index)*X[points_index]*X[points_index];
+            xy_feature_pre.at<float>(1, points_index) = lane_coeffs_pre.at<float>(0, lane_index) + lane_coeffs_pre.at<float>(1, lane_index)*X[points_index] 
+                                                        + lane_coeffs_pre.at<float>(2, lane_index)*X[points_index]*X[points_index];
 
             // NED坐标系下的
             double dx = xy_feature_pre.at<float>(0, points_index) - d_pos_new_c[0];
@@ -490,27 +514,25 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
     // 寻找跟需求的 timestamp对应的att,vehicle数据
     is_data_search_cur_ok = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur);
     is_data_search_pre_ok = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre);
+    VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature- "<<"image_timestamp_cur_t= "<<image_timestamp_cur_t<<endl; 
+    VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature- "<<"image_timestamp_pre_t= "<<image_timestamp_pre_t<<endl; 
 
     if(is_data_search_cur_ok && is_data_search_pre_ok)
     {
         FeaturePredict( vector_feature_pre , vehicle_pos_pre, att_pre, vehicle_pos_cur, att_cur, vector_feature_predict);
-        
-        LOG(INFO)<<"LanePredict_new-vehicle_pos_pre "<<vehicle_pos_pre[0]<<" "<<vehicle_pos_pre[1]<<endl;   
-        LOG(INFO)<<"LanePredict_new-vehicle_pos_cur "<<vehicle_pos_cur[0]<<" "<<vehicle_pos_cur[1]<<endl; 
-        LOG(INFO)<<"LanePredict_new-att_cur "<<att_cur[0]<<" "<<att_cur[1]<<" "<<att_cur[2]<<" "<<endl; 
-        LOG(INFO)<<"LanePredict_new-att_pre "<<att_pre[0]<<" "<<att_pre[1]<<" "<<att_pre[2]<<" "<<endl; 
-
         return 1; 
     }
-    
-    if( !is_data_search_cur_ok )
+    else if(!is_data_search_pre_ok && !is_data_search_cur_ok)
     {
-        LOG(INFO)<<"!!!error cur-camera timestamp dismatch"<<endl;
+        VLOG(VLOG_WARNING)<<"DF:GetPredictFeature- "<<"warning cur& pre-camera both timestamp dismatch"<<endl;
     }
-
-    if(!is_data_search_pre_ok)
+    else if(!is_data_search_pre_ok && is_data_search_cur_ok)
     {
-        LOG(INFO)<<"!!!error pre-camera timestamp dismatch"<<endl;
+        VLOG(VLOG_WARNING)<<"DF:GetPredictFeature- "<<"warning pre-camera timestamp dismatch"<<endl;
+    }
+    else if( is_data_search_pre_ok && !is_data_search_cur_ok)
+    {
+        VLOG(VLOG_WARNING)<<"DF:GetPredictFeature- "<<"warning cur-camera timestamp dismatch"<<endl;
     }
     return 0;    
     
@@ -529,6 +551,8 @@ int DataFusion::FeaturePredict( const std::vector<cv::Point2f>& vector_feature_p
     d_pos_tmp[1] = vehicle_pos_cur[1] - vehicle_pos_pre[1];         
     d_pos_new_c[0] = cosf(att_pre[2])*d_pos_tmp[0] + sinf(att_pre[2])*d_pos_tmp[1];
     d_pos_new_c[1] = -sinf(att_pre[2])*d_pos_tmp[0] + cos(att_pre[2])*d_pos_tmp[1];
+
+    VLOG(VLOG_DEBUG)<<"DF:FeaturePredict-"<<"d_pos_new_c: "<<d_pos_new_c[0]<<" "<<d_pos_new_c[1]<<endl; 
     
     double dyaw = att_cur[2] - att_pre[2]; 
     double Rn2c_kT[2][2];
@@ -536,6 +560,7 @@ int DataFusion::FeaturePredict( const std::vector<cv::Point2f>& vector_feature_p
     Rn2c_kT[0][1] = sinf(dyaw);
     Rn2c_kT[1][0] = -Rn2c_kT[0][1];
     Rn2c_kT[1][1] = Rn2c_kT[0][0];  
+    VLOG(VLOG_DEBUG)<<"DF:FeaturePredict- "<<"dyaw: "<<dyaw*180/M_PI<<endl; 
     
     // 预测特征点
     double feature_points_nums = vector_feature_pre.size();  
@@ -552,15 +577,9 @@ int DataFusion::FeaturePredict( const std::vector<cv::Point2f>& vector_feature_p
         XY_predict.y = Rn2c_kT[1][0]*dx + Rn2c_kT[1][1]*dy;
 
         vector_feature_predict->push_back(XY_predict);
-    }   
-
-    LOG(INFO)<<"lane_coeffs_pre: "<<vector_feature_pre<<endl;
-    LOG(INFO)<<"vehicle_pos: "<<vehicle_pos_cur[0]<<" "<<vehicle_pos_cur[1]<<endl;
-    LOG(INFO)<<"vehicle_pos_pre: "<<vehicle_pos_pre[0]<<" "<<vehicle_pos_pre[1]<<endl; 
-    LOG(INFO)<<"d_pos_new_c: "<<d_pos_new_c[0]<<" "<<d_pos_new_c[1]<<endl; 
-    LOG(INFO)<<"dyaw: "<<dyaw<<endl; 
-    LOG(INFO)<<"vehicle_yaw_pre: "<<att_pre[2]*180/3.14<<endl; 
-    LOG(INFO)<<"xy_feature_predict: "<<vector_feature_predict << endl; 
+        VLOG(VLOG_DEBUG)<<"DF:FeaturePredict- "<<"xy_feature_pre: "<<"x="<<XY_pre.x<<", y="<< XY_pre.y<< endl; 
+        VLOG(VLOG_DEBUG)<<"DF:FeaturePredict- "<<"xy_feature_predict: "<<"x="<<XY_predict.x<<", y="<< XY_predict.y<< endl; 
+    } 
 
     return 1;
 }

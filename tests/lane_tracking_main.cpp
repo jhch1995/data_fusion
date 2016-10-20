@@ -6,6 +6,7 @@
 #include <vector>
 #include <queue>
 #include <dirent.h>
+#include <time.h>   
 
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
@@ -14,6 +15,7 @@
 #include "common/base/log_level.h"
 #include "common/relative_locate/relative_locate.h"
 #include "common/relative_locate/bird_perspective_mapping.h"
+#include "common/time/time_utils.h"
 
 #include "data_fusion.h"
 #include "datafusion_math.h"
@@ -37,26 +39,28 @@ DEFINE_double(y_end_offset, 70.0, "y end offset");
 DEFINE_double(x_res, 0.04, "x resolution");
 DEFINE_double(y_res, 0.1, "y resolution");
 
-// ¶ÁÈëlog
-ifstream infile_log("data/doing/log.txt");       // Ö¸¶¨logµÄÂ·¾¶
+
+
+// è¯»å…¥log
+ifstream infile_log("data/doing/log.txt");       // æŒ‡å®šlogçš„è·¯å¾„
 string buffer_log;
 string data_flag;    
 stringstream ss_log;
 stringstream ss_tmp;
 
-/// lane±ê×¢Êı¾İ
-ifstream infile_lane("data/doing/lane_data.txt");       // Ö¸¶¨³µµÀÏß±ê×¢½á¹ûµÄÂ·¾¶
+/// laneæ ‡æ³¨æ•°æ®
+ifstream infile_lane("data/doing/lane_data.txt");       // æŒ‡å®šè½¦é“çº¿æ ‡æ³¨ç»“æœçš„è·¯å¾„
 int m_order = 2;
 int lane_num = 2;
 int pts_num = 8;
-int lane_index = 0; // ³µµÀÏßµÄĞòºÅ
-int uv_feature[2][16]; // 2: XY 16: ×óÓÒÃ¿Ìõ³µµÀ8¸öµã
+int lane_index = 0; // è½¦é“çº¿çš„åºå·
+int uv_feature[2][16]; // 2: XY 16: å·¦å³æ¯æ¡è½¦é“8ä¸ªç‚¹
 string buffer_lane;
 stringstream ss_lane;
 
 cv::Mat uv_feature_pts;
 cv::Mat xy_feature; 
-cv::Mat xy_feature_pre = cv::Mat::zeros(2, pts_num, CV_32FC1);; // ÉÏÒ»Ö¡µÄÖĞ³µµÀÏßµÄÌØÕ÷µã
+cv::Mat xy_feature_pre = cv::Mat::zeros(2, pts_num, CV_32FC1);; // ä¸Šä¸€å¸§çš„ä¸­è½¦é“çº¿çš„ç‰¹å¾ç‚¹
 cv::Mat lane_coeffs = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
 cv::Mat lane_coeffs_pre = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
 cv::Mat lane_coeffs_predict = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
@@ -64,35 +68,40 @@ double image_timestamp;
 double image_timestamp_pre;
 bool is_first_lane_predict = 1;
 
+time_t  time_predict1,  time_predict2;  
+
+
 void LoadImage(cv::Mat* image, string image_name);
 
-// ¶ÔÍ¼Æ¬½øĞĞIPM±ä»¯
+// å¯¹å›¾ç‰‡è¿›è¡ŒIPMå˜åŒ–
 void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para);
 
-// ÄâºÏÇúÏß
+// æ‹Ÿåˆæ›²çº¿
 int polyfit_vector(std::vector<float>* lane_coeffs, std::vector<cv::Point2f>& vector_feature, int order );
 
-// ÄâºÏÇúÏß
+// æ‹Ÿåˆæ›²çº¿
 int polyfit1(std::vector<float>* lane_coeffs, const cv::Mat xy_feature, int order );
 
-// »ñÈ¡Ö¸¶¨Â·¾¶ÏÂËùÓĞÎÄ¼ş
+// è·å–æŒ‡å®šè·¯å¾„ä¸‹æ‰€æœ‰æ–‡ä»¶
 string get_file_name(string file_path);
 
-// »ñÈ¡Í¼Æ¬ÎÄ¼ş¼ĞÖĞËùÓĞµÄÍ¼Æ¬µÄ×î´ó×îĞ¡ĞòºÅ
+// è·å–å›¾ç‰‡æ–‡ä»¶å¤¹ä¸­æ‰€æœ‰çš„å›¾ç‰‡çš„æœ€å¤§æœ€å°åºå·
 bool get_max_min_image_index(int &max_index, int &min_index, string file_path);
 
-// ÔÚIPMÍ¼ÉÏ»­³µµÀÏß
+// åœ¨IPMå›¾ä¸Šç”»è½¦é“çº¿
 void mark_IPM_lane(cv::Mat &ipm_image, cv::Mat lane_coeffs, IPMPara ipm_para, float lane_color_value);
 
-// ³µµÀÏßÔ¤²â
+// è½¦é“çº¿é¢„æµ‹
 void do_predict_feature();
 
-// ½øĞĞÊı¾İÈÚºÏµÄÀà
+// è¿›è¡Œæ•°æ®èåˆçš„ç±»
 DataFusion data_fusion;
+TimeUtils f_time_counter;
+
 
 int main(int argc, char *argv[])
-{
-    // ³õÊ¼»¯
+{      
+    // åˆå§‹åŒ–
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";
     
@@ -117,24 +126,30 @@ int main(int argc, char *argv[])
     ipm_para.y_scale = FLAGS_y_res;
     bp_mapping.GetUVLimitsFromXY(&ipm_para);
 
-// ³õÊ¼»¯ÈÚºÏº¯Êı
-    data_fusion.Initialize();    
-    data_fusion.ExecTaskReadData(); // ¶ÁÈ¡Êı¾İµÄÏß³Ì 
-    data_fusion.ExecTaskRunFusion(); // ÔÚÏßÔËĞĞµÄÊ±ºòÓ¦¸ÃÊÇÔÚÓÃ¶ÀÁ¢Ïß³Ì³ÖĞøÔËĞĞµÄ
+    // è®¾ç½®VLOGæ‰“å°ç­‰çº§
+    #if defined(USE_GLOG)
+        FLAGS_v = VLOG_DEBUG;
+    #endif  
+    
 
-// ±¾µØÀûÓÃ±ê×¢µÄÊı¾İ²âÊÔ   
+// åˆå§‹åŒ–èåˆå‡½æ•°
+    data_fusion.Initialize();    
+    data_fusion.ExecTaskReadData(); // è¯»å–æ•°æ®çš„çº¿ç¨‹ 
+    data_fusion.ExecTaskRunFusion(); // åœ¨çº¿è¿è¡Œçš„æ—¶å€™åº”è¯¥æ˜¯åœ¨ç”¨ç‹¬ç«‹çº¿ç¨‹æŒç»­è¿è¡Œçš„
+
+// æœ¬åœ°åˆ©ç”¨æ ‡æ³¨çš„æ•°æ®æµ‹è¯•   
     string str_image_frame_add = "data/doing/frame/";
-    string frame_file_name = get_file_name(str_image_frame_add); // ¶ÁÈ¡Í¼ÏñËùÔÚÎÄ¼ş¼ĞÃû×Ö    
-    string frame_file_addr = str_image_frame_add + frame_file_name;// »ñÈ¡Í¼Æ¬µÄmax,min index
+    string frame_file_name = get_file_name(str_image_frame_add); // è¯»å–å›¾åƒæ‰€åœ¨æ–‡ä»¶å¤¹åå­—    
+    string frame_file_addr = str_image_frame_add + frame_file_name;// è·å–å›¾ç‰‡çš„max,min index
     int max_frame_index, min_frame_index;
     get_max_min_image_index(max_frame_index, min_frame_index, frame_file_addr);
 
-    // Íâ²¿laneÑ­»·¿ØÖÆ
-    int image_cal_step = 4;// Ã¿¸ô¶àÉÙÖ¡¼ÆËãÒ»´Î³µµÀÏßÔ¤²â
-    int image_cal_counter = 0;  //Ã¿´ÎÑ­»·¼ÆÊı
+    // å¤–éƒ¨laneå¾ªç¯æ§åˆ¶
+    int image_cal_step = 2;// æ¯éš”å¤šå°‘å¸§è®¡ç®—ä¸€æ¬¡è½¦é“çº¿é¢„æµ‹
+
     bool is_lane_match_image = 0;    
-    bool is_camera_index_mached = 0; // ÊÇ·ñÒÑ¾­´ÓlogÖĞÑ°ÕÒµ½µ±Ç°Í¼ÏñµÄÆ¥ÅäµÄÊ±¼ä´Á
-    for(int image_index = min_frame_index; image_index <= max_frame_index; image_index++)
+    bool is_camera_index_mached = 0; // æ˜¯å¦å·²ç»ä»logä¸­å¯»æ‰¾åˆ°å½“å‰å›¾åƒçš„åŒ¹é…çš„æ—¶é—´æˆ³
+    for(int image_index = min_frame_index+5; image_index <= max_frame_index; image_index += image_cal_step)
     {
         is_camera_index_mached = 0;
         double log_data_t[2];
@@ -156,89 +171,86 @@ int main(int argc, char *argv[])
                 ss_log>>camera_raw_timestamp[0]>>camera_raw_timestamp[1]>>camera_flag>>camera_add>>log_image_index;
                 image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6; 
 
-                // Æ¥ÅäÍ¼Æ¬µÄÊ±¼ä´Á
+                // åŒ¹é…å›¾ç‰‡çš„æ—¶é—´æˆ³
                 int pos1 = camera_add.find_last_of('_');
                 int pos2 = camera_add.find_last_of('.');
                 string log_str_file_name = camera_add.substr(pos1+1, pos2-1-pos1);
 
                 if(log_str_file_name.compare(frame_file_name) == 0 && log_image_index ==  image_index)
-                { // ÎÄ¼şÃûºÍindexÒÑ¾­Æ¥Åä
+                {   
+                    // æ–‡ä»¶åå’Œindexå·²ç»åŒ¹é…
                     is_camera_index_mached = 1;
 
-                    if(++image_cal_counter >= image_cal_step)
-                    { 
-                        LOG(INFO)<<"image_index: "<<image_index;
-                        image_cal_counter = 0; // ÖØÖÃ
-                        // ²éÕÒÆ¥ÅäµÄ³µµÀÏß±ê×¢Êı¾İ
-                        is_lane_match_image = 0; // ½øÈë²éÕÒÆ¥ÅäµÄlane
-                        while(!is_lane_match_image)
+                    VLOG(VLOG_INFO)<<"image_index: "<<image_index;
+                    // æŸ¥æ‰¾åŒ¹é…çš„è½¦é“çº¿æ ‡æ³¨æ•°æ®
+                    is_lane_match_image = 0; // è¿›å…¥æŸ¥æ‰¾åŒ¹é…çš„lane
+                    while(!is_lane_match_image)
+                    {
+                        getline(infile_lane, buffer_lane);
+                        ss_lane.clear();
+                        ss_lane.str(buffer_lane);
+                        ss_lane>>lane_index
+                                >>uv_feature[0][0]>>uv_feature[1][0]>>uv_feature[0][1]>>uv_feature[1][1]>>uv_feature[0][2]>>uv_feature[1][2]>>uv_feature[0][3]>>uv_feature[1][3]
+                                >>uv_feature[0][4]>>uv_feature[1][4]>>uv_feature[0][5]>>uv_feature[1][5]>>uv_feature[0][6]>>uv_feature[1][6]>>uv_feature[0][7]>>uv_feature[1][7]
+                                >>uv_feature[0][8]>>uv_feature[1][8]>>uv_feature[0][9]>>uv_feature[1][9]>>uv_feature[0][10]>>uv_feature[1][10]>>uv_feature[0][11]>>uv_feature[1][11]
+                                >>uv_feature[0][12]>>uv_feature[1][12]>>uv_feature[0][13]>>uv_feature[1][13]>>uv_feature[0][14]>>uv_feature[1][14]>>uv_feature[0][15]>>uv_feature[1][15];
+                        if(lane_index == image_index)
                         {
-                            getline(infile_lane, buffer_lane);
-                            ss_lane.clear();
-                            ss_lane.str(buffer_lane);
-                            ss_lane>>lane_index
-                                    >>uv_feature[0][0]>>uv_feature[1][0]>>uv_feature[0][1]>>uv_feature[1][1]>>uv_feature[0][2]>>uv_feature[1][2]>>uv_feature[0][3]>>uv_feature[1][3]
-                                    >>uv_feature[0][4]>>uv_feature[1][4]>>uv_feature[0][5]>>uv_feature[1][5]>>uv_feature[0][6]>>uv_feature[1][6]>>uv_feature[0][7]>>uv_feature[1][7]
-                                    >>uv_feature[0][8]>>uv_feature[1][8]>>uv_feature[0][9]>>uv_feature[1][9]>>uv_feature[0][10]>>uv_feature[1][10]>>uv_feature[0][11]>>uv_feature[1][11]
-                                    >>uv_feature[0][12]>>uv_feature[1][12]>>uv_feature[0][13]>>uv_feature[1][13]>>uv_feature[0][14]>>uv_feature[1][14]>>uv_feature[0][15]>>uv_feature[1][15];
-                            if(lane_index == image_index)
-                            {
-                                is_lane_match_image = 1;
-                            }else if(lane_index < image_index)
-                            {
-                                continue;
-                            }else{
-                                printf("error: lane index is bigger than image index!!!\n");
-                                break;
-                            }
-                        }
-
-                        // ¶ÁÈ¡Í¼Æ¬
-                        char str_iamge_name_index[20]; // ĞÂÊı¾İ¸ñÊ½£¬²¹È«8Î»
-                        sprintf(str_iamge_name_index, "%08d", image_index);
-                        image_name = frame_file_addr + "/" + str_iamge_name_index + ".jpg";
-
-                        // IPM
-                        cv::Mat org_image;
-                        LoadImage(&org_image, image_name);
-                        cv::Mat ipm_image = cv::Mat::zeros(ipm_para.height+1, ipm_para.width+1, CV_32FC1);
-                        image_IPM(ipm_image, org_image, ipm_para);
-                        
-                        // Ö´ĞĞÔ¤²âlane
-                        do_predict_feature();
-
-                        /// ÄâºÏµ±Ç°lane
-                        xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);            
-                        uv_feature_pts = cv::Mat::zeros(2, pts_num, CV_32FC1); 
-                        for(int k=0; k<lane_num; k++)
+                            is_lane_match_image = 1;
+                        }else if(lane_index < image_index)
                         {
-                            for(int i1 = 0; i1<pts_num; i1++)
-                            {
-                                uv_feature_pts.at<float>(0, i1) = uv_feature[0][k*pts_num + i1];
-                                uv_feature_pts.at<float>(1, i1) = uv_feature[1][k*pts_num + i1];
-                            }        
-                            // get these points on the ground plane
-                            bp_mapping.TransformImage2Ground(uv_feature_pts, &xy_feature);  
-                           
-                            std::vector<float> lane_coeffs_t;
-                            polyfit1(&lane_coeffs_t, xy_feature, m_order); // ³µµÀÏßÄâºÏ    Y = AX(XÊÇ×İÖá);
-
-                            for(int i = 0; i<m_order+1; i++)
-                            {
-                                lane_coeffs.at<float>(i, k) = lane_coeffs_t[i];
-                            }                            
+                            continue;
+                        }else{
+                            printf("error: lane index is bigger than image index!!!\n");
+                            break;
                         }
+                    }
 
-                        // »­³µµÀÏß
-                        mark_IPM_lane(ipm_image, lane_coeffs, ipm_para, 0.9);// ÔÚIPMÖĞ±ê×¢µ±Ç°lane °×É«
-                        mark_IPM_lane(ipm_image, lane_coeffs_pre, ipm_para, 0.45);// ÔÚIPMÖĞ±ê×¢ÉÏÒ»Ö¡lane »Ò°×
-                        mark_IPM_lane(ipm_image, lane_coeffs_predict, ipm_para, 0.1);// ÔÚIPMÖĞ±ê×¢Ô¤²âlane ºÚÉ«
+                    // è¯»å–å›¾ç‰‡
+                    char str_iamge_name_index[20]; // æ–°æ•°æ®æ ¼å¼ï¼Œè¡¥å…¨8ä½
+                    sprintf(str_iamge_name_index, "%08d", image_index);
+                    image_name = frame_file_addr + "/" + str_iamge_name_index + ".jpg";
 
-                        cv::imshow("ipm", ipm_image);
-                        if(cv::waitKey(200)) // ÖµÌ«Ğ¡IPMÍ¼»áÏÔÊ¾ºÚÉ« ???
-                        {}
-                        
-                    }  
+                    // IPM
+                    cv::Mat org_image;
+                    LoadImage(&org_image, image_name);
+                    cv::Mat ipm_image = cv::Mat::zeros(ipm_para.height+1, ipm_para.width+1, CV_32FC1);
+                    image_IPM(ipm_image, org_image, ipm_para);
+                    
+                    // æ‰§è¡Œé¢„æµ‹lane
+                    do_predict_feature();
+
+                    /// æ‹Ÿåˆå½“å‰lane
+                    xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);            
+                    uv_feature_pts = cv::Mat::zeros(2, pts_num, CV_32FC1); 
+                    for(int k=0; k<lane_num; k++)
+                    {
+                        for(int i1 = 0; i1<pts_num; i1++)
+                        {
+                            uv_feature_pts.at<float>(0, i1) = uv_feature[0][k*pts_num + i1];
+                            uv_feature_pts.at<float>(1, i1) = uv_feature[1][k*pts_num + i1];
+                        }        
+                        // get these points on the ground plane
+                        bp_mapping.TransformImage2Ground(uv_feature_pts, &xy_feature);  
+                       
+                        std::vector<float> lane_coeffs_t;
+                        polyfit1(&lane_coeffs_t, xy_feature, m_order); // è½¦é“çº¿æ‹Ÿåˆ    Y = AX(Xæ˜¯çºµè½´);
+
+                        for(int i = 0; i<m_order+1; i++)
+                        {
+                            lane_coeffs.at<float>(i, k) = lane_coeffs_t[i];
+                        }                            
+                    }
+
+                    // ç”»è½¦é“çº¿
+                    mark_IPM_lane(ipm_image, lane_coeffs, ipm_para, 0.9);// åœ¨IPMä¸­æ ‡æ³¨å½“å‰lane ç™½è‰²
+                    mark_IPM_lane(ipm_image, lane_coeffs_pre, ipm_para, 0.45);// åœ¨IPMä¸­æ ‡æ³¨ä¸Šä¸€å¸§lane ç°ç™½
+                    mark_IPM_lane(ipm_image, lane_coeffs_predict, ipm_para, 0.1);// åœ¨IPMä¸­æ ‡æ³¨é¢„æµ‹lane é»‘è‰²
+
+                    cv::imshow("ipm", ipm_image);
+                    if(cv::waitKey(200)) // å€¼å¤ªå°IPMå›¾ä¼šæ˜¾ç¤ºé»‘è‰² ???
+                    {}                        
+
                 }
             }                
         }     
@@ -330,7 +342,7 @@ int polyfit1(std::vector<float>* lane_coeffs, const cv::Mat xy_feature, int orde
 }
 
 
-// »ñÈ¡Ö¸¶¨Â·¾¶ÏÂµÄÎÄ¼şÃû(Ö÷ÒªÓÃÓÚ»ñÈ¡Í¼Æ¬ËùÔÚÎÄ¼ş¼ĞÃû×Ö)
+// è·å–æŒ‡å®šè·¯å¾„ä¸‹çš„æ–‡ä»¶å(ä¸»è¦ç”¨äºè·å–å›¾ç‰‡æ‰€åœ¨æ–‡ä»¶å¤¹åå­—)
 string get_file_name(string file_path)
 {
     DIR *dp;
@@ -360,7 +372,7 @@ string get_file_name(string file_path)
     }  
 }
 
-// ¶ÁÈ¡Í¼Æ¬ÎÄ¼ş¼ĞÖĞËùÓĞÎÄ¼ş×îĞ¡ºÍ×î´óµÄindex
+// è¯»å–å›¾ç‰‡æ–‡ä»¶å¤¹ä¸­æ‰€æœ‰æ–‡ä»¶æœ€å°å’Œæœ€å¤§çš„index
 bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
 {
     DIR *dp;
@@ -401,7 +413,7 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
 }
 
 
-// Í¼Æ¬IPM
+// å›¾ç‰‡IPM
 void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
 {
     for (int i = 0; i < ipm_para.height; ++i) 
@@ -424,10 +436,10 @@ void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
     }
 }
 
-//// ±ê¼Ç IPM lane
+//// æ ‡è®° IPM lane
 void mark_IPM_lane(cv::Mat &ipm_image, cv::Mat lane_coeffs, IPMPara ipm_para, float lane_color_value)
 {
-    /// ÔÚIPMÖĞ±ê×¢µ±Ç°lane
+    /// åœ¨IPMä¸­æ ‡æ³¨å½“å‰lane
     std::vector<int> x(ipm_para.height+2);
     std::vector<int> y(ipm_para.height+2);
     int i_index = -1;            
@@ -448,20 +460,21 @@ void mark_IPM_lane(cv::Mat &ipm_image, cv::Mat lane_coeffs, IPMPara ipm_para, fl
 }
 
 
-// Ô¤²âÌØÕ÷µã²¢»­Í¼
+// é¢„æµ‹ç‰¹å¾ç‚¹å¹¶ç”»å›¾
 void do_predict_feature()
 {
+    int64 t_1, t_2;
+    
     if(is_first_lane_predict)
     {
         is_first_lane_predict = 0;
         image_timestamp_pre = image_timestamp;
     }
     lane_coeffs.copyTo(lane_coeffs_pre);                
-//  data_fusion.get_lane_predict_parameter(lane_coeffs_predict, image_timestamp, image_timestamp_pre, lane_coeffs_pre, lane_num, m_order );
 
     std::vector<cv::Point2f> vector_feature_predict;
     std::vector<cv::Point2f> vector_feature_pre;
-    int lane_points_nums = 5; // Ã¿Ò»Ìõ³µµÀÏßÈ¡µÄÑù±¾µãÊıÁ¿
+    int lane_points_nums = 5; // æ¯ä¸€æ¡è½¦é“çº¿å–çš„æ ·æœ¬ç‚¹æ•°é‡
     double X[5] = {2.0, 5.0, 10.0, 20.0, 35.0};
     cv::Point2f point_xy;
     vector_feature_pre.clear();
@@ -476,12 +489,19 @@ void do_predict_feature()
     int64 image_timestamp_cur_int = (int64)(image_timestamp*1000);
 
     int r_1 = 0;
-    int main_sleep_counter = 0; //  Ò»´ÎÍâ²¿µ÷ÓÃ£¬main sleepµÄ´ÎÊı
+    int main_sleep_counter = 0; //  ä¸€æ¬¡å¤–éƒ¨è°ƒç”¨ï¼Œmain sleepçš„æ¬¡æ•°
     while(!r_1)
     {
+        // æµ‹è¯•è¿è¡Œæ—¶é—´
+        t_1 = f_time_counter.Microseconds();
         r_1 = data_fusion.GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
+        t_2 = f_time_counter.Microseconds();
+
+        int64 predict_cal_dt = (t_2 - t_1) ;
+        VLOG(VLOG_INFO)<<"DF:main- "<<"predict_cal_dt= "<<predict_cal_dt<<endl; 
+        
         if(main_sleep_counter > 0)
-        {
+        {            
             printf("main timestamp diamatch conunter:%d, so sleep\n",  main_sleep_counter);
             usleep(100000);
         }
