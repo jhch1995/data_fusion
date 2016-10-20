@@ -1,8 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
 
-SET(CMAKE_BUILD_TYPE "Debug") 
-SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
-
 ADD_DEFINITIONS(-D__unix__) # time.h
 
 INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/thirdparty/gflags/linux/include")	
