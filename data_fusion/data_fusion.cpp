@@ -262,9 +262,11 @@ int DataFusion::RunFusion( )
                 
             }else
             {
-                double dt_can = cur_can_timestamp - m_pre_can_timestamp;                
-                m_imu_attitude_estimate.GetAttitude(att_xy_cur);
-                m_can_vehicle_estimate.UpdateVehicleStateImu(att_xy_cur[2], m_can_speed_data.speed, dt_can );
+                double dt_can = cur_can_timestamp - m_pre_can_timestamp; 
+                double angle_z_t;
+                m_imu_attitude_estimate.GetAttitudeAngleZ(att_xy_cur, &angle_z_t);
+                //m_can_vehicle_estimate.UpdateVehicleStateImu(att_xy_cur[2], m_can_speed_data.speed, dt_can );
+                m_can_vehicle_estimate.UpdateVehicleStateImu(angle_z_t, m_can_speed_data.speed, dt_can );
                 m_pre_can_timestamp = cur_can_timestamp;
 
                 // save vehicle state            
@@ -457,6 +459,8 @@ int DataFusion::FeaturePredict( const std::vector<cv::Point2f>& vector_feature_p
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"att_cur: "<<att_cur[0]*180/M_PI<<", "<<att_cur[1]*180/M_PI<<", "<<att_cur[2]*180/M_PI; 
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"dyaw: "<<dyaw*180/M_PI; 
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"dangle_z: "<<dangle_z*180/M_PI; 
+
+    dyaw = dangle_z;
     
     double Rn2c_kT[2][2];
     Rn2c_kT[0][0] = cosf(dyaw);
