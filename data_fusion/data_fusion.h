@@ -26,6 +26,7 @@ private:
     {
         double timestamp;
         double att[3];
+        double angle_z;
     };
 
     struct StructVehicleState
@@ -57,18 +58,12 @@ public:
     void  DeleteHistoryData( );
 
     // 根据时间戳查找对应的数据
-    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3] );
+    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z );
         
     int RunFusion( );
     
     int Polyfit(const cv::Mat& xy_feature, int order , std::vector<float>* lane_coeffs);
    
-    int GetLanePredictParameter(double image_timestamp_cur, double image_timestamp_pre, const cv::Mat &lane_coeffs_pre, 
-                                                double lane_num, double m_order, cv::Mat* lane_coeffs_predict );
-  
-    int LanePredict( const cv::Mat& lane_coeffs_pre, const double lane_num, double m_order, const double vehicle_pos_pre[2],  const double att_pre[3],
-                          const double vehicle_pos_cur[2],  const double att_cur[3], cv::Mat* lane_coeffs_predict);
-
     int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur, 
                                       std::vector<cv::Point2f>* vector_feature_predict);
 
@@ -125,6 +120,8 @@ private:
     double m_pre_att_timestamp; // att上次得到的时刻 
     StructAtt m_struct_att;    
     std::vector<StructAtt> m_vector_att;
+
+    double m_angle_z_cur, m_angle_z_pre;
 
     // imu+speed运动信息解算
     char m_is_first_speed_data; //  1: 第一次获取到speed数据 0:不是第一次    

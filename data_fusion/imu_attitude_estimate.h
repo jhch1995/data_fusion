@@ -2,6 +2,8 @@
 #define IMU_ATTITUDE_ESTIMATE_H
 
 #include "common/relative_locate/linear_r3.h"
+#include "common/base/log_level.h"
+
 #include "datafusion_math.h"
 
 
@@ -23,6 +25,8 @@ public:
     void UpdataAttitude( const double acc_data[3], const double gyro_data[3], double dt);
 
     void GetAttitude(double att[3]);
+
+    void GetAttitudeAngleZ(double att[3], double *angle_z);
 
     /// 一阶低通函数
     int LowpassFilter3f(const double y_pre[3], const double x_new[3], double dt, const double filt_hz, double y_new[3] );
@@ -47,6 +51,7 @@ private:
     double m_factor_acc_gyro[3]; // 加速度计修正的姿态的系数
     double m_att[3];
     double m_gyro_angle[3];
+    double m_angle_z;
     int m_att_init_counter;// = 20;
     
     // Y1模组的加速度计校正参数

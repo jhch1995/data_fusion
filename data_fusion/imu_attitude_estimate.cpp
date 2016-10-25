@@ -22,14 +22,16 @@ ImuAttitudeEstimate::ImuAttitudeEstimate()
     m_A1[2][2] = 0.9859;
 
     // nj    
-//    m_gyro_drift[0] = 0.00897;
-//    m_gyro_drift[1] = -0.0322
-//    m_gyro_drift[2] = -0.0214;
+    m_gyro_drift[0] = 0.00897;
+    m_gyro_drift[1] = -0.0322;
+    m_gyro_drift[2] = -0.0214;
 
     // Y-1
-    m_gyro_drift[0] = 0.0155;
-    m_gyro_drift[1] = -0.0421;
-    m_gyro_drift[2] = -0.0217;  
+//    m_gyro_drift[0] = 0.0155;
+//    m_gyro_drift[1] = -0.0421;
+//    m_gyro_drift[2] = -0.0217;  
+
+    m_angle_z = 0.0;
 
     m_att_init_counter = 30;
     
@@ -80,6 +82,12 @@ void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double
         m_gyro_angle[Z_AXIS]  = m_gyro_angle[Z_AXIS]+ gyro_rate[Z_AXIS] * dt; 
         m_att[Z_AXIS] = (m_att[Z_AXIS] + gyro_rate[Z_AXIS]*dt);
 
+        m_angle_z += gyro_data[Z_AXIS] * dt;
+
+        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"att[3]: "<<m_att[Z_AXIS]*180/M_PI; 
+        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"m_angle_z: "<<m_angle_z*180/M_PI; 
+        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"gyro_z_new: "<<gyro_rate[Z_AXIS]*180/M_PI; 
+        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"gyro_z_raw: "<<gyro_data[Z_AXIS]*180/M_PI; 
     }    
 
 }
@@ -90,6 +98,16 @@ void ImuAttitudeEstimate::GetAttitude(double att[3])
     att[Y_AXIS] = m_att[Y_AXIS];
     att[Z_AXIS] = m_att[Z_AXIS];
 }
+
+void ImuAttitudeEstimate::GetAttitudeAngleZ(double att[3], double *angle_z)
+{
+    att[X_AXIS] = m_att[X_AXIS];
+    att[Y_AXIS] = m_att[Y_AXIS];
+    att[Z_AXIS] = m_att[Z_AXIS];
+
+    *angle_z = m_angle_z;
+}
+
 
 void ImuAttitudeEstimate::ResetState()
 {
