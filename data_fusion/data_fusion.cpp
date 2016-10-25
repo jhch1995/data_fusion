@@ -407,14 +407,15 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
     m_call_predict_timestamp = image_timestamp_cur/1000.0; // 更新时间戳
    
     // 寻找跟需求的 timestamp对应的att,vehicle数据
-    is_data_search_cur_ok = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur, &m_angle_z_cur);
     is_data_search_pre_ok = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre);
+    is_data_search_cur_ok = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur, &m_angle_z_cur);
+    
     VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: dt(ms) = "<<image_timestamp_cur - image_timestamp_pre<<endl; 
 
 
     if(is_data_search_cur_ok && is_data_search_pre_ok)
     {
-        FeaturePredict( vector_feature_pre , vehicle_pos_pre, att_pre, vehicle_pos_cur, att_cur, vector_feature_predict);
+        FeaturePredict( vector_feature_pre , vehicle_pos_pre, att_pre, m_angle_z_pre, vehicle_pos_cur, att_cur, m_angle_z_pre, vector_feature_predict);
         return 1; 
     }
     else if(!is_data_search_pre_ok && !is_data_search_cur_ok)
@@ -435,17 +436,20 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
 
 
 // 特征点预测
-int DataFusion::FeaturePredict( const std::vector<cv::Point2f>& vector_feature_pre , double vehicle_pos_pre[2], double att_pre[3], 
-                                         double vehicle_pos_cur[2], double att_cur[3], std::vector<cv::Point2f>* vector_feature_predict)
+int DataFusion::FeaturePredict( const std::vector<cv::Point2f>& vector_feature_pre , double vehicle_pos_pre[2], double att_pre[3], double angle_z_pre, 
+                                         double vehicle_pos_cur[2], double att_cur[3], double angle_z_cur, std::vector<cv::Point2f>* vector_feature_predict)
 {
     // 计算汽车在两帧之间的状态变化    
     // 对pos进行坐标系转换，转到以pre时刻为初始坐标
-    double d_pos_tmp[2]; // 前后两帧在初始坐标系下的汽车运动
+    double d_pos_tmp[2]; // 在初始时刻的汽车坐标系下，前后两帧的运动位置变化
     double d_pos_new_c[2]; // 在以pre为坐标下的汽车运动
     d_pos_tmp[0] = vehicle_pos_cur[0] - vehicle_pos_pre[0];
     d_pos_tmp[1] = vehicle_pos_cur[1] - vehicle_pos_pre[1];         
-    d_pos_new_c[0] = cosf(att_pre[2])*d_pos_tmp[0] + sinf(att_pre[2])*d_pos_tmp[1];
-    d_pos_new_c[1] = -sinf(att_pre[2])*d_pos_tmp[0] + cos(att_pre[2])*d_pos_tmp[1];
+//    d_pos_new_c[0] = cosf(att_pre[2])*d_pos_tmp[0] + sinf(att_pre[2])*d_pos_tmp[1];
+//    d_pos_new_c[1] = -sinf(att_pre[2])*d_pos_tmp[0] + cos(att_pre[2])*d_pos_tmp[1];
+    d_pos_new_c[0] = cosf(angle_z_pre)*d_pos_tmp[0] + sinf(angle_z_pre)*d_pos_tmp[1];
+    d_pos_new_c[1] = -sinf(angle_z_pre)*d_pos_tmp[0] + cos(angle_z_pre)*d_pos_tmp[1];
+
 
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"vehicle_pos_pre: "<<vehicle_pos_pre[0]<<", "<<vehicle_pos_pre[1]; 
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"vehicle_pos_cur: "<<vehicle_pos_cur[0]<<", "<<vehicle_pos_cur[1]; 

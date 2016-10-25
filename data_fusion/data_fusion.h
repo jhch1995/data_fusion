@@ -67,8 +67,8 @@ public:
     int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur, 
                                       std::vector<cv::Point2f>* vector_feature_predict);
 
-    int FeaturePredict( const std::vector<cv::Point2f>& vector_feature_pre , double vehicle_pos_pre[2], double att_pre[3], 
-                                 double vehicle_pos_cur[2], double att_cur[3], std::vector<cv::Point2f>* vector_feature_predict);
+    int FeaturePredict( const std::vector<cv::Point2f>& vector_feature_pre , double vehicle_pos_pre[2], double att_pre[3], double angle_z_pre, 
+                                 double vehicle_pos_cur[2], double att_cur[3], double angle_z_cur, std::vector<cv::Point2f>* vector_feature_predict);
     // 数据融合的线程
     static void *ThreadRunFusion(void *tmp)//线程执行函数
     {
