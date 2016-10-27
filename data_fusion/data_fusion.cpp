@@ -32,6 +32,13 @@ void DataFusion::Initialize( )
     m_is_first_data_timestamp = 1; // 第一次更新
     m_data_save_length = 1; // 保存历史数据的长度(时间为单位: s)
     m_is_continue_read_data = 1; // 1:继续读取数据  2:暂停读取数据 由fusion控制   
+    m_cur_data_timestamp = 0;
+    m_call_predict_timestamp = 0;
+    m_is_first_run_read_data = 1; // 第一次运行读取数据
+
+    // 数据锁
+    is_imu_data_allow_write = 1;
+    is_can_speed_allow_write = 1;
 
 }
 
@@ -46,88 +53,121 @@ int DataFusion::ReadData( )
     {  
         //更新is_continue_read_data
         UpdateRreadDataState();
-        if(DATA_FROM_LOG && m_is_continue_read_data)
+
+        if(DATA_FROM_LOG)
         {
-            getline(infile_log, buffer_log);
-            ss_tmp.clear();
-            ss_tmp.str(buffer_log);
-            ss_tmp>>log_data[0]>>log_data[1]>>data_flag;
-            ss_log.clear();
-            ss_log.str(buffer_log);
-
-            if(data_flag == "cam_frame")
+            // 第一次运行程序，初始化m_cur_data_timestamp
+            if(m_is_first_run_read_data)
             {
-                string camera_flag, camera_add, image_index_str;
-                string image_name;
-                int log_image_index;
-                ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>camera_flag>>camera_add>>log_image_index;
-                
-                m_image_frame_info.timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;
-                m_image_frame_info.index = log_image_index;
-                m_data_image_update = 1;
-                
-            }else if(data_flag == "Gsensor")
-            {            
-                double AccData_raw[3]; // acc原始坐标系下的
-                double AccData_NED[3]; // 大地坐标系
-                static double AccDataFilter[3]; // 一阶低通之后的数据
-                double GyroData_raw[3];
-                double GyroData_NED[3];  
-                static double GyroDataFilter[3]; // 一阶低通之后的数据
-                double imu_temperature, imu_timestamp;    
-                string imu_flag;
-
-                ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>imu_flag>>AccData_raw[0]>>AccData_raw[1]>>AccData_raw[2]
-                        >>GyroData_raw[0]>>GyroData_raw[1]>>GyroData_raw[2]>>imu_temperature;
-                imu_timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;                 
-                m_imu_attitude_estimate.AccDataCalibation(AccData_raw, AccData_NED);// 原始数据校正
-                m_imu_attitude_estimate.GyrocDataCalibation(GyroData_raw, GyroData_NED);
-
-                if(m_is_first_read_gsensor)
-                {
-                    m_is_first_read_gsensor = 0;
-                    m_pre_imu_timestamp = imu_timestamp;
-                    AccDataFilter[0] = AccData_NED[0];
-                    AccDataFilter[1] = AccData_NED[1];
-                    AccDataFilter[2] = AccData_NED[2];
-                    GyroDataFilter[0] = GyroData_NED[0];
-                    GyroDataFilter[1] = GyroData_NED[1];
-                    GyroDataFilter[2] = GyroData_NED[2]; 
-                }else
-                {
-                    double dt_imu = imu_timestamp - m_pre_imu_timestamp; 
-                    dt_imu = 0.01; // 100hz
-                    m_imu_attitude_estimate.LowpassFilter3f(AccDataFilter, AccData_NED, dt_imu, m_acc_filt_hz, AccDataFilter);    
-                    m_imu_attitude_estimate.LowpassFilter3f(GyroDataFilter, GyroData_NED, dt_imu, m_gyro_filt_hz, GyroDataFilter);       
-                    m_pre_imu_timestamp = imu_timestamp;    
-                }                    
-                m_imu_data.timestamp = imu_timestamp;
-                UpdateCurrentDataTimestamp(imu_timestamp);
-                m_imu_data.acc[0] = AccDataFilter[0];
-                m_imu_data.acc[1] = AccDataFilter[1];
-                m_imu_data.acc[2] = AccDataFilter[2];
-                m_imu_data.gyro[0] = GyroDataFilter[0];
-                m_imu_data.gyro[1] = GyroDataFilter[1];
-                m_imu_data.gyro[2] = GyroDataFilter[2];
-                m_data_gsensor_update = 1; 
-            }else if(data_flag == "brake_signal")
+                getline(infile_log, buffer_log);
+                ss_tmp.clear();
+                ss_tmp.str(buffer_log);
+                ss_tmp>>log_data[0]>>log_data[1]>>data_flag; 
+                m_cur_data_timestamp = log_data[0] + log_data[1]*1e-6;
+                m_is_first_run_read_data = 0;
+            }
+            
+            if(m_is_continue_read_data )
             {
-                string str_t[10],str_speed;
-                int data_t[10];
-                double raw_timestamp[2];  
-                double speed_can;
-                ss_log>>raw_timestamp[0]>>raw_timestamp[1]
-                    >>str_t[0]>>data_t[0]>>str_t[1]>>data_t[1]>>str_t[2]>>data_t[2]>>str_t[3]>>data_t[3]>>str_t[4]>>data_t[4]
-                    >>str_t[5]>>data_t[5]>>str_t[6]>>data_t[6]>>str_t[7]>>data_t[7]>>str_t[8]>>data_t[8]>>str_t[9]>>data_t[9]
-                    >>str_speed>>speed_can;  
-                m_can_speed_data.timestamp = raw_timestamp[0] + raw_timestamp[1]*1e-6;;
-                UpdateCurrentDataTimestamp(m_can_speed_data.timestamp);
-                m_can_speed_data.speed= speed_can/3.6;// km/h-->m/s   
-                m_data_speed_update = 1;  
-            }             
+                getline(infile_log, buffer_log);
+                ss_tmp.clear();
+                ss_tmp.str(buffer_log);
+                ss_tmp>>log_data[0]>>log_data[1]>>data_flag;
+                ss_log.clear();
+                ss_log.str(buffer_log);
+
+                if(data_flag == "cam_frame")
+                {
+                    string camera_flag, camera_add, image_index_str;
+                    string image_name;
+                    int log_image_index;
+                    ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>camera_flag>>camera_add>>log_image_index;
+                    
+                    m_image_frame_info.timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;
+                    m_image_frame_info.index = log_image_index;
+                    m_data_image_update = 1;
+                    
+                }else if(data_flag == "Gsensor")
+                {            
+                    double AccData_raw[3]; // acc原始坐标系下的
+                    double AccData_NED[3]; // 大地坐标系
+                    static double AccDataFilter[3]; // 一阶低通之后的数据
+                    double GyroData_raw[3];
+                    double GyroData_NED[3];  
+                    static double GyroDataFilter[3]; // 一阶低通之后的数据
+                    double imu_temperature, imu_timestamp;    
+                    string imu_flag;
+
+                    ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>imu_flag>>AccData_raw[0]>>AccData_raw[1]>>AccData_raw[2]
+                            >>GyroData_raw[0]>>GyroData_raw[1]>>GyroData_raw[2]>>imu_temperature;
+                    imu_timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;                 
+                    m_imu_attitude_estimate.AccDataCalibation(AccData_raw, AccData_NED);// 原始数据校正
+                    m_imu_attitude_estimate.GyrocDataCalibation(GyroData_raw, GyroData_NED);
+
+                    if(m_is_first_read_gsensor)
+                    {
+                        m_is_first_read_gsensor = 0;
+                        m_pre_imu_timestamp = imu_timestamp;
+                        AccDataFilter[0] = AccData_NED[0];
+                        AccDataFilter[1] = AccData_NED[1];
+                        AccDataFilter[2] = AccData_NED[2];
+                        GyroDataFilter[0] = GyroData_NED[0];
+                        GyroDataFilter[1] = GyroData_NED[1];
+                        GyroDataFilter[2] = GyroData_NED[2]; 
+                    }else
+                    {
+                        double dt_imu = imu_timestamp - m_pre_imu_timestamp; 
+                        dt_imu = 0.01; // 100hz
+                        m_imu_attitude_estimate.LowpassFilter3f(AccDataFilter, AccData_NED, dt_imu, m_acc_filt_hz, AccDataFilter);    
+                        m_imu_attitude_estimate.LowpassFilter3f(GyroDataFilter, GyroData_NED, dt_imu, m_gyro_filt_hz, GyroDataFilter);       
+                        m_pre_imu_timestamp = imu_timestamp;    
+                    }
+
+                    // 读写锁，防止多线程冲突
+                    if(is_imu_data_allow_write)
+                    {
+                        m_imu_data.timestamp = imu_timestamp;                    
+                        m_imu_data.acc[0] = AccDataFilter[0];
+                        m_imu_data.acc[1] = AccDataFilter[1];
+                        m_imu_data.acc[2] = AccDataFilter[2];
+                        m_imu_data.gyro[0] = GyroDataFilter[0];
+                        m_imu_data.gyro[1] = GyroDataFilter[1];
+                        m_imu_data.gyro[2] = GyroDataFilter[2];
+                        UpdateCurrentDataTimestamp(imu_timestamp);
+                        m_data_gsensor_update = 1;    
+                        
+                        std::cout<<"read imu" <<endl;
+                    }
+                   
+                }else if(data_flag == "brake_signal")
+                {
+                    string str_t[10],str_speed;
+                    int data_t[10];
+                    double raw_timestamp[2];  
+                    double speed_can, speed_timestamp;
+                    ss_log>>raw_timestamp[0]>>raw_timestamp[1]
+                        >>str_t[0]>>data_t[0]>>str_t[1]>>data_t[1]>>str_t[2]>>data_t[2]>>str_t[3]>>data_t[3]>>str_t[4]>>data_t[4]
+                        >>str_t[5]>>data_t[5]>>str_t[6]>>data_t[6]>>str_t[7]>>data_t[7]>>str_t[8]>>data_t[8]>>str_t[9]>>data_t[9]
+                        >>str_speed>>speed_can;  
+                    
+                    speed_timestamp = raw_timestamp[0] + raw_timestamp[1]*1e-6;   
+                    speed_can = speed_can/3.6;// km/h-->m/s 
+
+                    // 读写锁，防止多线程冲突
+                    if(is_can_speed_allow_write)
+                    {
+                        m_can_speed_data.timestamp = speed_timestamp;
+                        m_can_speed_data.speed = speed_can; 
+                        UpdateCurrentDataTimestamp(speed_timestamp);
+                        m_data_speed_update = 1;  
+                    }
+                }
+
+            }
         }
         usleep(1);
     }
+
 }
 
 
@@ -165,11 +205,13 @@ void DataFusion::UpdateCurrentDataTimestamp( double data_timestample)
 
 
 // 判断是否还要继续读取数据
+// 如果run_fusion在进行操作的时候，不读数据
 bool  DataFusion::UpdateRreadDataState( )
 {
     double dt  = m_cur_data_timestamp - m_call_predict_timestamp;
+//    std::cout<<"UpdateRreadDataState--dt: "<< dt <<endl;
     // 提前读取data_save_length长度的数据
-    if(dt > 0 && dt >= m_data_save_length)  // 时间超过了
+    if(dt >= m_data_save_length)  // 时间超过了
     {
         m_is_continue_read_data = 0; //  暂停读取数据
     }else
@@ -225,21 +267,33 @@ void DataFusion::DeleteHistoryData( )
 int DataFusion::RunFusion( )
 {
     double att_xy_cur[3]; // 当前stamp的角度
+    StructImuData imu_data;
+    StructCanSpeedData can_speed_data;
     while(1)
     {
+//        ReadData();
+        
         // m_is_continue_read_data
         if(m_data_gsensor_update)
         {
-            double cur_att_timestamp = m_imu_data.timestamp;
+            is_imu_data_allow_write = 0; // 禁止写入
+            memcpy(&imu_data, &m_imu_data, sizeof(StructImuData));
+            is_imu_data_allow_write = 1; // 允许写入
+            m_data_gsensor_update = 0;  
+            
+            
+            double cur_att_timestamp = imu_data.timestamp;
             if(m_isFirstTime_att)
             {
                 m_isFirstTime_att = 0;
                 m_pre_att_timestamp = cur_att_timestamp; 
             }else
-            {            
+            {  
+                std::cout<<"run fusion imu" <<endl;
+                
                 double dt_att = cur_att_timestamp - m_pre_att_timestamp;
                 dt_att = 0.01;
-                m_imu_attitude_estimate.UpdataAttitude(m_imu_data.acc, m_imu_data.gyro, dt_att);
+                m_imu_attitude_estimate.UpdataAttitude(imu_data.acc, imu_data.gyro, dt_att);
                 m_pre_att_timestamp = cur_att_timestamp;
 
                 // save att
@@ -248,13 +302,18 @@ int DataFusion::RunFusion( )
                 m_vector_att.push_back(m_struct_att);
             } 
             UpdateCurrentFusionTimestamp( cur_att_timestamp );
-            m_data_gsensor_update = 0;          
+                    
         }
 
         if(m_data_speed_update)
         {    
+            is_can_speed_allow_write = 0; // 禁止写入
+            memcpy(&can_speed_data, &m_can_speed_data, sizeof(StructCanSpeedData));
+            is_can_speed_allow_write = 1; // 允许写入
+            m_data_speed_update = 0;  
+            
             // 利用imu+speed计算汽车运动
-            double cur_can_timestamp = m_can_speed_data.timestamp; 
+            double cur_can_timestamp = can_speed_data.timestamp; 
             if(m_is_first_speed_data)
             {
                 m_is_first_speed_data = 0;
@@ -266,7 +325,7 @@ int DataFusion::RunFusion( )
                 double angle_z_t;
                 m_imu_attitude_estimate.GetAttitudeAngleZ(att_xy_cur, &angle_z_t);
                 //m_can_vehicle_estimate.UpdateVehicleStateImu(att_xy_cur[2], m_can_speed_data.speed, dt_can );
-                m_can_vehicle_estimate.UpdateVehicleStateImu(angle_z_t, m_can_speed_data.speed, dt_can );
+                m_can_vehicle_estimate.UpdateVehicleStateImu(angle_z_t, can_speed_data.speed, dt_can );
                 m_pre_can_timestamp = cur_can_timestamp;
 
                 // save vehicle state            
@@ -274,8 +333,7 @@ int DataFusion::RunFusion( )
                 m_struct_vehicle_state.timestamp = cur_can_timestamp;
                 m_vector_vehicle_state.push_back(m_struct_vehicle_state);
             }
-            UpdateCurrentFusionTimestamp( cur_can_timestamp );            
-            m_data_speed_update = 0;        
+            UpdateCurrentFusionTimestamp( cur_can_timestamp );                
         }        
         DeleteHistoryData();
         usleep(1); // 1us
@@ -359,7 +417,7 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
             break;
         }
     }
-//    VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
+    VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
 
     // m_vector_vehicle_state
     int vehicle_data_length = m_vector_vehicle_state.size();
@@ -385,7 +443,7 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
             break;
         }
     }
-//    VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"pos:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
+    VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"pos:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
 
     if(att_data_search_ok && vehicle_data_search_ok)
         return 1;
@@ -405,6 +463,7 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
     double image_timestamp_pre_t = image_timestamp_pre/1000.0;    
     
     m_call_predict_timestamp = image_timestamp_cur/1000.0; // 更新时间戳
+  
    
     // 寻找跟需求的 timestamp对应的att,vehicle数据
     is_data_search_pre_ok = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre);
@@ -420,7 +479,7 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
     }
     else if(!is_data_search_pre_ok && !is_data_search_cur_ok)
     {
-        VLOG(VLOG_WARNING)<<"DF:GetPredictFeature--"<<"warning cur& pre-camera both timestamp dismatch"<<endl;
+        VLOG(VLOG_WARNING)<<"DF:GetPredictFeature--"<<"warning cur & pre-camera both timestamp dismatch"<<endl;
     }
     else if(!is_data_search_pre_ok && is_data_search_cur_ok)
     {

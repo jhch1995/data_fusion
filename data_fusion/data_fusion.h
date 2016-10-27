@@ -131,6 +131,11 @@ private:
     bool m_data_gsensor_update; // 分别对应的数据是否已经更新
     bool m_data_speed_update;
     bool m_data_image_update;
+    bool m_is_first_run_read_data;
+
+    // 数据读写锁
+    bool is_imu_data_allow_write;
+    bool is_can_speed_allow_write;
 
     struct StructImageFrameInfo
     {
