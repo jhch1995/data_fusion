@@ -21,7 +21,7 @@ DataFusion::~DataFusion()
 void DataFusion::Initialize( )
 {
     infile_log.open("data/doing/log.txt");       // ofstream    
-    m_pre_can_timestamp = 0.0f; /// CAN;
+    m_pre_vehicle_timestamp = 0.0f; /// CAN;
 
     // IMU
     m_acc_filt_hz = 5.0f; // 加速度计的低通截止频率
@@ -75,16 +75,15 @@ void DataFusion::RunFusion( )
 
 
 // 读取数据,两种方式:
-//      1.离线从log 
+//      1.离线从log   
+// TODO:利用FIFO信息进行IMU时间戳逆推
 // TODO: 2.在线
 void DataFusion::ReadData( )
 {    
     double log_data[2], timestamp_raw[2];
     string data_flag;
-
     //更新is_continue_read_data
     UpdateRreadDataState();
-
     if(DATA_FROM_LOG)
     {
         // 第一次运行程序，初始化m_cur_data_timestamp
@@ -118,7 +117,8 @@ void DataFusion::ReadData( )
                 m_image_frame_info.index = log_image_index;
                 m_data_image_update = 1;
                 
-            }else if(data_flag == "Gsensor")
+            }
+            else if(data_flag == "Gsensor")
             {            
                 double AccData_raw[3]; // acc原始坐标系下的
                 double AccData_NED[3]; // 大地坐标系
@@ -145,7 +145,8 @@ void DataFusion::ReadData( )
                     GyroDataFilter[0] = GyroData_NED[0];
                     GyroDataFilter[1] = GyroData_NED[1];
                     GyroDataFilter[2] = GyroData_NED[2]; 
-                }else
+                }
+                else
                 {
                     double dt_imu = imu_timestamp - m_pre_imu_timestamp; 
                     dt_imu = 0.01; // 100hz
@@ -291,74 +292,82 @@ void DataFusion::DeleteHistoryData( )
 
 // 进行att、vehicle_state计算 ,
 void DataFusion::DoDataFusion( )
-{
-    double att_xy_cur[3]; // 当前stamp的角度
-    StructImuData imu_data;
-    StructCanSpeedData can_speed_data;
-    
-     // m_is_continue_read_data
+{     
     if(m_data_gsensor_update)
     {
-        // 读写锁
-        is_imu_data_allow_write = 0; // 禁止写入
-        memcpy(&imu_data, &m_imu_data, sizeof(StructImuData));
-        is_imu_data_allow_write = 1; // 允许写入
-        m_data_gsensor_update = 0;          
-        
-        double cur_att_timestamp = imu_data.timestamp;
-        if(m_isFirstTime_att)
-        {
-            m_isFirstTime_att = 0;
-            m_pre_att_timestamp = cur_att_timestamp; 
-        }else
-        {  
-            VLOG(VLOG_DEBUG)<<"run fusion imu" <<endl;
-            
-            double dt_att = cur_att_timestamp - m_pre_att_timestamp;
-            dt_att = 0.01;
-            m_imu_attitude_estimate.UpdataAttitude(imu_data.acc, imu_data.gyro, dt_att);
-            m_pre_att_timestamp = cur_att_timestamp;
-
-            // save att
-            m_imu_attitude_estimate.GetAttitudeAngleZ(m_struct_att.att, &(m_struct_att.angle_z));
-            m_struct_att.timestamp = cur_att_timestamp;
-            m_vector_att.push_back(m_struct_att);
-        } 
-        UpdateCurrentFusionTimestamp( cur_att_timestamp );
-                
-    }
-
-    if(m_data_speed_update)
-    {    
-        is_can_speed_allow_write = 0; // 禁止写入
-        memcpy(&can_speed_data, &m_can_speed_data, sizeof(StructCanSpeedData));
-        is_can_speed_allow_write = 1; // 允许写入
-        m_data_speed_update = 0;  
-        
-        // 利用imu+speed计算汽车运动
-        double cur_can_timestamp = can_speed_data.timestamp; 
-        if(m_is_first_speed_data)
-        {
-            m_is_first_speed_data = 0;
-            m_pre_can_timestamp = cur_can_timestamp;  
-            
-        }else
-        {
-            double dt_can = cur_can_timestamp - m_pre_can_timestamp; 
-            double angle_z_t;
-            m_imu_attitude_estimate.GetAttitudeAngleZ(att_xy_cur, &angle_z_t);
-            //m_can_vehicle_estimate.UpdateVehicleStateImu(att_xy_cur[2], m_can_speed_data.speed, dt_can );
-            m_can_vehicle_estimate.UpdateVehicleStateImu(angle_z_t, can_speed_data.speed, dt_can );
-            m_pre_can_timestamp = cur_can_timestamp;
-
-            // save vehicle state            
-            m_can_vehicle_estimate.GetVehicleState(m_struct_vehicle_state.vel, m_struct_vehicle_state.pos, &(m_struct_vehicle_state.yaw));
-            m_struct_vehicle_state.timestamp = cur_can_timestamp;
-            m_vector_vehicle_state.push_back(m_struct_vehicle_state);
-        }
-        UpdateCurrentFusionTimestamp( cur_can_timestamp );                
+        DoAttEstimate();
+        DoVehicelStateEstimate();       
     }
 }
+
+
+void DataFusion::DoAttEstimate()
+{
+    StructImuData imu_data;
+    // 读写锁
+    is_imu_data_allow_write = 0; // 禁止写入
+    memcpy(&imu_data, &m_imu_data, sizeof(StructImuData));
+    is_imu_data_allow_write = 1; // 允许写入
+    m_data_gsensor_update = 0;          
+    
+    double cur_att_timestamp = imu_data.timestamp;
+    if(m_isFirstTime_att)
+    {
+        m_isFirstTime_att = 0;
+        m_pre_att_timestamp = cur_att_timestamp; 
+    }else
+    {  
+        VLOG(VLOG_DEBUG)<<"run fusion imu" <<endl;
+        
+        double dt_att = cur_att_timestamp - m_pre_att_timestamp;
+        dt_att = 0.01;
+        m_imu_attitude_estimate.UpdataAttitude(imu_data.acc, imu_data.gyro, dt_att);
+        m_pre_att_timestamp = cur_att_timestamp;
+
+        // save att
+        m_imu_attitude_estimate.GetAttitudeAngleZ(m_struct_att.att, &(m_struct_att.angle_z));
+        m_struct_att.timestamp = cur_att_timestamp;
+        m_vector_att.push_back(m_struct_att);
+    } 
+    UpdateCurrentFusionTimestamp( cur_att_timestamp );        
+    
+}
+
+
+void DataFusion::DoVehicelStateEstimate()
+{
+    double att_xy_cur[3]; // 当前stamp的角度    
+    StructCanSpeedData can_speed_data;
+    
+    is_can_speed_allow_write = 0; // 禁止写入
+    memcpy(&can_speed_data, &m_can_speed_data, sizeof(StructCanSpeedData));
+    is_can_speed_allow_write = 1; // 允许写入
+    m_data_speed_update = 0;  
+
+    // 利用imu+speed计算汽车运动
+    double dt_can;
+    double cur_vehicle_timestamp = m_struct_att.timestamp; 
+    if(m_is_first_speed_data)
+    {
+        m_is_first_speed_data = 0;
+        m_pre_vehicle_timestamp = cur_vehicle_timestamp;  
+        
+    }else
+    {
+        dt_can = cur_vehicle_timestamp - m_pre_vehicle_timestamp; // 暂时没用
+        dt_can = 0.01; // 每次IMU更新数据便计算一次
+        m_can_vehicle_estimate.UpdateVehicleStateImu(m_struct_att.angle_z, can_speed_data.speed, dt_can );
+        m_pre_vehicle_timestamp = cur_vehicle_timestamp;
+
+        // save vehicle state            
+        m_can_vehicle_estimate.GetVehicleState(m_struct_vehicle_state.vel, m_struct_vehicle_state.pos, &(m_struct_vehicle_state.yaw));
+        m_struct_vehicle_state.timestamp = cur_vehicle_timestamp;
+        m_vector_vehicle_state.push_back(m_struct_vehicle_state);
+    }
+
+}
+
+
 
 
 // 根据时间戳查找对应的数据

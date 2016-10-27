@@ -65,6 +65,10 @@ public:
     int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z );
 
     void DoDataFusion( );
+    
+    void DoVehicelStateEstimate();
+
+    void DoAttEstimate();
 
     
     void RunFusion( );
@@ -108,7 +112,7 @@ private:
     
     /// CAN
     CAN_VehicleEstimate m_can_vehicle_estimate;
-    double m_pre_can_timestamp ;
+    double m_pre_vehicle_timestamp ;
     StructVehicleState m_struct_vehicle_state;
     std::vector<StructVehicleState> m_vector_vehicle_state;
 
