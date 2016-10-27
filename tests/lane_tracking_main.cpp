@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 
 // 初始化融合函数
     data_fusion.Initialize();    
-    data_fusion.ExecTaskReadData(); // 读取数据的线程 
+//    data_fusion.ExecTaskReadData(); // 读取数据的线程 
     data_fusion.ExecTaskRunFusion(); // 在线运行的时候应该是在用独立线程持续运行的
 
 // 本地利用标注的数据测试   

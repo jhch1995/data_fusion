@@ -7,6 +7,7 @@
 using namespace common;
 DataFusion::DataFusion()
 {
+
 }
 
 void DataFusion::Initialize( )
@@ -30,7 +31,7 @@ void DataFusion::Initialize( )
     // 读取数据控制
     m_is_first_fusion_timestamp = 1; // 第一次更新
     m_is_first_data_timestamp = 1; // 第一次更新
-    m_data_save_length = 1; // 保存历史数据的长度(时间为单位: s)
+    m_data_save_length = 2; // 保存历史数据的长度(时间为单位: s)
     m_is_continue_read_data = 1; // 1:继续读取数据  2:暂停读取数据 由fusion控制   
     m_cur_data_timestamp = 0;
     m_call_predict_timestamp = 0;
@@ -49,8 +50,8 @@ int DataFusion::ReadData( )
 {    
     double log_data[2], timestamp_raw[2];
     string data_flag;
-    while(1)
-    {  
+//    while(1)
+//    {  
         //更新is_continue_read_data
         UpdateRreadDataState();
 
@@ -136,7 +137,7 @@ int DataFusion::ReadData( )
                         UpdateCurrentDataTimestamp(imu_timestamp);
                         m_data_gsensor_update = 1;    
                         
-                        std::cout<<"read imu" <<endl;
+                        //VLOG(VLOG_DEBUG)<<"read imu" <<endl;
                     }
                    
                 }else if(data_flag == "brake_signal")
@@ -165,8 +166,8 @@ int DataFusion::ReadData( )
 
             }
         }
-        usleep(1);
-    }
+//        usleep(1);
+//    }
 
 }
 
@@ -263,84 +264,90 @@ void DataFusion::DeleteHistoryData( )
     
 }
 
-// 进行汽车运动信息解算和航向角变化解算
-int DataFusion::RunFusion( )
+// 执行att、vehicle_state计算 ,进行汽车运动信息解算和航向角变化解算
+void DataFusion::DoDataFusion( )
 {
     double att_xy_cur[3]; // 当前stamp的角度
     StructImuData imu_data;
     StructCanSpeedData can_speed_data;
+    
+     // m_is_continue_read_data
+    if(m_data_gsensor_update)
+    {
+        // 读写锁
+        is_imu_data_allow_write = 0; // 禁止写入
+        memcpy(&imu_data, &m_imu_data, sizeof(StructImuData));
+        is_imu_data_allow_write = 1; // 允许写入
+        m_data_gsensor_update = 0;          
+        
+        double cur_att_timestamp = imu_data.timestamp;
+        if(m_isFirstTime_att)
+        {
+            m_isFirstTime_att = 0;
+            m_pre_att_timestamp = cur_att_timestamp; 
+        }else
+        {  
+            VLOG(VLOG_DEBUG)<<"run fusion imu" <<endl;
+            
+            double dt_att = cur_att_timestamp - m_pre_att_timestamp;
+            dt_att = 0.01;
+            m_imu_attitude_estimate.UpdataAttitude(imu_data.acc, imu_data.gyro, dt_att);
+            m_pre_att_timestamp = cur_att_timestamp;
+
+            // save att
+            m_imu_attitude_estimate.GetAttitudeAngleZ(m_struct_att.att, &(m_struct_att.angle_z));
+            m_struct_att.timestamp = cur_att_timestamp;
+            m_vector_att.push_back(m_struct_att);
+        } 
+        UpdateCurrentFusionTimestamp( cur_att_timestamp );
+                
+    }
+
+    if(m_data_speed_update)
+    {    
+        is_can_speed_allow_write = 0; // 禁止写入
+        memcpy(&can_speed_data, &m_can_speed_data, sizeof(StructCanSpeedData));
+        is_can_speed_allow_write = 1; // 允许写入
+        m_data_speed_update = 0;  
+        
+        // 利用imu+speed计算汽车运动
+        double cur_can_timestamp = can_speed_data.timestamp; 
+        if(m_is_first_speed_data)
+        {
+            m_is_first_speed_data = 0;
+            m_pre_can_timestamp = cur_can_timestamp;  
+            
+        }else
+        {
+            double dt_can = cur_can_timestamp - m_pre_can_timestamp; 
+            double angle_z_t;
+            m_imu_attitude_estimate.GetAttitudeAngleZ(att_xy_cur, &angle_z_t);
+            //m_can_vehicle_estimate.UpdateVehicleStateImu(att_xy_cur[2], m_can_speed_data.speed, dt_can );
+            m_can_vehicle_estimate.UpdateVehicleStateImu(angle_z_t, can_speed_data.speed, dt_can );
+            m_pre_can_timestamp = cur_can_timestamp;
+
+            // save vehicle state            
+            m_can_vehicle_estimate.GetVehicleState(m_struct_vehicle_state.vel, m_struct_vehicle_state.pos, &(m_struct_vehicle_state.yaw));
+            m_struct_vehicle_state.timestamp = cur_can_timestamp;
+            m_vector_vehicle_state.push_back(m_struct_vehicle_state);
+        }
+        UpdateCurrentFusionTimestamp( cur_can_timestamp );                
+    }
+}
+
+
+
+void DataFusion::RunFusion( )
+{
     while(1)
     {
-//        ReadData();
-        
-        // m_is_continue_read_data
-        if(m_data_gsensor_update)
-        {
-            is_imu_data_allow_write = 0; // 禁止写入
-            memcpy(&imu_data, &m_imu_data, sizeof(StructImuData));
-            is_imu_data_allow_write = 1; // 允许写入
-            m_data_gsensor_update = 0;  
-            
-            
-            double cur_att_timestamp = imu_data.timestamp;
-            if(m_isFirstTime_att)
-            {
-                m_isFirstTime_att = 0;
-                m_pre_att_timestamp = cur_att_timestamp; 
-            }else
-            {  
-                std::cout<<"run fusion imu" <<endl;
-                
-                double dt_att = cur_att_timestamp - m_pre_att_timestamp;
-                dt_att = 0.01;
-                m_imu_attitude_estimate.UpdataAttitude(imu_data.acc, imu_data.gyro, dt_att);
-                m_pre_att_timestamp = cur_att_timestamp;
-
-                // save att
-                m_imu_attitude_estimate.GetAttitudeAngleZ(m_struct_att.att, &(m_struct_att.angle_z));
-                m_struct_att.timestamp = cur_att_timestamp;
-                m_vector_att.push_back(m_struct_att);
-            } 
-            UpdateCurrentFusionTimestamp( cur_att_timestamp );
-                    
-        }
-
-        if(m_data_speed_update)
-        {    
-            is_can_speed_allow_write = 0; // 禁止写入
-            memcpy(&can_speed_data, &m_can_speed_data, sizeof(StructCanSpeedData));
-            is_can_speed_allow_write = 1; // 允许写入
-            m_data_speed_update = 0;  
-            
-            // 利用imu+speed计算汽车运动
-            double cur_can_timestamp = can_speed_data.timestamp; 
-            if(m_is_first_speed_data)
-            {
-                m_is_first_speed_data = 0;
-                m_pre_can_timestamp = cur_can_timestamp;  
-                
-            }else
-            {
-                double dt_can = cur_can_timestamp - m_pre_can_timestamp; 
-                double angle_z_t;
-                m_imu_attitude_estimate.GetAttitudeAngleZ(att_xy_cur, &angle_z_t);
-                //m_can_vehicle_estimate.UpdateVehicleStateImu(att_xy_cur[2], m_can_speed_data.speed, dt_can );
-                m_can_vehicle_estimate.UpdateVehicleStateImu(angle_z_t, can_speed_data.speed, dt_can );
-                m_pre_can_timestamp = cur_can_timestamp;
-
-                // save vehicle state            
-                m_can_vehicle_estimate.GetVehicleState(m_struct_vehicle_state.vel, m_struct_vehicle_state.pos, &(m_struct_vehicle_state.yaw));
-                m_struct_vehicle_state.timestamp = cur_can_timestamp;
-                m_vector_vehicle_state.push_back(m_struct_vehicle_state);
-            }
-            UpdateCurrentFusionTimestamp( cur_can_timestamp );                
-        }        
-        DeleteHistoryData();
-        usleep(1); // 1us
+        ReadData();
+        DoDataFusion();
+        DeleteHistoryData();   
+        usleep(1); // 1us       
     }
-        
-    return 1;
 }
+
 
 // 拟合曲线
 int DataFusion::Polyfit(const cv::Mat& xy_feature, int order, std::vector<float>* lane_coeffs )

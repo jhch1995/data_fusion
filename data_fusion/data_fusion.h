@@ -59,8 +59,11 @@ public:
 
     // 根据时间戳查找对应的数据
     int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z );
-        
-    int RunFusion( );
+
+    void DoDataFusion( );
+
+    // 线程循环函数
+    void RunFusion( );
     
     int Polyfit(const cv::Mat& xy_feature, int order , std::vector<float>* lane_coeffs);
    
@@ -83,17 +86,17 @@ public:
     }
 
     // read data 线程
-    static void *ThreadReadData(void *tmp)//线程执行函数
-    {
-        DataFusion *p = (DataFusion *)tmp;        
-        p->ReadData(); //通过p指针间接访问类的非静态成员;
-    }
-    pthread_t read_data_id;
-    int ExecTaskReadData()
-    {        
-        int ERR = pthread_create(&read_data_id, NULL, ThreadReadData, (void *)this); //启动线程执行例程
-        return ERR;
-    }
+//    static void *ThreadReadData(void *tmp)//线程执行函数
+//    {
+//        DataFusion *p = (DataFusion *)tmp;        
+//        p->ReadData(); //通过p指针间接访问类的非静态成员;
+//    }
+//    pthread_t read_data_id;
+//    int ExecTaskReadData()
+//    {        
+//        int ERR = pthread_create(&read_data_id, NULL, ThreadReadData, (void *)this); //启动线程执行例程
+//        return ERR;
+//    }
 
 private:  
     // 读入log
