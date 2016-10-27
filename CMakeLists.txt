@@ -14,10 +14,21 @@ SET(LIBRARY_OUTPUT_PATH "${PROJECT_BINARY_DIR}/lib/")
 
 INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}")
 
-ADD_SUBDIRECTORY(common/relative_locate)
+INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/thirdparty/gflags/linux/include")	
+INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/thirdparty/glog/linux/include")
+LINK_DIRECTORIES("${PROJECT_SOURCE_DIR}/thirdparty/gflags/linux/lib/x64")
+LINK_DIRECTORIES("${PROJECT_SOURCE_DIR}/thirdparty/glog/linux/static/x64")	
+
 ADD_SUBDIRECTORY(common/time)
+ADD_SUBDIRECTORY(common/base)
+ADD_SUBDIRECTORY(common/system)
+ADD_SUBDIRECTORY(common/relative_locate)
+ADD_SUBDIRECTORY(common/concurrency)
+
 ADD_SUBDIRECTORY(data_fusion)
 ADD_SUBDIRECTORY(tests)
+
+
 
 
 

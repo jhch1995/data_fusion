@@ -133,9 +133,9 @@ int main(int argc, char *argv[])
     
 
 // 初始化融合函数
-    data_fusion.Initialize();    
+    data_fusion.StartDataFusionTask();    
 //    data_fusion.ExecTaskReadData(); // 读取数据的线程 
-    data_fusion.ExecTaskRunFusion(); // 在线运行的时候应该是在用独立线程持续运行的
+//    data_fusion.ExecTaskRunFusion(); // 在线运行的时候应该是在用独立线程持续运行的
 
 // 本地利用标注的数据测试   
     string str_image_frame_add = "data/doing/frame/";
@@ -498,7 +498,7 @@ void do_predict_feature()
         t_2 = f_time_counter.Microseconds();
 
         int64 predict_cal_dt = (t_2 - t_1) ;
-//        VLOG(VLOG_INFO)<<"DF:main- "<<"predict_cal_dt= "<<predict_cal_dt<<endl; 
+        VLOG(VLOG_INFO)<<"DF:main- "<<"predict_cal_dt= "<<predict_cal_dt<<endl; 
         
         if(main_sleep_counter > 0)
         {            

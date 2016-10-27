@@ -6,7 +6,10 @@ LINK_DIRECTORIES("${PROJECT_SOURCE_DIR}/thirdparty/gflags/linux/lib/x64")
 LINK_DIRECTORIES("${PROJECT_SOURCE_DIR}/thirdparty/glog/linux/static/x64")	
 
 
-ADD_LIBRARY(data_fusion STATIC imu_attitude_estimate.cpp can_vehicle_estimate.cpp data_fusion.cpp ) 		
+SET(SRC_LIST imu_attitude_estimate.cpp can_vehicle_estimate.cpp data_fusion.cpp) 
+ADD_LIBRARY(data_fusion STATIC ${SRC_LIST})
+
+# ADD_LIBRARY(data_fusion STATIC imu_attitude_estimate.cpp can_vehicle_estimate.cpp data_fusion.cpp ) 		
 
 
 

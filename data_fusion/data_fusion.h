@@ -11,6 +11,7 @@
 #include "common/relative_locate/linear_r3.h"
 #include "common/base/stdint.h"
 #include "common/base/log_level.h"
+#include "common/concurrency/work_thread.h"
 
 #include "imu_attitude_estimate.h"
 #include "can_vehicle_estimate.h"
@@ -40,12 +41,15 @@ private:
 public:
     DataFusion();
     
-    ~DataFusion() {}
+    ~DataFusion();
 
     void Initialize( );
 
+    // 线程循环函数
+    void StartDataFusionTask();
+
     // 
-    int ReadData();
+    void ReadData();
     
     void UpdateCurrentFusionTimestamp( double data_timestample);
 
@@ -62,7 +66,7 @@ public:
 
     void DoDataFusion( );
 
-    // 线程循环函数
+    
     void RunFusion( );
     
     int Polyfit(const cv::Mat& xy_feature, int order , std::vector<float>* lane_coeffs);
@@ -72,11 +76,13 @@ public:
 
     int FeaturePredict( const std::vector<cv::Point2f>& vector_feature_pre , double vehicle_pos_pre[2], double att_pre[3], double angle_z_pre, 
                                  double vehicle_pos_cur[2], double att_cur[3], double angle_z_cur, std::vector<cv::Point2f>* vector_feature_predict);
+
     // 数据融合的线程
-    static void *ThreadRunFusion(void *tmp)//线程执行函数
+    static void *ThreadRunFusion(void *p)//线程执行函数
     {
-        DataFusion *p = (DataFusion *)tmp;        
-        p->RunFusion(); //通过p指针间接访问类的非静态成员;
+        DataFusion *ptr = (DataFusion *)p;        
+        ptr->RunFusion(); //通过p指针间接访问类的非静态成员;
+
     }
     pthread_t data_fusion_id;
     int ExecTaskRunFusion()
@@ -85,20 +91,12 @@ public:
         return ERR;
     }
 
-    // read data 线程
-//    static void *ThreadReadData(void *tmp)//线程执行函数
-//    {
-//        DataFusion *p = (DataFusion *)tmp;        
-//        p->ReadData(); //通过p指针间接访问类的非静态成员;
-//    }
-//    pthread_t read_data_id;
-//    int ExecTaskReadData()
-//    {        
-//        int ERR = pthread_create(&read_data_id, NULL, ThreadReadData, (void *)this); //启动线程执行例程
-//        return ERR;
-//    }
 
 private:  
+    WorkThread m_fusion_thread;
+    bool m_is_running;
+        
+
     // 读入log
     string buffer_log;
     stringstream ss_log;
