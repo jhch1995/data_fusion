@@ -17,4 +17,8 @@ TARGET_LINK_LIBRARIES(lane_tracking_main data_fusion
                       concurrency relative_locate time gflags glog 
                       opencv_imgcodecs opencv_core opencv_highgui pthread)
 
+ADD_EXECUTABLE(turn_radius_test_main "./turn_radius_test_main.cpp")
+TARGET_LINK_LIBRARIES(turn_radius_test_main data_fusion 
+                      concurrency relative_locate time gflags glog 
+                      opencv_imgcodecs opencv_core opencv_highgui pthread)
 

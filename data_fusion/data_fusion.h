@@ -23,6 +23,7 @@ using namespace std;
 class DataFusion
 {
 private:
+#pragma pack(1)    
     struct StructAtt
     {
         double timestamp;
@@ -37,6 +38,36 @@ private:
         double vel[2];
         double yaw;
     };
+
+    struct StructTurnRadius
+    {
+        double time;
+        double R;
+    };
+
+    struct StructImageFrameInfo
+    {
+        double timestamp;
+        double index;
+    };
+
+    struct StructImuData
+    {
+        double timestamp;
+        double acc_raw[3];
+        double gyro_raw[3];
+        double acc[3];
+        double gyro[3];
+    };
+
+    struct StructCanSpeedData
+    {
+        double timestamp;
+        double speed;
+    };
+
+#pragma pack()
+
     
 public:
     DataFusion();
@@ -59,17 +90,16 @@ public:
     bool UpdateRreadDataState( );
 
     // 只保留设定时间长度的数据
-    void  DeleteHistoryData( );
+    void  DeleteOldData( );
+
+    void DeleteOldRadiusData( );
 
     // 根据时间戳查找对应的数据
     int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z );
-
-    void DoDataFusion( );
     
-    void DoVehicelStateEstimate();
+    void EstimateVehicelState();
 
-    void DoAttEstimate();
-
+    void EstimateAtt();
     
     void RunFusion( );
     
@@ -81,6 +111,12 @@ public:
     int FeaturePredict( const std::vector<cv::Point2f>& vector_feature_pre , double vehicle_pos_pre[2], double att_pre[3], double angle_z_pre, 
                                  double vehicle_pos_cur[2], double att_cur[3], double angle_z_cur, std::vector<cv::Point2f>* vector_feature_predict);
 
+
+    void CalculateVehicleTurnRadius();
+
+    // 接口:获取转弯半径
+    int GetTurnRadius( const int64 &timestamp_search, double *R);
+        
     // 数据融合的线程
     static void *ThreadRunFusion(void *p)//线程执行函数
     {
@@ -98,8 +134,7 @@ public:
 
 private:  
     WorkThread m_fusion_thread;
-    bool m_is_running;
-        
+    bool m_is_running;        
 
     // 读入log
     string buffer_log;
@@ -107,8 +142,9 @@ private:
     stringstream ss_tmp;
     ifstream infile_log;       // ofstream
 
-    // 外部调用特征点预测的时间
+    // 外部调用的时间
     double m_call_predict_timestamp; // 当前外部图像处理模块处理的图片生成的时间戳
+    double m_call_radius_timestamp; // 当前外部调用转弯半径计算的时间戳
     
     /// CAN
     CAN_VehicleEstimate m_can_vehicle_estimate;
@@ -117,6 +153,7 @@ private:
     std::vector<StructVehicleState> m_vector_vehicle_state;
 
     // IMU
+    double m_imu_sample_hz; // 配置的IMU数据采样频率
     ImuAttitudeEstimate m_imu_attitude_estimate;
     double m_acc_filt_hz; // 加速度计的低通截止频率
     double m_gyro_filt_hz; //陀螺仪的低通截止频率
@@ -125,12 +162,17 @@ private:
     double m_pre_att_timestamp; // att上次得到的时刻 
     StructAtt m_struct_att;    
     std::vector<StructAtt> m_vector_att;
-
     double m_angle_z_cur, m_angle_z_pre;
 
     // imu+speed运动信息解算
-    char m_is_first_speed_data; //  1: 第一次获取到speed数据 0:不是第一次    
+    char m_is_first_speed_data; //  1: 第一次获取到speed数据 0:不是第一次  
 
+    // 转弯半径 R
+    double m_gyro_R_filt_hz; //用于转弯半径计算的陀螺仪的低通截止频率
+    double m_can_speed_R_filt_hz; //车速的低通
+    StructTurnRadius m_struct_turn_radius;
+    std::vector<StructTurnRadius> m_vector_turn_radius;
+    
     // read data
     bool m_is_first_read_gsensor;    
     bool m_data_gsensor_update; // 分别对应的数据是否已经更新
@@ -142,28 +184,8 @@ private:
     bool is_imu_data_allow_write;
     bool is_can_speed_allow_write;
 
-    struct StructImageFrameInfo
-    {
-        double timestamp;
-        double index;
-    };
     StructImageFrameInfo m_image_frame_info;
-
-    struct StructImuData
-    {
-        double timestamp;
-        double acc_raw[3];
-        double gyro_raw[3];
-        double acc[3];
-        double gyro[3];
-    };
     StructImuData m_imu_data;
-
-    struct StructCanSpeedData
-    {
-        double timestamp;
-        double speed;
-    };
     StructCanSpeedData m_can_speed_data;
 
     // 读取数据控制

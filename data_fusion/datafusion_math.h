@@ -15,9 +15,9 @@
 
 #if defined(LOG_STD_COUT)
 #include <iostream>
-#define LOG(serverity) std::cout
+//#define LOG(serverity) std::cout
 #define VLOG(serverity) std::cout
-#define LOG_IF(serverity, is_true) if(is_true) std::cout
+//#define LOG_IF(serverity, is_true) if(is_true) std::cout
 #endif
 
 
