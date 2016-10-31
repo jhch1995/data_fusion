@@ -1,13 +1,13 @@
 #include "data_fusion.h"
-#include <unistd.h>
 
-# define DATA_FROM_LOG 1  // 从log中读取数据
-# define DATA_FROM_ONLINE 0 //在线读取数据
+
+//# define DATA_FROM_LOG 1  // 从log中读取数据
+//# define DATA_FROM_ONLINE 0 //在线读取数据
 
 using namespace common;
 DataFusion::DataFusion()
 {
-    Initialize();    
+    Init();    
 }
 
 DataFusion::~DataFusion()
@@ -18,21 +18,27 @@ DataFusion::~DataFusion()
 }
 
 
-void DataFusion::Initialize( )
+void DataFusion::Init( )
 {
-    if(USE_RADIUS)
+    #if defined(DATA_FROM_LOG)
     {
-        infile_log.open("data/radius/log.txt");       // ofstream  
+        #if defined(USE_RADIUS)
+        {
+            infile_log.open("data/radius/log.txt");       // ofstream  
+        }
+        #else
+        {
+            infile_log.open("data/doing/log.txt");       // ofstream   
+        }
+        #endif
     }
-    else
-    {
-        infile_log.open("data/doing/log.txt");       // ofstream   
-    }
+    #endif
             
     m_pre_vehicle_timestamp = 0.0f; /// CAN;
 
     // IMU
     m_imu_sample_hz = 100.0;
+    m_imu_dt_set = 1/m_imu_sample_hz;
     m_acc_filt_hz = 5.0; // 加速度计的低通截止频率
     m_gyro_filt_hz = 20.0;
     m_isFirstTime_att = 1; // 是否是第一次进入
@@ -49,6 +55,8 @@ void DataFusion::Initialize( )
     m_data_gsensor_update = 0;
     m_data_speed_update = 0;
     m_data_image_update = 0;
+
+//    m_halio = HalIO::Instance();
     
     // 读取数据控制
     m_is_first_fusion_timestamp = 1; // 第一次更新
@@ -60,8 +68,7 @@ void DataFusion::Initialize( )
     m_is_first_run_read_data = 1; // 第一次运行读取数据
 
     // 数据锁
-    is_imu_data_allow_write = 1;
-    is_can_speed_allow_write = 1;
+
 
 }
 
@@ -80,145 +87,266 @@ void DataFusion::RunFusion( )
 {
     while(1)
     {
-        ReadData();
-        if(m_data_gsensor_update)
+        int read_state = ReadData(); // 数据保存在  m_vector_imu_data
+//        if(m_data_gsensor_update)
+//        {
+//            EstimateAtt();
+//            EstimateVehicelState(); 
+//            CalculateVehicleTurnRadius();
+//            m_data_gsensor_update = 0;  
+//        }
+
+        while (!m_vector_imu_data.empty())
         {
+            //memcpy(m_imu_data, m_vector_imu_data.back(), sizeof(StructImuData))
+            m_imu_data = m_vector_imu_data.back();
+            m_vector_imu_data.pop_back();
+
             EstimateAtt();
             EstimateVehicelState(); 
             CalculateVehicleTurnRadius();
-
-            m_data_gsensor_update = 0;  
         }
             
-        DeleteOldData();   
+        DeleteOldData();  
+        DeleteOldRadiusData();
         usleep(1); // 1us       
     }
 }
 
 
 // 读取数据,两种方式:
-//      1.离线从log   
-// TODO:利用FIFO信息进行IMU时间戳逆推
-// TODO: 2.在线
-void DataFusion::ReadData( )
-{    
+//  1.离线从log   
+//  2.在线
+int DataFusion::ReadData( )
+{ 
+    int rtn_state;    
+    #if defined(DATA_FROM_LOG)
+    {
+        //从log中离线读取数据，需要通过时间戳来确定是否要继续读取数据，更新is_continue_read_data
+        UpdateRreadDataState();
+        rtn_state = ReadDataFromLog();
+        return rtn_state;
+    }
+    #else 
+    {
+        int imu_state = ReadImuOnline();
+        int speed_state = ReadSpeedOnline();
+        //TODO: rtn_state
+        return imu_state;
+    }
+    #endif
+}
+
+int DataFusion::ReadDataFromLog( )
+{
     double log_data[2], timestamp_raw[2];
     string data_flag;
-    //更新is_continue_read_data
-    UpdateRreadDataState();
-    if(DATA_FROM_LOG)
+    struct StructImuData imu_data;
+    // 第一次运行程序，初始化m_cur_data_timestamp
+    if(m_is_first_run_read_data)
     {
-        // 第一次运行程序，初始化m_cur_data_timestamp
-        if(m_is_first_run_read_data)
+        getline(infile_log, buffer_log);
+        ss_tmp.clear();
+        ss_tmp.str(buffer_log);
+        ss_tmp>>log_data[0]>>log_data[1]>>data_flag; 
+        m_cur_data_timestamp = log_data[0] + log_data[1]*1e-6;
+        m_is_first_run_read_data = 0;
+    }
+    
+    if(m_is_continue_read_data )
+    {
+        getline(infile_log, buffer_log);
+        ss_tmp.clear();
+        ss_tmp.str(buffer_log);
+        ss_tmp>>log_data[0]>>log_data[1]>>data_flag;
+        ss_log.clear();
+        ss_log.str(buffer_log);
+
+        if(data_flag == "cam_frame")
         {
-            getline(infile_log, buffer_log);
-            ss_tmp.clear();
-            ss_tmp.str(buffer_log);
-            ss_tmp>>log_data[0]>>log_data[1]>>data_flag; 
-            m_cur_data_timestamp = log_data[0] + log_data[1]*1e-6;
-            m_is_first_run_read_data = 0;
+            string camera_flag, camera_add, image_index_str;
+            string image_name;
+            int log_image_index;
+            ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>camera_flag>>camera_add>>log_image_index;
+            
+            m_image_frame_info.timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;
+            m_image_frame_info.index = log_image_index;
+            m_data_image_update = 1;                
         }
-        
-        if(m_is_continue_read_data )
+        else if(data_flag == "Gsensor")
+        {            
+            double acc_data_raw[3]; // acc原始坐标系下的
+            double acc_data_ned[3]; // 大地坐标系
+            static double acc_data_filter[3]; // 一阶低通之后的数据
+            double gyro_data_raw[3];
+            double gyro_data_ned[3];  
+            static double gyro_data_filter[3]; // 一阶低通之后的数据
+            double imu_temperature, imu_timestamp;    
+            string imu_flag;
+
+            m_vector_imu_data.clear(); // 清空vector
+
+            ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>imu_flag>>acc_data_raw[0]>>acc_data_raw[1]>>acc_data_raw[2]
+                    >>gyro_data_raw[0]>>gyro_data_raw[1]>>gyro_data_raw[2]>>imu_temperature;
+            imu_timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;                 
+            m_imu_attitude_estimate.AccDataCalibation(acc_data_raw, acc_data_ned);// 原始数据校正
+            m_imu_attitude_estimate.GyrocDataCalibation(gyro_data_raw, gyro_data_ned);
+
+            if(m_is_first_read_gsensor)
+            {
+                m_is_first_read_gsensor = 0;
+                m_pre_imu_timestamp = imu_timestamp;
+                acc_data_filter[0] = acc_data_ned[0];
+                acc_data_filter[1] = acc_data_ned[1];
+                acc_data_filter[2] = acc_data_ned[2];
+                gyro_data_filter[0] = gyro_data_ned[0];
+                gyro_data_filter[1] = gyro_data_ned[1];
+                gyro_data_filter[2] = gyro_data_ned[2]; 
+            }
+            else
+            {
+                double dt_imu = imu_timestamp - m_pre_imu_timestamp; 
+                dt_imu = 1/m_imu_sample_hz; // 100hz
+                m_imu_attitude_estimate.LowpassFilter3f(acc_data_filter, acc_data_ned, dt_imu, m_acc_filt_hz, acc_data_filter);    
+                m_imu_attitude_estimate.LowpassFilter3f(gyro_data_filter, gyro_data_ned, dt_imu, m_gyro_filt_hz, gyro_data_filter);       
+                m_pre_imu_timestamp = imu_timestamp;    
+            }
+
+            // 更新数据
+            imu_data.timestamp = imu_timestamp;
+            for(int i = 0; i<3; i++)
+            {
+                imu_data.acc[i] = acc_data_filter[i];
+                imu_data.gyro[i] = gyro_data_filter[i];                    
+                imu_data.acc_raw[i] = acc_data_ned[i];
+                imu_data.gyro_raw[i] = gyro_data_ned[i];                    
+            }
+            imu_data.temp = imu_temperature;
+            m_vector_imu_data.push_back(imu_data); // 保存IMU data的 vector
+            UpdateCurrentDataTimestamp(imu_timestamp);
+            m_data_gsensor_update = 1;    
+           
+        }else if(data_flag == "brake_signal")
         {
-            getline(infile_log, buffer_log);
-            ss_tmp.clear();
-            ss_tmp.str(buffer_log);
-            ss_tmp>>log_data[0]>>log_data[1]>>data_flag;
-            ss_log.clear();
-            ss_log.str(buffer_log);
+            string str_t[10],str_speed;
+            int data_t[10];
+            double raw_timestamp[2];  
+            double speed_can, speed_timestamp;
+            ss_log>>raw_timestamp[0]>>raw_timestamp[1]
+                >>str_t[0]>>data_t[0]>>str_t[1]>>data_t[1]>>str_t[2]>>data_t[2]>>str_t[3]>>data_t[3]>>str_t[4]>>data_t[4]
+                >>str_t[5]>>data_t[5]>>str_t[6]>>data_t[6]>>str_t[7]>>data_t[7]>>str_t[8]>>data_t[8]>>str_t[9]>>data_t[9]
+                >>str_speed>>speed_can;  
+            
+            speed_timestamp = raw_timestamp[0] + raw_timestamp[1]*1e-6;   
+            speed_can = speed_can/3.6;// km/h-->m/s 
 
-            if(data_flag == "cam_frame")
-            {
-                string camera_flag, camera_add, image_index_str;
-                string image_name;
-                int log_image_index;
-                ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>camera_flag>>camera_add>>log_image_index;
-                
-                m_image_frame_info.timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;
-                m_image_frame_info.index = log_image_index;
-                m_data_image_update = 1;                
-            }
-            else if(data_flag == "Gsensor")
-            {            
-                double acc_data_raw[3]; // acc原始坐标系下的
-                double acc_data_ned[3]; // 大地坐标系
-                static double acc_data_filter[3]; // 一阶低通之后的数据
-                double gyro_data_raw[3];
-                double gyro_data_ned[3];  
-                static double gyro_data_filter[3]; // 一阶低通之后的数据
-                double imu_temperature, imu_timestamp;    
-                string imu_flag;
-
-                ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>imu_flag>>acc_data_raw[0]>>acc_data_raw[1]>>acc_data_raw[2]
-                        >>gyro_data_raw[0]>>gyro_data_raw[1]>>gyro_data_raw[2]>>imu_temperature;
-                imu_timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;                 
-                m_imu_attitude_estimate.AccDataCalibation(acc_data_raw, acc_data_ned);// 原始数据校正
-                m_imu_attitude_estimate.GyrocDataCalibation(gyro_data_raw, gyro_data_ned);
-
-                if(m_is_first_read_gsensor)
-                {
-                    m_is_first_read_gsensor = 0;
-                    m_pre_imu_timestamp = imu_timestamp;
-                    acc_data_filter[0] = acc_data_ned[0];
-                    acc_data_filter[1] = acc_data_ned[1];
-                    acc_data_filter[2] = acc_data_ned[2];
-                    gyro_data_filter[0] = gyro_data_ned[0];
-                    gyro_data_filter[1] = gyro_data_ned[1];
-                    gyro_data_filter[2] = gyro_data_ned[2]; 
-                }
-                else
-                {
-                    double dt_imu = imu_timestamp - m_pre_imu_timestamp; 
-                    dt_imu = 1/m_imu_sample_hz; // 100hz
-                    m_imu_attitude_estimate.LowpassFilter3f(acc_data_filter, acc_data_ned, dt_imu, m_acc_filt_hz, acc_data_filter);    
-                    m_imu_attitude_estimate.LowpassFilter3f(gyro_data_filter, gyro_data_ned, dt_imu, m_gyro_filt_hz, gyro_data_filter);       
-                    m_pre_imu_timestamp = imu_timestamp;    
-                }
-
-                // 更新数据
-                m_imu_data.timestamp = imu_timestamp;
-                for(int i = 0; i<3; i++)
-                {
-                    m_imu_data.acc[i] = acc_data_filter[i];
-                    m_imu_data.gyro[i] = gyro_data_filter[i];
-                    
-                    m_imu_data.acc_raw[i] = acc_data_ned[i];
-                    m_imu_data.gyro_raw[i] = gyro_data_ned[i];                    
-                }
-                    
-//                memcpy( &(m_imu_data.acc_raw[0]), acc_data_ned, 3);
-//                memcpy( &(m_imu_data.gyro_raw[0]), gyro_data_ned, 3);
-//                memcpy( &(m_imu_data.acc[0]), acc_data_filter, 3);
-//                memcpy( &(m_imu_data.gyro[0]), gyro_data_filter, 3);
-
-                UpdateCurrentDataTimestamp(imu_timestamp);
-                m_data_gsensor_update = 1;    
-               
-            }else if(data_flag == "brake_signal")
-            {
-                string str_t[10],str_speed;
-                int data_t[10];
-                double raw_timestamp[2];  
-                double speed_can, speed_timestamp;
-                ss_log>>raw_timestamp[0]>>raw_timestamp[1]
-                    >>str_t[0]>>data_t[0]>>str_t[1]>>data_t[1]>>str_t[2]>>data_t[2]>>str_t[3]>>data_t[3]>>str_t[4]>>data_t[4]
-                    >>str_t[5]>>data_t[5]>>str_t[6]>>data_t[6]>>str_t[7]>>data_t[7]>>str_t[8]>>data_t[8]>>str_t[9]>>data_t[9]
-                    >>str_speed>>speed_can;  
-                
-                speed_timestamp = raw_timestamp[0] + raw_timestamp[1]*1e-6;   
-                speed_can = speed_can/3.6;// km/h-->m/s 
-
-                // 更新数据
-                m_can_speed_data.timestamp = speed_timestamp;
-                m_can_speed_data.speed = speed_can; 
-                UpdateCurrentDataTimestamp(speed_timestamp);
-                m_data_speed_update = 1;  
-
-            }
-
+            // 更新数据
+            m_can_speed_data.timestamp = speed_timestamp;
+            m_can_speed_data.speed = speed_can; 
+            UpdateCurrentDataTimestamp(speed_timestamp);
+            m_data_speed_update = 1;  
         }
     }
+}
+
+
+
+// 在线读取imu数据
+int DataFusion::ReadImuOnline( )
+{
+    int imu_fifo_total;
+    int fifo_reseted = 0;
+    double time_imu_read; // 从IMU的FIFO中读取数据的当前系统时间
+    struct timeval time_imu;
+    struct GsensorData data_raw[80];
+    struct StructImuData imu_data;
+
+    m_vector_imu_data.clear(); // 清空vector
+    imu_fifo_total = read_gsensor(data_raw, sizeof(data_raw)/sizeof(data_raw[0]));
+    gettimeofday(&time_imu, NULL);
+    time_imu_read = time_imu.tv_sec + time_imu.tv_usec*1e-6;
+
+    // IMU FIFO 溢出 
+    if (imu_fifo_total <= 0) 
+    {
+        if (GSENSOR_FIFO_RESET == imu_fifo_total) 
+        {
+            fifo_reseted = 1;
+        }
+        printf("ReadImuOnline: IMU fifo leak \n");
+        return GSENSOR_FIFO_RESET;
+    }
+
+    for (int i = 0; i < imu_fifo_total; i++) 
+    {
+        double acc_data_raw[3]; // acc原始坐标系下的
+        double acc_data_ned[3]; // 大地坐标系
+        static double acc_data_filter[3]; // 一阶低通之后的数据            
+        double gyro_data_raw[3];
+        double gyro_data_ned[3];  
+        static double gyro_data_filter[3]; // 一阶低通之后的数据
+        double imu_timestamp, imu_temperature;
+
+        for(int k=0; k<3; k++)
+        {
+            acc_data_raw[k] = data_raw[i].accel[k];
+            gyro_data_raw[k] = data_raw[i].gyro[k];
+        }
+        imu_temperature = raw_to_degree(data_raw[i].temp);
+        // 利用FIFO数据长度和当前的时间戳，进行IMU时间逆推
+        imu_timestamp = time_imu_read - (imu_fifo_total-1-i)*m_imu_dt_set;
+         
+        m_imu_attitude_estimate.AccDataCalibation(acc_data_raw, acc_data_ned);// 原始数据校正
+        m_imu_attitude_estimate.GyrocDataCalibation(gyro_data_raw, gyro_data_ned);
+
+        if(m_is_first_read_gsensor) 
+        { 
+            // 第一次进入函数的初始化
+            for(int k=0; k<3; k++)
+            {
+                acc_data_filter[k] = acc_data_ned[k];
+                gyro_data_filter[k] = gyro_data_ned[k];
+            }
+            m_is_first_read_gsensor = 0;
+        }
+        else
+        {
+            m_imu_attitude_estimate.LowpassFilter3f(acc_data_filter, acc_data_ned, m_imu_dt_set, m_acc_filt_hz, acc_data_filter);    
+            m_imu_attitude_estimate.LowpassFilter3f(gyro_data_filter, gyro_data_ned, m_imu_dt_set, m_gyro_filt_hz, gyro_data_filter);        
+        }
+
+        // 更新数据
+        imu_data.timestamp = imu_timestamp;
+        imu_data.temp = imu_temperature;
+        for(int i = 0; i<3; i++)
+        {
+            imu_data.acc[i] = acc_data_filter[i];
+            imu_data.gyro[i] = gyro_data_filter[i];                    
+            imu_data.acc_raw[i] = acc_data_ned[i];
+            imu_data.gyro_raw[i] = gyro_data_ned[i];                    
+        }
+        m_vector_imu_data.push_back(imu_data); // 保存IMU data的 vector
+        m_data_gsensor_update = 1;     
+        fifo_reseted = 0;
+    }
+    UpdateCurrentDataTimestamp(time_imu_read);
+
+    return GSENSOR_READ_OK;    
+}
+
+// 读取speed数据
+int DataFusion::ReadSpeedOnline( )
+{
+    struct timeval time_speed;
+    gettimeofday(&time_speed, NULL);
+    double speed_time_t = time_speed.tv_sec + time_speed.tv_usec*1e-6;
+    double speed_can = HalIO::Instance().GetSpeed()/3.6;
+
+    // 更新数据
+    m_can_speed_data.timestamp = speed_time_t;
+    m_can_speed_data.speed = speed_can; 
+
+    return 0;    
 }
 
 
@@ -277,15 +405,30 @@ void DataFusion::DeleteOldData( )
     double dt;
     int att_data_length = m_vector_att.size();    
     int delete_conter = 0;
+    double cur_timestamp = 0;
+    
+    #if defined(DATA_FROM_LOG)
+    {
+        feature_rw_lock.ReaderLock();
+        cur_timestamp = m_call_predict_timestamp;
+        feature_rw_lock.Unlock();
+    }
+    #else 
+    {
+        struct timeval time_speed;
+        gettimeofday(&time_speed, NULL);
+        cur_timestamp = time_speed.tv_sec + time_speed.tv_usec*1e-6;
+    }
+    #endif 
+    
     for(int i=0; i<att_data_length; i++)
     {
-        dt = (m_vector_att.begin()+i)->timestamp - m_call_predict_timestamp;
+        dt = (m_vector_att.begin()+i)->timestamp - cur_timestamp;
         if(dt < -m_data_save_length)
             delete_conter++;
         else
             break;
-    }
-    
+    }    
     if(delete_conter > 0)
     {
         // 检测出比当前m_call_predict_timestamp早data_save_length秒前的数据，并删除
@@ -297,13 +440,12 @@ void DataFusion::DeleteOldData( )
     delete_conter = 0;
     for(int i=0; i<vehicle_data_length; i++)
     {
-        dt = (m_vector_vehicle_state.begin()+i)->timestamp - m_call_predict_timestamp;
+        dt = (m_vector_vehicle_state.begin()+i)->timestamp - cur_timestamp;
         if(dt < -m_data_save_length)
             delete_conter++;
         else
             break;
-    }
-    
+    }    
     if(delete_conter > 0)
     {
         // 检测出比当前m_call_predict_timestamp早data_save_length秒前的数据，并删除
@@ -318,20 +460,36 @@ void DataFusion::DeleteOldRadiusData( )
 {
     double dt;
     int R_data_length = m_vector_turn_radius.size();    
-    int delete_conter = 0;
+    int R_delete_conter = 0;
+    double R_cur_timestamp = 0;
+
+    #if defined(DATA_FROM_LOG)
+    {
+        radius_rw_lock.ReaderLock();
+        R_cur_timestamp = m_call_predict_timestamp;
+        radius_rw_lock.Unlock();
+    }
+    #else 
+    {
+        struct timeval time_R;
+        gettimeofday(&time_R, NULL);
+        R_cur_timestamp = time_R.tv_sec + time_R.tv_usec*1e-6;
+    }
+    #endif
+    
     for(int i=0; i<R_data_length; i++)
     {
-        dt = (m_vector_turn_radius.begin()+i)->time - m_call_radius_timestamp;
+        dt = (m_vector_turn_radius.begin()+i)->timestamp - R_cur_timestamp;
         if(dt < -m_data_save_length)
-            delete_conter++;
+            R_delete_conter++;
         else
             break;
     }
     
-    if(delete_conter > 0)
+    if(R_delete_conter > 0)
     {
         // 检测出比当前m_call_predict_timestamp早data_save_length秒前的数据，并删除
-        m_vector_turn_radius.erase(m_vector_turn_radius.begin(), m_vector_turn_radius.begin()+delete_conter);
+        m_vector_turn_radius.erase(m_vector_turn_radius.begin(), m_vector_turn_radius.begin()+R_delete_conter);
     }    
 }
 
@@ -476,9 +634,10 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
     double att_cur[3], att_pre[3], vehicle_pos_cur[2], vehicle_pos_pre[2];
     double image_timestamp_cur_t = image_timestamp_cur/1000.0;
     double image_timestamp_pre_t = image_timestamp_pre/1000.0;    
-    
+
+    feature_rw_lock.WriterLock();
     m_call_predict_timestamp = image_timestamp_cur/1000.0; // 更新时间戳
-  
+    feature_rw_lock.Unlock();
    
     // 寻找跟需求的 timestamp对应的att,vehicle数据
     is_data_search_pre_ok = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre);
@@ -585,7 +744,7 @@ void DataFusion::CalculateVehicleTurnRadius()
     StructCanSpeedData can_speed_data;
     memcpy(&can_speed_data, &m_can_speed_data, sizeof(StructCanSpeedData));
    
-    if(fabs(gyro_filter_R[2])>0.01 && fabs(can_speed_data.speed)>4) 
+    if(fabs(gyro_filter_R[2])>0.01 && fabs(can_speed_data.speed)>15/3.6) 
     {
         R = can_speed_data.speed/gyro_filter_R[2];
     }
@@ -595,7 +754,7 @@ void DataFusion::CalculateVehicleTurnRadius()
     }
     
     // save R
-    m_struct_turn_radius.time = imu_data.timestamp;
+    m_struct_turn_radius.timestamp = imu_data.timestamp;
     m_struct_turn_radius.R = R;
     m_vector_turn_radius.push_back(m_struct_turn_radius);
     
@@ -611,11 +770,14 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
     double R_t;
     double timestamp_search = int_timestamp_search/1000.0;
     
-    m_call_predict_timestamp = timestamp_search;// 更新时间戳
+    radius_rw_lock.WriterLock();
+    m_call_radius_timestamp = timestamp_search;// 更新时间戳
+    radius_rw_lock.Unlock();
+        
     for(int i = 1; i<R_data_length; i++)
     {
-       time_cur = (m_vector_turn_radius.end()-i)->time;
-       time_pre = (m_vector_turn_radius.end()-i-1)->time;
+       time_cur = (m_vector_turn_radius.end()-i)->timestamp;
+       time_pre = (m_vector_turn_radius.end()-i-1)->timestamp;
        dt_t = time_cur - time_pre;
        dt_t_cur = time_cur - timestamp_search;
        dt_t_pre = time_pre - timestamp_search;
@@ -638,12 +800,12 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
     if(R_search_ok)
     {
         *R = R_t;
-        return 1;
+        return 0;
     }
     else
     {
         *R = 0;
-        return 0;
+        return -1;
     }
     
 
@@ -675,7 +837,7 @@ int DataFusion::Polyfit(const cv::Mat& xy_feature, int order, std::vector<float>
         int ret = cv::solve(A, b, coeffs, CV_SVD);
         if(ret<=0)
         {    
-            LOG(INFO)<<"cv:solve error!!!"<<endl;
+            VLOG(VLOG_INFO)<<"cv:solve error!!!"<<endl;
             return -1;
         }
         
@@ -684,5 +846,11 @@ int DataFusion::Polyfit(const cv::Mat& xy_feature, int order, std::vector<float>
             lane_coeffs->push_back(coeffs.at<float>(i,0));
         }    
         return 1;
+}
+
+
+float DataFusion::raw_to_degree(short raw)
+{
+    return (float (raw))/340 + 36.53;
 }
 
