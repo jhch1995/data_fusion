@@ -115,7 +115,6 @@ void ImuAttitudeEstimate::ResetState()
 }
 
 
-
 int ImuAttitudeEstimate::LowpassFilter3f(const double y_pre[3], const double x_new[3], double dt, const double filt_hz, double y_new[3] )
 {
     double alpha = 0.0f, rc = 0.0f;

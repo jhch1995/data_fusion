@@ -67,7 +67,9 @@ void DataFusion::Init( )
     m_call_predict_timestamp = 0;
     m_is_first_run_read_data = 1; // 第一次运行读取数据
 
-    // 数据锁
+    // 
+    init_gsensor();
+    
 
 
 }
@@ -253,7 +255,7 @@ int DataFusion::ReadDataFromLog( )
 
 // 在线读取imu数据
 int DataFusion::ReadImuOnline( )
-{
+{   
     int imu_fifo_total;
     int fifo_reseted = 0;
     double time_imu_read; // 从IMU的FIFO中读取数据的当前系统时间
@@ -266,15 +268,23 @@ int DataFusion::ReadImuOnline( )
     gettimeofday(&time_imu, NULL);
     time_imu_read = time_imu.tv_sec + time_imu.tv_usec*1e-6;
 
-    // IMU FIFO 溢出 
+    // IMU数据读取异常判断
     if (imu_fifo_total <= 0) 
     {
-        if (GSENSOR_FIFO_RESET == imu_fifo_total) 
+        if( GSENSOR_READ_AGAIN == imu_fifo_total)
         {
-            fifo_reseted = 1;
+            return GSENSOR_READ_AGAIN;
         }
-        printf("ReadImuOnline: IMU fifo leak \n");
-        return GSENSOR_FIFO_RESET;
+        else if (GSENSOR_FIFO_RESET == imu_fifo_total) 
+        {
+            fifo_reseted = 1 ;// IMU FIFO 溢出
+            printf("ReadImuOnline: IMU fifo leak \n");
+            return GSENSOR_FIFO_RESET;
+        }
+        else
+        {
+            return GSENSOR_READ_FAIL;    
+        }           
     }
 
     for (int i = 0; i < imu_fifo_total; i++) 
@@ -328,10 +338,25 @@ int DataFusion::ReadImuOnline( )
         m_vector_imu_data.push_back(imu_data); // 保存IMU data的 vector
         m_data_gsensor_update = 1;     
         fifo_reseted = 0;
+
+        // test
+        char buf[256], buf1[256];
+        snprintf(buf, sizeof(buf), "Gsensor %d %d %d %d %d %d %f %d %d",
+                    data_raw[i].accel[0], data_raw[i].accel[1], data_raw[i].accel[2],
+                    data_raw[i].gyro[0], data_raw[i].gyro[1], data_raw[i].gyro[2], raw_to_degree(data_raw[i].temp), imu_fifo_total, fifo_reseted);
+        snprintf(buf1, sizeof(buf1), "imu %f %f %f %f %f %f %f %f %d %d", imu_data.timestamp,
+                    imu_data.acc[0], imu_data.acc[1], imu_data.acc[2],
+                    imu_data.gyro[0], imu_data.gyro[1], imu_data.gyro[2], imu_data.temp, imu_fifo_total, fifo_reseted);
+
+        if (imu_fifo_total >= 1)
+        {
+            printf("#%02d %s\n", i, buf);
+            printf("#%02d %s\n", i, buf1);
+        }
     }
     UpdateCurrentDataTimestamp(time_imu_read);
 
-    return GSENSOR_READ_OK;    
+    return imu_fifo_total;    
 }
 
 // 读取speed数据

@@ -35,6 +35,7 @@ ELSEIF (UNIX)
     MESSAGE(STATUS "DEFINE: UNIX platform")
     ADD_DEFINITIONS(-DDATA_FROM_LOG)
     ADD_DEFINITIONS(-DUSE_GLOG)
+    ADD_DEFINITIONS(-D__unix__) # time.h
 
     #ADD_DEFINITIONS(-DLOG_STD_COUT) # LOG相关函数直接输出到直接输出到std::cout
     #ADD_DEFINITIONS(-DUSE_RADIUS) # 当前进行转弯半径的调试 #MESSAGE(${USE_RADIUS})
@@ -49,21 +50,23 @@ ELSEIF (ANDROID_ABI)
     #include directory
     INCLUDE_DIRECTORIES(
         "${PROJECT_ROOT_PATH}/thirdparty/opencv/android/sdk/native/jni/include/"
-        "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/include/"
-        "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/include/"
-        "${PROJECT_ROOT_PATH}/thirdparty/gtest/linux/include/"
+        "${PROJECT_ROOT_PATH}/thirdparty/libusb-1.0/android_armv8/"
+        "${PROJECT_ROOT_PATH}/thirdparty/libblis/armv8/include/blis"
+        "${PROJECT_ROOT_PATH}/thirdparty/gflags/android/include/"
         "${PROJECT_ROOT_PATH}/thirdparty/miniglog/"
-        "${PROJECT_ROOT_PATH}/lib/"
+        "${PROJECT_ROOT_PATH}/thirdparty/libsvm/android/include/"
+        "${PROJECT_ROOT_PATH}/thirdparty/gflags/android/include/"
     )
-MESSAGE(STATUS "${PROJECT_ROOT_PATH}/thirdparty/gtest/linux/include/")
 
     LINK_DIRECTORIES(
+        "${PROJECT_ROOT_PATH}/lane_detect/lib/android/${PLATFORM}"
+        "${PROJECT_ROOT_PATH}/vehicle_detect/lib/android/${PLATFORM}"
         "${PROJECT_ROOT_PATH}/thirdparty/opencv/android/sdk/native/libs/arm64-v8a/"
         "${PROJECT_ROOT_PATH}/thirdparty/opencv/android/sdk/native/3rdparty/libs/arm64-v8a/"
-        "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/static/${PLATFORM}/"
-        "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/static/${PLATFORM}/"
-        "${PROJECT_ROOT_PATH}/thirdparty/gtest/linux/static/${PLATFORM}/"
-        "${PROJECT_ROOT_PATH}/lib/"
+        "${PROJECT_ROOT_PATH}/thirdparty/gflags/android/lib/${PLATFORM}/"
+        "${PROJECT_ROOT_PATH}/thirdparty/libblis/armv8/lib"
+        "${PROJECT_ROOT_PATH}/thirdparty/libusb-1.0/android_armv8/"
+        "${PROJECT_ROOT_PATH}/thirdparty/libsvm/android/lib/${PLATFORM}/"
     )
 
 ELSEIF (UNIX)
