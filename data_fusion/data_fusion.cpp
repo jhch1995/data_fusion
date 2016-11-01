@@ -12,26 +12,50 @@ DataFusion::DataFusion()
 
 DataFusion::~DataFusion()
 {
-    m_is_running = false;
-    m_fusion_thread.StopAndWaitForExit();
+    #if !defined(ANDROID)
+    {
+        infile_log.close();        
+    }
+    #endif
     
+    m_is_running = false;
+    m_fusion_thread.StopAndWaitForExit();    
 }
 
 
 void DataFusion::Init( )
 {
-    #if defined(DATA_FROM_LOG)
+    // read data from log
+    #if !defined(ANDROID)
     {
         #if defined(USE_RADIUS)
         {
-            infile_log.open("data/radius/log.txt");       // ofstream  
+            infile_log.open("data/radius/log.txt");       // ofstream 
+            if(!infile_log)
+            {
+                printf("open \"data/doing/log.txt\" ERROR!!\n");
+            }
         }
         #else
         {
             infile_log.open("data/doing/log.txt");       // ofstream   
+            if(!infile_log)
+            {
+                printf("open \"data/doing/log.txt\" ERROR!!\n");
+            }
         }
         #endif
     }
+    #endif
+
+    #if defined(ANDROID)
+    {
+        int stste = init_gsensor();
+        if(stste < 0)
+        {
+            printf("DataFusion::Init--init_gsensor ERROR!!!\n");
+        }
+    }       
     #endif
             
     m_pre_vehicle_timestamp = 0.0f; /// CAN;
@@ -44,6 +68,7 @@ void DataFusion::Init( )
     m_isFirstTime_att = 1; // 是否是第一次进入
     m_pre_imu_timestamp = 0.0f; // IMU数据上次得到的时刻     
     m_is_first_speed_data = 1; //  1: 第一次获取到speed数据 0:不是第一次
+    m_is_print_imu_data = 0; // 是否打印IMU数据
 
     // 转弯半径R
     m_gyro_R_filt_hz = 2.0;
@@ -56,7 +81,6 @@ void DataFusion::Init( )
     m_data_speed_update = 0;
     m_data_image_update = 0;
 
-//    m_halio = HalIO::Instance();
     
     // 读取数据控制
     m_is_first_fusion_timestamp = 1; // 第一次更新
@@ -67,8 +91,6 @@ void DataFusion::Init( )
     m_call_predict_timestamp = 0;
     m_is_first_run_read_data = 1; // 第一次运行读取数据
 
-    // 
-    init_gsensor();
     
 
 
@@ -90,14 +112,6 @@ void DataFusion::RunFusion( )
     while(1)
     {
         int read_state = ReadData(); // 数据保存在  m_vector_imu_data
-//        if(m_data_gsensor_update)
-//        {
-//            EstimateAtt();
-//            EstimateVehicelState(); 
-//            CalculateVehicleTurnRadius();
-//            m_data_gsensor_update = 0;  
-//        }
-
         while (!m_vector_imu_data.empty())
         {
             //memcpy(m_imu_data, m_vector_imu_data.back(), sizeof(StructImuData))
@@ -287,7 +301,7 @@ int DataFusion::ReadImuOnline( )
         }           
     }
 
-    for (int i = 0; i < imu_fifo_total; i++) 
+    for (int imu_data_index = 0; imu_data_index < imu_fifo_total; imu_data_index++) 
     {
         double acc_data_raw[3]; // acc原始坐标系下的
         double acc_data_ned[3]; // 大地坐标系
@@ -299,12 +313,12 @@ int DataFusion::ReadImuOnline( )
 
         for(int k=0; k<3; k++)
         {
-            acc_data_raw[k] = data_raw[i].accel[k];
-            gyro_data_raw[k] = data_raw[i].gyro[k];
+            acc_data_raw[k] = data_raw[imu_data_index].accel[k];
+            gyro_data_raw[k] = data_raw[imu_data_index].gyro[k];
         }
-        imu_temperature = raw_to_degree(data_raw[i].temp);
+        imu_temperature = raw_to_degree(data_raw[imu_data_index].temp);
         // 利用FIFO数据长度和当前的时间戳，进行IMU时间逆推
-        imu_timestamp = time_imu_read - (imu_fifo_total-1-i)*m_imu_dt_set;
+        imu_timestamp = time_imu_read - (imu_fifo_total-1-imu_data_index)*m_imu_dt_set;
          
         m_imu_attitude_estimate.AccDataCalibation(acc_data_raw, acc_data_ned);// 原始数据校正
         m_imu_attitude_estimate.GyrocDataCalibation(gyro_data_raw, gyro_data_ned);
@@ -340,18 +354,17 @@ int DataFusion::ReadImuOnline( )
         fifo_reseted = 0;
 
         // test
-        char buf[256], buf1[256];
-        snprintf(buf, sizeof(buf), "Gsensor %d %d %d %d %d %d %f %d %d",
-                    data_raw[i].accel[0], data_raw[i].accel[1], data_raw[i].accel[2],
-                    data_raw[i].gyro[0], data_raw[i].gyro[1], data_raw[i].gyro[2], raw_to_degree(data_raw[i].temp), imu_fifo_total, fifo_reseted);
-        snprintf(buf1, sizeof(buf1), "imu %f %f %f %f %f %f %f %f %d %d", imu_data.timestamp,
-                    imu_data.acc[0], imu_data.acc[1], imu_data.acc[2],
-                    imu_data.gyro[0], imu_data.gyro[1], imu_data.gyro[2], imu_data.temp, imu_fifo_total, fifo_reseted);
-
-        if (imu_fifo_total >= 1)
+        if(m_is_print_imu_data)
         {
-            printf("#%02d %s\n", i, buf);
-            printf("#%02d %s\n", i, buf1);
+            char buf1[256];
+            snprintf(buf1, sizeof(buf1), "imu %f %f %f %f %f %f %f %f %d %d", imu_data.timestamp,
+                        imu_data.acc[0], imu_data.acc[1], imu_data.acc[2],
+                        imu_data.gyro[0], imu_data.gyro[1], imu_data.gyro[2], imu_data.temp, imu_fifo_total, fifo_reseted);
+
+            if (imu_fifo_total >= 1)
+            {                
+                printf("#%02d %s\n", imu_data_index, buf1);
+            }
         }
     }
     UpdateCurrentDataTimestamp(time_imu_read);
@@ -374,22 +387,6 @@ int DataFusion::ReadSpeedOnline( )
     return 0;    
 }
 
-
-// 更新当前fusion的时间戳，用于控制读取数据的长度
-void DataFusion::UpdateCurrentFusionTimestamp( double data_timestample)
-{
-    if(m_is_first_fusion_timestamp)
-    {
-        m_is_first_fusion_timestamp = 0;
-        m_cur_fusion_timestamp = data_timestample;
-    }else
-    {
-        if(m_cur_fusion_timestamp < data_timestample)
-        {
-            m_cur_fusion_timestamp = data_timestample;
-        }
-    }
-}
 
 // 更新当前data的时间戳，用于控制读取数据的长度
 void DataFusion::UpdateCurrentDataTimestamp( double data_timestample)
@@ -542,8 +539,7 @@ void DataFusion::EstimateAtt()
         m_imu_attitude_estimate.GetAttitudeAngleZ(m_struct_att.att, &(m_struct_att.angle_z));
         m_struct_att.timestamp = cur_att_timestamp;
         m_vector_att.push_back(m_struct_att);
-    } 
-    UpdateCurrentFusionTimestamp( cur_att_timestamp );        
+    }     
     
 }
 
@@ -877,5 +873,12 @@ int DataFusion::Polyfit(const cv::Mat& xy_feature, int order, std::vector<float>
 float DataFusion::raw_to_degree(short raw)
 {
     return (float (raw))/340 + 36.53;
+}  
+
+
+void DataFusion::print_imu_data(const int is_print_imu)
+{
+    m_is_print_imu_data = is_print_imu;
 }
+
 

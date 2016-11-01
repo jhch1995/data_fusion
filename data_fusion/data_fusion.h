@@ -84,18 +84,22 @@ public:
     // 线程循环函数
     void StartDataFusionTask();
 
-    // 
+    // 读取数据
     int ReadData();
 
+    // 从log中读取数据
     int ReadDataFromLog( );
 
     // 在线读取imu数据
     int ReadImuOnline( );
 
+    // 在线读取speed数据
     int ReadSpeedOnline( );
-        
-    void UpdateCurrentFusionTimestamp( double data_timestample);
 
+    // 配置是否打印IMU数据
+    void print_imu_data(const int is_print_imu);
+
+    // 更新当前读到数据的时间戳
     void UpdateCurrentDataTimestamp( double data_timestample);
 
     // 判断是否还要继续读取数据
@@ -108,29 +112,32 @@ public:
 
     // 根据时间戳查找对应的数据
     int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z );
-    
+
+    // 估计汽车的运动状态数据
     void EstimateVehicelState();
 
+    // 估计姿态数据
     void EstimateAtt();
-    
+
+    // 进行数据融合
     void RunFusion( );
     
     int Polyfit(const cv::Mat& xy_feature, int order , std::vector<float>* lane_coeffs);
 
     float raw_to_degree(short raw);
-   
+
+    // 外部调用接口: 预测特征点的坐标
     int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur, 
                                       std::vector<cv::Point2f>* vector_feature_predict);
-
+    // 计算特征点预测坐标
     int FeaturePredict( const std::vector<cv::Point2f>& vector_feature_pre , double vehicle_pos_pre[2], double att_pre[3], double angle_z_pre, 
                                  double vehicle_pos_cur[2], double att_cur[3], double angle_z_cur, std::vector<cv::Point2f>* vector_feature_predict);
 
-
-    void CalculateVehicleTurnRadius();
-    
-
-    // 接口:获取转弯半径
+    // 外部调用接口:获取转弯半径
     int GetTurnRadius( const int64 &timestamp_search, double *R);
+    
+    // 计算测量的转弯半径
+    void CalculateVehicleTurnRadius();   
         
     // 数据融合的线程
     static void *ThreadRunFusion(void *p)//线程执行函数
@@ -148,6 +155,7 @@ public:
 
 
 private:  
+    // 线程
     WorkThread m_fusion_thread;
     bool m_is_running;        
 
@@ -162,22 +170,18 @@ private:
     bool m_data_gsensor_update; // 分别对应的数据是否已经更新
     bool m_data_speed_update;
     bool m_data_image_update;
-    bool m_is_first_run_read_data;
-   
-    StructImageFrameInfo m_image_frame_info;
-    
+    bool m_is_first_run_read_data;   
+    StructImageFrameInfo m_image_frame_info;    
     StructImuData m_imu_data;
-    std::vector<StructImuData> m_vector_imu_data;
-    
+    std::vector<StructImuData> m_vector_imu_data;    
     StructCanSpeedData m_can_speed_data;
     std::vector<StructCanSpeedData> m_vector_can_speed_data;
 
-//    HalIO m_halio;
+    int m_is_print_imu_data; // 是否打印IMU数据
     
     // 数据读写锁
     RWLock radius_rw_lock;
     RWLock feature_rw_lock;
-
 
     // 读取数据控制
     double m_cur_fusion_timestamp; // 当前在进行计算的时间点，
