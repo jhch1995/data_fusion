@@ -55,23 +55,19 @@ void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double
     acc_angle[X_AXIS] = (atan2f(-acc_data[Y_AXIS], -acc_data[Z_AXIS]));       // Calculating pitch ACC angle
     acc_angle[Y_AXIS] = (atan2f(acc_data[X_AXIS], sqrtf(acc_data[Z_AXIS]*acc_data[Z_AXIS] + acc_data[Y_AXIS]*acc_data[Y_AXIS])));   //Calculating roll ACC angle
 
-    if( start_flag == 0 )
-    {
+    if( start_flag == 0 ){
         m_att_init_counter--;
-        if(m_att_init_counter<1)
-        {
+        if(m_att_init_counter<1){
             start_flag = 1;
             m_att[X_AXIS] = acc_angle[X_AXIS];
             m_att[Y_AXIS] = acc_angle[Y_AXIS];
             m_att[Z_AXIS] = 0.0;    
-        }else
-        {
+        }else{
             m_att[X_AXIS] = 0.0;
             m_att[Y_AXIS] = 0.0;
             m_att[Z_AXIS] = 0.0;    
         }
-    }else
-    { 
+    }else{ 
         // X
         gyro_rate[X_AXIS] =  gyro_data[X_AXIS] + sinf(m_att[X_AXIS])*tanf(m_att[Y_AXIS])*gyro_data[Y_AXIS] + cosf(m_att[X_AXIS])*tanf(m_att[Y_AXIS])*gyro_data[Z_AXIS];
         m_gyro_angle[X_AXIS] = m_gyro_angle[X_AXIS]+ gyro_rate[X_AXIS]* dt;
@@ -122,8 +118,7 @@ int ImuAttitudeEstimate::LowpassFilter3f(const double y_pre[3], const double x_n
 {
     double alpha = 0.0f, rc = 0.0f;
 
-    if(filt_hz <= 0.0f || dt < 0.0f)
-    {
+    if(filt_hz <= 0.0f || dt < 0.0f){
         y_new[0] = x_new[0];
         y_new[1] = x_new[1];
         y_new[2] = x_new[2];

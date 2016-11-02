@@ -133,9 +133,7 @@ int main(int argc, char *argv[])
     
 
 // 初始化融合函数
-    data_fusion.StartDataFusionTask();    
-//    data_fusion.ExecTaskReadData(); // 读取数据的线程 
-//    data_fusion.ExecTaskRunFusion(); // 在线运行的时候应该是在用独立线程持续运行的
+    data_fusion.StartDataFusionTask();  
 
 // 本地利用标注的数据测试   
     string str_image_frame_add = "data/doing/frame/";
@@ -162,8 +160,7 @@ int main(int argc, char *argv[])
             ss_log.clear();
             ss_log.str(buffer_log);
 
-            if(data_flag == "cam_frame")
-            {
+            if(data_flag == "cam_frame"){
                 double camera_raw_timestamp[2];
                 string camera_flag, camera_add, image_index_str;
                 string image_name;
@@ -176,16 +173,14 @@ int main(int argc, char *argv[])
                 int pos2 = camera_add.find_last_of('.');
                 string log_str_file_name = camera_add.substr(pos1+1, pos2-1-pos1);
 
-                if(log_str_file_name.compare(frame_file_name) == 0 && log_image_index ==  image_index)
-                {   
+                if(log_str_file_name.compare(frame_file_name) == 0 && log_image_index ==  image_index){   
                     // 文件名和index已经匹配
                     is_camera_index_mached = 1;
 
                     VLOG(VLOG_INFO)<<"image_index: "<<image_index;
                     // 查找匹配的车道线标注数据
                     is_lane_match_image = 0; // 进入查找匹配的lane
-                    while(!is_lane_match_image)
-                    {
+                    while(!is_lane_match_image){
                         getline(infile_lane, buffer_lane);
                         ss_lane.clear();
                         ss_lane.str(buffer_lane);
@@ -195,12 +190,10 @@ int main(int argc, char *argv[])
                                 >>uv_feature[0][8]>>uv_feature[1][8]>>uv_feature[0][9]>>uv_feature[1][9]>>uv_feature[0][10]>>uv_feature[1][10]>>uv_feature[0][11]>>uv_feature[1][11]
                                 >>uv_feature[0][12]>>uv_feature[1][12]>>uv_feature[0][13]>>uv_feature[1][13]>>uv_feature[0][14]>>uv_feature[1][14]>>uv_feature[0][15]>>uv_feature[1][15];
                         if(lane_index == image_index)
-                        {
-                            is_lane_match_image = 1;
-                        }else if(lane_index < image_index)
-                        {
+                               is_lane_match_image = 1;
+                        else if(lane_index < image_index)
                             continue;
-                        }else{
+                        else{
                             printf("error: lane index is bigger than image index!!!\n");
                             break;
                         }
@@ -223,10 +216,8 @@ int main(int argc, char *argv[])
                     /// 拟合当前lane
                     xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);            
                     uv_feature_pts = cv::Mat::zeros(2, pts_num, CV_32FC1); 
-                    for(int k=0; k<lane_num; k++)
-                    {
-                        for(int i1 = 0; i1<pts_num; i1++)
-                        {
+                    for(int k=0; k<lane_num; k++){
+                        for(int i1 = 0; i1<pts_num; i1++){
                             uv_feature_pts.at<float>(0, i1) = uv_feature[0][k*pts_num + i1];
                             uv_feature_pts.at<float>(1, i1) = uv_feature[1][k*pts_num + i1];
                         }        
@@ -237,9 +228,7 @@ int main(int argc, char *argv[])
                         polyfit1(&lane_coeffs_t, xy_feature, m_order); // 车道线拟合    Y = AX(X是纵轴);
 
                         for(int i = 0; i<m_order+1; i++)
-                        {
                             lane_coeffs.at<float>(i, k) = lane_coeffs_t[i];
-                        }                            
                     }
 
                     // 画车道线
