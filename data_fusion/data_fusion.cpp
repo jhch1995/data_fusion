@@ -69,6 +69,7 @@ void DataFusion::Init( )
     m_pre_imu_timestamp = 0.0f; // IMU数据上次得到的时刻     
     m_is_first_speed_data = 1; //  1: 第一次获取到speed数据 0:不是第一次
     m_is_print_imu_data = 0; // 是否打印IMU数据
+    m_is_print_speed_data = 0;
 
     // 转弯半径R
     m_gyro_R_filt_hz = 2.0;
@@ -316,7 +317,7 @@ int DataFusion::ReadImuOnline( )
             acc_data_raw[k] = data_raw[imu_data_index].accel[k];
             gyro_data_raw[k] = data_raw[imu_data_index].gyro[k];
         }
-        imu_temperature = raw_to_degree(data_raw[imu_data_index].temp);
+        imu_temperature = Raw2Degree(data_raw[imu_data_index].temp);
         // 利用FIFO数据长度和当前的时间戳，进行IMU时间逆推
         imu_timestamp = time_imu_read - (imu_fifo_total-1-imu_data_index)*m_imu_dt_set;
          
@@ -383,6 +384,13 @@ int DataFusion::ReadSpeedOnline( )
     // 更新数据
     m_can_speed_data.timestamp = speed_time_t;
     m_can_speed_data.speed = speed_can; 
+
+    if(m_is_print_speed_data)
+    {
+        char buf1[256];
+        snprintf(buf1, sizeof(buf1), "speed %f %f", m_can_speed_data.timestamp, speed_can);              
+        printf("# %s\n",  buf1);        
+    }
 
     return 0;    
 }
@@ -870,15 +878,19 @@ int DataFusion::Polyfit(const cv::Mat& xy_feature, int order, std::vector<float>
 }
 
 
-float DataFusion::raw_to_degree(short raw)
+float DataFusion::Raw2Degree(short raw)
 {
     return (float (raw))/340 + 36.53;
 }  
 
 
-void DataFusion::print_imu_data(const int is_print_imu)
+void DataFusion::PrintImuData(const int is_print_imu)
 {
     m_is_print_imu_data = is_print_imu;
 }
 
+void DataFusion::PrintSpeedData(const int is_print_speed)
+{
+    m_is_print_speed_data = is_print_speed;
+}
 

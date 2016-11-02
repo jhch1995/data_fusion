@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
                     mark_IPM_lane(ipm_image, lane_coeffs_predict, ipm_para, 0.1);// 在IPM中标注预测lane 黑色
 
                     cv::imshow("ipm", ipm_image);
-                    if(cv::waitKey(200)) // 值太小IPM图会显示黑色
+                    if(cv::waitKey(20)) // 值在100-200左右IPM图会显示黑色
                     {}                        
 
                 }

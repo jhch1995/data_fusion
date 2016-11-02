@@ -4,6 +4,12 @@
 
 ImuAttitudeEstimate::ImuAttitudeEstimate()
 {
+    Initialize( );    
+}
+
+
+void ImuAttitudeEstimate::Initialize( )
+{
     m_accel_range_scale = 8.0f/32768;
     m_gyro_range_scale = 2000.0/180*3.141593/32768;
 
@@ -21,10 +27,15 @@ ImuAttitudeEstimate::ImuAttitudeEstimate()
     m_A1[2][1] = 0.0064;
     m_A1[2][2] = 0.9859;
 
-    // nj    
-    m_gyro_drift[0] = 0.00897;
-    m_gyro_drift[1] = -0.0322;
-    m_gyro_drift[2] = -0.0214;
+    // 
+    m_gyro_drift[0] = 0;
+    m_gyro_drift[1] = 0;
+    m_gyro_drift[2] = 0;
+
+    // nj 
+//    m_gyro_drift[0] = 0.00897;
+//    m_gyro_drift[1] = -0.0322;
+//    m_gyro_drift[2] = -0.0214;
 
     // Y-1
 //    m_gyro_drift[0] = 0.0155;
@@ -32,15 +43,7 @@ ImuAttitudeEstimate::ImuAttitudeEstimate()
 //    m_gyro_drift[2] = -0.0217;  
 
     m_angle_z = 0.0;
-
     m_att_init_counter = 30;
-    
-}
-
-
-void ImuAttitudeEstimate::Initialize( )
-{
-    
 }
 
 void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double gyro_data[3], double dt)

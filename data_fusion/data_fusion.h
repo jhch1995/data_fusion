@@ -97,7 +97,10 @@ public:
     int ReadSpeedOnline( );
 
     // 配置是否打印IMU数据
-    void print_imu_data(const int is_print_imu);
+    void PrintImuData(const int is_print_imu);
+
+     // 配置是否打印speed数据
+    void PrintSpeedData(const int is_print_speed);
 
     // 更新当前读到数据的时间戳
     void UpdateCurrentDataTimestamp( double data_timestample);
@@ -124,7 +127,7 @@ public:
     
     int Polyfit(const cv::Mat& xy_feature, int order , std::vector<float>* lane_coeffs);
 
-    float raw_to_degree(short raw);
+    float Raw2Degree(short raw);
 
     // 外部调用接口: 预测特征点的坐标
     int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur, 
@@ -178,6 +181,7 @@ private:
     std::vector<StructCanSpeedData> m_vector_can_speed_data;
 
     int m_is_print_imu_data; // 是否打印IMU数据
+    int m_is_print_speed_data;// 是否打印speed数据
     
     // 数据读写锁
     RWLock radius_rw_lock;
