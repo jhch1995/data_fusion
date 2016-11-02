@@ -230,7 +230,6 @@ int DataFusion::ReadDataFromLog( )
             }
 
             // 更新数据
-            imu_data.timestamp = imu_timestamp;
             for(int i = 0; i<3; i++)
             {
                 imu_data.acc[i] = acc_data_filter[i];
@@ -238,6 +237,7 @@ int DataFusion::ReadDataFromLog( )
                 imu_data.acc_raw[i] = acc_data_ned[i];
                 imu_data.gyro_raw[i] = gyro_data_ned[i];                    
             }
+            imu_data.timestamp = imu_timestamp;
             imu_data.temp = imu_temperature;
             m_vector_imu_data.push_back(imu_data); // 保存IMU data的 vector
             UpdateCurrentDataTimestamp(imu_timestamp);
@@ -619,8 +619,12 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
             break;
         }
     }
-    VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
-
+    if(!att_data_search_ok)
+    {
+        VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, begin_time= "<<(m_vector_att.end()-1)->timestamp<<", end_time= "<<m_vector_att.begin()->timestamp<<endl; 
+        VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att_length= "<<att_data_length<<", att:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
+    }
+    
     // m_vector_vehicle_state
     int vehicle_data_length = m_vector_vehicle_state.size();
     for(int i = 1; i<vehicle_data_length; i++)
@@ -645,8 +649,13 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
             break;
         }
     }
-    VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"pos:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
 
+    if(!vehicle_data_search_ok)
+    {
+        VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_state, begin_time= "<<(m_vector_vehicle_state.end()-1)->timestamp<<", end_time= "<<m_vector_vehicle_state.begin()->timestamp<<endl; 
+        VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_length= "<<vehicle_data_length<<", pos:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
+    }
+    
     if(att_data_search_ok && vehicle_data_search_ok)
         return 1;
     else
@@ -671,7 +680,8 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
     // 寻找跟需求的 timestamp对应的att,vehicle数据
     is_data_search_pre_ok = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre);
     is_data_search_cur_ok = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur, &m_angle_z_cur);
-    
+
+    VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: pre = "<<image_timestamp_pre<<", cur: "<<image_timestamp_cur<<endl;    
     VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: dt(ms) = "<<image_timestamp_cur - image_timestamp_pre<<endl; 
 
 

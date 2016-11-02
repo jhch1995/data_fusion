@@ -101,8 +101,8 @@ int main(int argc, char *argv[])
 
     if(is_print_speed)
     {
-        printf("set is_print_imu = %d\n", is_print_speed);
-        data_fusion.PrintSpeedData(is_print_imu);
+        printf("set is_print_speed = %d\n", is_print_speed);
+        data_fusion.PrintSpeedData(is_print_speed);
     }
 
 
