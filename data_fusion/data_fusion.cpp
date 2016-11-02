@@ -137,7 +137,7 @@ void DataFusion::RunFusion( )
 int DataFusion::ReadData( )
 { 
     int rtn_state;    
-    #if defined(DATA_FROM_LOG)
+    #if !defined(ANDROID)
     {
         //从log中离线读取数据，需要通过时间戳来确定是否要继续读取数据，更新is_continue_read_data
         UpdateRreadDataState();
@@ -437,7 +437,7 @@ void DataFusion::DeleteOldData( )
     int delete_conter = 0;
     double cur_timestamp = 0;
     
-    #if defined(DATA_FROM_LOG)
+    #if !defined(ANDROID)
     {
         feature_rw_lock.ReaderLock();
         cur_timestamp = m_call_predict_timestamp;
@@ -493,7 +493,7 @@ void DataFusion::DeleteOldRadiusData( )
     int R_delete_conter = 0;
     double R_cur_timestamp = 0;
 
-    #if defined(DATA_FROM_LOG)
+    #if !defined(ANDROID)
     {
         radius_rw_lock.ReaderLock();
         R_cur_timestamp = m_call_predict_timestamp;
@@ -589,71 +589,78 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
     bool vehicle_data_search_ok = 0;
     int att_data_length = m_vector_att.size();
     double timestamp_cur, timestamp_pre, dt_t_cur, dt_t_pre, dt_t;
-    for(int i = 1; i<att_data_length; i++)
+
+    if(att_data_length >= 2)
     {
-        timestamp_cur = (m_vector_att.end()-i)->timestamp;
-        timestamp_pre = (m_vector_att.end()-i-1)->timestamp;
-        dt_t = timestamp_cur - timestamp_pre;
-        dt_t_cur = timestamp_cur - timestamp_search;
-        dt_t_pre = timestamp_pre - timestamp_search;
- 
-        if(dt_t_pre<0 && dt_t_cur>0 && dt_t>=0)
+        for(int i = 1; i<att_data_length; i++)
         {
-            // 方法: 线性差插值
-            double att_pre[3], att_cur[3], d_att[3];            
-            for(int k = 0; k<3; k++)
+            timestamp_cur = (m_vector_att.end()-i)->timestamp;
+            timestamp_pre = (m_vector_att.end()-i-1)->timestamp;
+            dt_t = timestamp_cur - timestamp_pre;
+            dt_t_cur = timestamp_cur - timestamp_search;
+            dt_t_pre = timestamp_pre - timestamp_search;
+     
+            if(dt_t_pre<0 && dt_t_cur>0 && dt_t>=0)
             {
-                att_pre[k] = (m_vector_att.end()-i-1)->att[k];
-                att_cur[k] = (m_vector_att.end()-i)->att[k];
-                d_att[k] = att_cur[k] - att_pre[k];                
-                att[k] = att_pre[k] + (fabs(dt_t_pre)/fabs(dt_t))*d_att[k];// 线性插值                
+                // 方法: 线性差插值
+                double att_pre[3], att_cur[3], d_att[3];            
+                for(int k = 0; k<3; k++)
+                {
+                    att_pre[k] = (m_vector_att.end()-i-1)->att[k];
+                    att_cur[k] = (m_vector_att.end()-i)->att[k];
+                    d_att[k] = att_cur[k] - att_pre[k];                
+                    att[k] = att_pre[k] + (fabs(dt_t_pre)/fabs(dt_t))*d_att[k];// 线性插值                
+                }
+
+                double angle_z_pre, angle_z_cur, d_angle_z;
+                angle_z_pre = (m_vector_att.end()-i-1)->angle_z;
+                angle_z_cur = (m_vector_att.end()-i)->angle_z;
+                d_angle_z = angle_z_cur - angle_z_pre;                
+                *angle_z = angle_z_pre + (fabs(dt_t_pre)/fabs(dt_t))*d_angle_z;// 线性插值
+
+                att_data_search_ok = 1;
+                break;
             }
-
-            double angle_z_pre, angle_z_cur, d_angle_z;
-            angle_z_pre = (m_vector_att.end()-i-1)->angle_z;
-            angle_z_cur = (m_vector_att.end()-i)->angle_z;
-            d_angle_z = angle_z_cur - angle_z_pre;                
-            *angle_z = angle_z_pre + (fabs(dt_t_pre)/fabs(dt_t))*d_angle_z;// 线性插值
-
-            att_data_search_ok = 1;
-            break;
         }
-    }
-    if(!att_data_search_ok)
-    {
-        VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, begin_time= "<<(m_vector_att.end()-1)->timestamp<<", end_time= "<<m_vector_att.begin()->timestamp<<endl; 
-        VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att_length= "<<att_data_length<<", att:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
+        if(!att_data_search_ok)
+        {
+            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, begin_time= "<<(m_vector_att.end()-1)->timestamp<<", end_time= "<<m_vector_att.begin()->timestamp<<endl; 
+            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att_length= "<<att_data_length<<", att:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
+        }
     }
     
     // m_vector_vehicle_state
     int vehicle_data_length = m_vector_vehicle_state.size();
-    for(int i = 1; i<vehicle_data_length; i++)
-    {        
-        timestamp_cur = (m_vector_vehicle_state.end()-i)->timestamp;
-        timestamp_pre = (m_vector_vehicle_state.end()-i-1)->timestamp;
-        dt_t = timestamp_cur - timestamp_pre;
-        dt_t_cur = timestamp_cur - timestamp_search;
-        dt_t_pre = timestamp_pre - timestamp_search;
-        if(dt_t_pre<0 && dt_t_cur>0)
-        {
-             // 方法: 线性差插值
-            double pos_pre[2], pos_cur[2], d_pos[2] ;
-            for(int k=0; k<2; k++)
-            {
-                pos_pre[k] = (m_vector_vehicle_state.end()-i-1)->pos[k];
-                pos_cur[k] = (m_vector_vehicle_state.end()-i)->pos[k];
-                d_pos[k] = pos_cur[k] - pos_pre[k];               
-                vehicle_pos[k] = pos_pre[k] + (fabs(dt_t_pre)/fabs(dt_t))*d_pos[k];     // 线性插值            
-            }            
-            vehicle_data_search_ok = 1;
-            break;
-        }
-    }
-
-    if(!vehicle_data_search_ok)
+    if(vehicle_data_length>=2)
     {
-        VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_state, begin_time= "<<(m_vector_vehicle_state.end()-1)->timestamp<<", end_time= "<<m_vector_vehicle_state.begin()->timestamp<<endl; 
-        VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_length= "<<vehicle_data_length<<", pos:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
+        for(int i = 1; i<vehicle_data_length; i++)
+        {        
+            timestamp_cur = (m_vector_vehicle_state.end()-i)->timestamp;
+            timestamp_pre = (m_vector_vehicle_state.end()-i-1)->timestamp;
+            dt_t = timestamp_cur - timestamp_pre;
+            dt_t_cur = timestamp_cur - timestamp_search;
+            dt_t_pre = timestamp_pre - timestamp_search;
+            if(dt_t_pre<0 && dt_t_cur>0)
+            {
+                 // 方法: 线性差插值
+                double pos_pre[2], pos_cur[2], d_pos[2] ;
+                for(int k=0; k<2; k++)
+                {
+                    pos_pre[k] = (m_vector_vehicle_state.end()-i-1)->pos[k];
+                    pos_cur[k] = (m_vector_vehicle_state.end()-i)->pos[k];
+                    d_pos[k] = pos_cur[k] - pos_pre[k];               
+                    vehicle_pos[k] = pos_pre[k] + (fabs(dt_t_pre)/fabs(dt_t))*d_pos[k];     // 线性插值            
+                }            
+                vehicle_data_search_ok = 1;
+                break;
+            }
+        }
+
+        if(!vehicle_data_search_ok)
+        {
+            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_state, begin_time= "<<(m_vector_vehicle_state.end()-1)->timestamp<<", end_time= "<<m_vector_vehicle_state.begin()->timestamp<<endl; 
+            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_length= "<<vehicle_data_length<<", pos:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
+        }
     }
     
     if(att_data_search_ok && vehicle_data_search_ok)
