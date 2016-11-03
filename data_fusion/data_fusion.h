@@ -221,6 +221,7 @@ private:
     double m_angle_z_cur, m_angle_z_pre;    
 
     // 转弯半径 R
+    bool m_is_first_R_filter;
     double m_gyro_R_filt_hz; //用于转弯半径计算的陀螺仪的低通截止频率
     double m_can_speed_R_filt_hz; //车速的低通
     StructTurnRadius m_struct_turn_radius;

@@ -114,8 +114,8 @@ int main(int argc, char *argv[])
     get_max_min_image_index(max_frame_index, min_frame_index, frame_file_addr);
 
     // 外部循环控制
-    int image_index_start = 500;
-    int image_cal_step = 1;// 每隔多少帧计算一次  
+    int image_index_start = 1000;
+    int image_cal_step = 2;// 每隔多少帧计算一次  
     bool is_camera_index_mached = 0; // 是否已经从log中寻找到当前图像的匹配的时间戳
     for(int image_index = image_index_start; image_index <= max_frame_index; image_index += image_cal_step)
     {
@@ -338,9 +338,9 @@ void do_get_turn_radius()
     int64 t_1, t_2;
     int64 image_timestamp_cur_int = (int64)(image_timestamp*1000);
 
-    int r_1 = 0;
+    int r_1 = -1;
     int main_sleep_counter = 0; //  一次外部调用，main sleep的次数
-    while(!r_1)
+    while(r_1<0)
     {
         // 测试运行时间
         t_1 = f_time_counter.Microseconds();
@@ -352,10 +352,11 @@ void do_get_turn_radius()
         
         if(main_sleep_counter > 0)
         {            
-            printf("main timestamp diamatch conunter:%d, so sleep\n",  main_sleep_counter);
+            printf("main timestamp diamatch conunter:%d, match state= %d, so sleep\n", main_sleep_counter, r_1);
             sleep(1);
         }
         main_sleep_counter++;       
-    }                        
-    
+    }       
+    printf("R = %f\n", g_R_cur);   
+       
 }

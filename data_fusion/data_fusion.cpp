@@ -1,9 +1,5 @@
 #include "data_fusion.h"
 
-
-//# define DATA_FROM_LOG 1  // 从log中读取数据
-//# define DATA_FROM_ONLINE 0 //在线读取数据
-
 using namespace common;
 DataFusion::DataFusion()
 {
@@ -29,12 +25,14 @@ void DataFusion::Init( )
         #if defined(USE_RADIUS)
         {
             infile_log.open("data/radius/log.txt");       // ofstream 
+            printf("try open \"data/radius/log.txt\"\n");
             if(!infile_log)
-                printf("open \"data/doing/log.txt\" ERROR!!\n");
+                printf("open \"data/radius/log.txt\" ERROR!!\n");
         }
         #else
         {
-            infile_log.open("data/doing/log.txt");       // ofstream   
+            infile_log.open("data/doing/log.txt");       // ofstream  
+            printf("try open \"data/doing/log.txt\"\n");
             if(!infile_log)
                 printf("open \"data/doing/log.txt\" ERROR!!\n");
         }
@@ -64,6 +62,7 @@ void DataFusion::Init( )
     m_is_print_speed_data = 0;
 
     // 转弯半径R
+    m_is_first_R_filter = 1;
     m_gyro_R_filt_hz = 2.0;
     m_can_speed_R_filt_hz = 2.0;
     m_call_radius_timestamp = 0;
@@ -176,10 +175,12 @@ int DataFusion::ReadDataFromLog( )
         }else if(data_flag == "Gsensor"){            
             double acc_data_raw[3]; // acc原始坐标系下的
             double acc_data_ned[3]; // 大地坐标系
-            static double acc_data_filter[3]; // 一阶低通之后的数据
+            static double acc_data_filter_pre[3]; // 保存fliter变量 
+            double acc_data_filter[3]; 
             double gyro_data_raw[3];
             double gyro_data_ned[3];  
-            static double gyro_data_filter[3]; // 一阶低通之后的数据
+            static double gyro_data_filter_pre[3]; 
+            double gyro_data_filter[3]; 
             double imu_temperature, imu_timestamp;    
             string imu_flag;
 
@@ -194,17 +195,16 @@ int DataFusion::ReadDataFromLog( )
             if(m_is_first_read_gsensor){
                 m_is_first_read_gsensor = 0;
                 m_pre_imu_timestamp = imu_timestamp;
-                acc_data_filter[0] = acc_data_ned[0];
-                acc_data_filter[1] = acc_data_ned[1];
-                acc_data_filter[2] = acc_data_ned[2];
-                gyro_data_filter[0] = gyro_data_ned[0];
-                gyro_data_filter[1] = gyro_data_ned[1];
-                gyro_data_filter[2] = gyro_data_ned[2]; 
+                memcpy(acc_data_filter_pre, acc_data_ned, sizeof(double)*3);
+                memcpy(gyro_data_filter_pre, gyro_data_ned, sizeof(double)*3);
             }else{
                 double dt_imu = imu_timestamp - m_pre_imu_timestamp; 
                 dt_imu = 1/m_imu_sample_hz; // 100hz
-                m_imu_attitude_estimate.LowpassFilter3f(acc_data_filter, acc_data_ned, dt_imu, m_acc_filt_hz, acc_data_filter);    
-                m_imu_attitude_estimate.LowpassFilter3f(gyro_data_filter, gyro_data_ned, dt_imu, m_gyro_filt_hz, gyro_data_filter);       
+                m_imu_attitude_estimate.LowpassFilter3f(acc_data_filter_pre, acc_data_ned, dt_imu, m_acc_filt_hz, acc_data_filter); 
+                memcpy(acc_data_filter_pre, acc_data_filter, sizeof(double)*3);
+                
+                m_imu_attitude_estimate.LowpassFilter3f(gyro_data_filter_pre, gyro_data_ned, dt_imu, m_gyro_filt_hz, gyro_data_filter); 
+                memcpy(gyro_data_filter_pre, gyro_data_filter, sizeof(double)*3);
                 m_pre_imu_timestamp = imu_timestamp;    
             }
 
@@ -276,10 +276,12 @@ int DataFusion::ReadImuOnline( )
     for (int imu_data_index = 0; imu_data_index < imu_fifo_total; imu_data_index++){
         double acc_data_raw[3]; // acc原始坐标系下的
         double acc_data_ned[3]; // 大地坐标系
-        static double acc_data_filter[3]; // 一阶低通之后的数据            
+        static double acc_data_filter_pre[3];     
+        double acc_data_filter[3];   
         double gyro_data_raw[3];
         double gyro_data_ned[3];  
-        static double gyro_data_filter[3]; // 一阶低通之后的数据
+        static double gyro_data_filter_pre[3]; 
+        double gyro_data_filter[3]; 
         double imu_timestamp, imu_temperature;
 
         for(int k=0; k<3; k++){
@@ -295,14 +297,15 @@ int DataFusion::ReadImuOnline( )
 
         if(m_is_first_read_gsensor){ 
             // 第一次进入函数的初始化
-            for(int k=0; k<3; k++){
-                acc_data_filter[k] = acc_data_ned[k];
-                gyro_data_filter[k] = gyro_data_ned[k];
-            }
+            memcpy(acc_data_filter_pre, acc_data_ned, sizeof(double)*3);
+            memcpy(gyro_data_filter_pre, gyro_data_ned, sizeof(double)*3);
             m_is_first_read_gsensor = 0;
         }else{
-            m_imu_attitude_estimate.LowpassFilter3f(acc_data_filter, acc_data_ned, m_imu_dt_set, m_acc_filt_hz, acc_data_filter);    
-            m_imu_attitude_estimate.LowpassFilter3f(gyro_data_filter, gyro_data_ned, m_imu_dt_set, m_gyro_filt_hz, gyro_data_filter);        
+            m_imu_attitude_estimate.LowpassFilter3f(acc_data_filter_pre, acc_data_ned, m_imu_dt_set, m_acc_filt_hz, acc_data_filter); 
+            memcpy(acc_data_filter_pre, acc_data_filter, sizeof(double)*3);
+            
+            m_imu_attitude_estimate.LowpassFilter3f(gyro_data_filter_pre, gyro_data_ned, m_imu_dt_set, m_gyro_filt_hz, gyro_data_filter); 
+            memcpy(gyro_data_filter_pre, gyro_data_filter, sizeof(double)*3);
         }
 
         // 更新数据
@@ -481,8 +484,6 @@ void DataFusion::EstimateAtt()
         m_isFirstTime_att = 0;
         m_pre_att_timestamp = cur_att_timestamp; 
     }else{  
-        VLOG(VLOG_DEBUG)<<"run fusion imu" <<endl;
-        
         double dt_att = cur_att_timestamp - m_pre_att_timestamp;
         dt_att = 1/m_imu_sample_hz;
         m_imu_attitude_estimate.UpdataAttitude(imu_data.acc, imu_data.gyro, dt_att);
@@ -563,8 +564,10 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
         
         if(!att_data_search_ok)
         {
-            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, begin_time= "<<(m_vector_att.end()-1)->timestamp<<", end_time= "<<m_vector_att.begin()->timestamp<<endl; 
-            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att_length= "<<att_data_length<<", att:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
+            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, nearest_time= "<<(m_vector_att.end()-1)->timestamp<<", farthest_time= "
+                           <<m_vector_att.begin()->timestamp<<endl; 
+            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att_length= "<<att_data_length<<", att:(ms) "<<"dt_t_cur= "
+                           <<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
         }
     }else{
         VLOG(VLOG_WARNING)<<"DF:GetTimestampData--"<<"!!!WARNING:att data too less att_length= "<<att_data_length<<endl;
@@ -594,8 +597,10 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
         }
 
         if(!vehicle_data_search_ok){
-            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_state, begin_time= "<<(m_vector_vehicle_state.end()-1)->timestamp<<", end_time= "<<m_vector_vehicle_state.begin()->timestamp<<endl; 
-            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_length= "<<vehicle_data_length<<", pos:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
+            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_state, nearest_time= "<<(m_vector_vehicle_state.end()-1)->timestamp
+                           <<", farthest_time= "<<m_vector_vehicle_state.begin()->timestamp<<endl; 
+            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_length= "<<vehicle_data_length<<", pos:(ms) "
+                           <<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
         }
     }else{
         VLOG(VLOG_WARNING)<<"DF:GetTimestampData--"<<"!!!WARNING:vehicle data too less vehicle_data_length= "<<vehicle_data_length<<endl;
@@ -708,10 +713,19 @@ void DataFusion::CalculateVehicleTurnRadius()
     double R;
     // IMU
     StructImuData imu_data;
-    static double gyro_filter_R[3]; // 一阶低通之后的数据 
+    static double gyro_filter_R_pre[3]; 
+    double gyro_filter_R[3]; // 一阶低通之后的数据 
     memcpy(&imu_data, &m_imu_data, sizeof(StructImuData));    
     double dt_imu= 1/m_imu_sample_hz;
-    m_imu_attitude_estimate.LowpassFilter3f(gyro_filter_R, imu_data.gyro_raw, dt_imu, m_gyro_R_filt_hz, &gyro_filter_R[0]);    
+    if(m_is_first_R_filter)
+    {
+        memcpy(gyro_filter_R_pre, imu_data.gyro_raw, sizeof(double)*3);
+        m_is_first_R_filter = 0;
+    }
+    
+    m_imu_attitude_estimate.LowpassFilter3f(gyro_filter_R_pre, imu_data.gyro_raw, dt_imu, m_gyro_R_filt_hz, gyro_filter_R);   
+    memcpy(gyro_filter_R_pre, gyro_filter_R, sizeof(double)*3);
+//    printf("filter new = %f, filter = %f\n", imu_data.gyro_raw[2], gyro_filter_R[2]);
 
     // CAN speed
     StructCanSpeedData can_speed_data;
@@ -740,30 +754,41 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
     double timestamp_search = int_timestamp_search/1000.0;
     
     radius_rw_lock.WriterLock();
-    m_call_radius_timestamp = timestamp_search;// 更新时间戳
+    //m_call_radius_timestamp = timestamp_search;// 更新时间戳
+    m_call_predict_timestamp  = timestamp_search;// 更新时间戳
     radius_rw_lock.Unlock();
-        
-    for(int i = 1; i<R_data_length; i++){
-       time_cur = (m_vector_turn_radius.end()-i)->timestamp;
-       time_pre = (m_vector_turn_radius.end()-i-1)->timestamp;
-       dt_t = time_cur - time_pre;
-       dt_t_cur = time_cur - timestamp_search;
-       dt_t_pre = time_pre - timestamp_search;
 
-       if(dt_t_pre<0 && dt_t_cur>0 && dt_t>=0){
-           // 方法: 线性差插值
-           double R_pre, R_cur, d_R;            
-           R_pre = (m_vector_turn_radius.end()-i-1)->R;
-           R_cur = (m_vector_turn_radius.end()-i)->R;
-           d_R = R_cur - R_pre;                
-           R_t = R_pre + (fabs(dt_t_pre)/fabs(dt_t))*d_R;// 线性插值                
+    if(R_data_length >= 2){        
+        for(int i = 1; i<R_data_length; i++){
+           time_cur = (m_vector_turn_radius.end()-i)->timestamp;
+           time_pre = (m_vector_turn_radius.end()-i-1)->timestamp;
+           dt_t = time_cur - time_pre;
+           dt_t_cur = time_cur - timestamp_search;
+           dt_t_pre = time_pre - timestamp_search;
 
-           R_search_ok = 1;
-           break;
-       }
+           if(dt_t_pre<0 && dt_t_cur>0 && dt_t>=0){
+               // 方法: 线性差插值
+               double R_pre, R_cur, d_R;            
+               R_pre = (m_vector_turn_radius.end()-i-1)->R;
+               R_cur = (m_vector_turn_radius.end()-i)->R;
+               d_R = R_cur - R_pre;                
+               R_t = R_pre + (fabs(dt_t_pre)/fabs(dt_t))*d_R;// 线性插值   
+               R_search_ok = 1;
+               break;
+           }
+        }
+
+        if(!R_search_ok)
+        {
+            VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"R timestamp stat = "<<R_search_ok<<endl;
+            VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"R, nearest_time= "<<(m_vector_turn_radius.end()-1)->timestamp<<", farthest_time= "
+                           <<m_vector_turn_radius.begin()->timestamp<<endl; 
+            VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"att_length= "<<R_data_length<<", att:(ms) "<<"dt_t_cur= "
+                           <<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
+        }
+    }else{
+        VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"!!!WARNING:radius data too less length= "<<R_data_length<<endl;
     }
-    
-    VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"R:(ms) "<<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl; 
     
     if(R_search_ok){
         *R = R_t;
@@ -771,8 +796,7 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
     }else{
         *R = 0;
         return -1;
-    }    
-
+    } 
 }
 
 

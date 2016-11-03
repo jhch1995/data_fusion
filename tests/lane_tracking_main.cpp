@@ -19,7 +19,7 @@
 
 #include "data_fusion.h"
 #include "datafusion_math.h"
-
+   
 using namespace std;
 
 DEFINE_string(image_name, "./1.jpg", "image_name");
@@ -89,7 +89,8 @@ string get_file_name(string file_path);
 bool get_max_min_image_index(int &max_index, int &min_index, string file_path);
 
 // 在IPM图上画车道线
-void mark_IPM_lane(cv::Mat &ipm_image, cv::Mat lane_coeffs, IPMPara ipm_para, float lane_color_value);
+void mark_IPM_lane(cv::Mat &ipm_image, const cv::Mat lane_coeffs, const IPMPara ipm_para, const float lane_color_value);
+
 
 // 车道线预测
 void do_predict_feature();
@@ -233,11 +234,12 @@ int main(int argc, char *argv[])
 
                     // 画车道线
                     mark_IPM_lane(ipm_image, lane_coeffs, ipm_para, 0.9);// 在IPM中标注当前lane 白色
-                    mark_IPM_lane(ipm_image, lane_coeffs_pre, ipm_para, 0.45);// 在IPM中标注上一帧lane 灰白
-                    mark_IPM_lane(ipm_image, lane_coeffs_predict, ipm_para, 0.1);// 在IPM中标注预测lane 黑色
-
+//                    mark_IPM_lane(ipm_image, lane_coeffs_pre, ipm_para, 0.45);// 在IPM中标注上一帧lane 灰白
+//                    std::cout<<"lane_coeffs_pre:"<<lane_coeffs_pre<<endl;
+                    mark_IPM_lane(ipm_image, lane_coeffs_predict, ipm_para, 0.15);// 在IPM中标注预测lane 黑色
+//                    std::cout<<"lane_coeffs_predict:"<<lane_coeffs_predict<<endl;
                     cv::imshow("ipm", ipm_image);
-                    if(cv::waitKey(20)) // 值在50-200左右IPM图,有时会显示黑色
+                    if(cv::waitKey(10)) // 值在50-200左右IPM图,有时会显示黑色
                     {}                        
 
                 }
@@ -426,7 +428,7 @@ void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
 }
 
 //// 标记 IPM lane
-void mark_IPM_lane(cv::Mat &ipm_image, cv::Mat lane_coeffs, IPMPara ipm_para, float lane_color_value)
+void mark_IPM_lane(cv::Mat &ipm_image, const cv::Mat lane_coeffs, const IPMPara ipm_para, const float lane_color_value)
 {
     /// 在IPM中标注当前lane
     std::vector<int> x(ipm_para.height+2);
@@ -439,7 +441,7 @@ void mark_IPM_lane(cv::Mat &ipm_image, cv::Mat lane_coeffs, IPMPara ipm_para, fl
        float x_t = lane_coeffs.at<float>(0, 1) + lane_coeffs.at<float>(1, 1)*i + lane_coeffs.at<float>(2, 1)*i*i;
        x[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
 
-       if (x[i_index] < 0 || x[i_index] > ipm_para.width )
+       if (x[i_index] <= 0 || x[i_index] >= ipm_para.width )
        {
            continue;
        }else{

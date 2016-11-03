@@ -29,7 +29,7 @@ public:
     void GetAttitudeAngleZ(double att[3], double *angle_z);
 
     /// 一阶低通函数
-    int LowpassFilter3f(const double y_pre[3], const double x_new[3], double dt, const double filt_hz, double y_new[3] );
+    int LowpassFilter3f(double y_pre[3], const double x_new[3], double dt, const double filt_hz, double y_new[3] );
 
     int AccDataCalibation(const double acc_data_raw[3], double acc_data_ned[3] );
 

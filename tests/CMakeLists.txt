@@ -19,4 +19,9 @@ ELSE()
     TARGET_LINK_LIBRARIES(turn_radius_test_main data_fusion halio
                           concurrency relative_locate time gflags glog 
                           opencv_imgcodecs opencv_core opencv_highgui pthread)
+
+    ADD_EXECUTABLE(data_fusion_test_main  "./data_fusion_test_main.cpp")
+    TARGET_LINK_LIBRARIES(data_fusion_test_main data_fusion halio
+                          concurrency relative_locate time gflags glog 
+                          opencv_imgcodecs opencv_core opencv_highgui pthread  )
 endif()
