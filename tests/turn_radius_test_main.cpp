@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
                     cv::Mat ipm_image = cv::Mat::zeros(ipm_para.height+1, ipm_para.width+1, CV_32FC1);
                     image_IPM(ipm_image, org_image, ipm_para);
                     
-                    // 执行预测lane
+                    // 执行查询转弯半径
                     do_get_turn_radius();
                    
                     // 画车道线

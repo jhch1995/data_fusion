@@ -99,11 +99,10 @@ void DataFusion::StartDataFusionTask()
 void DataFusion::RunFusion( )
 {
     while(1){
-        int read_state = ReadData(); // 数据保存在  m_vector_imu_data
-        while (!m_vector_imu_data.empty()){
-            //memcpy(m_imu_data, m_vector_imu_data.back(), sizeof(StructImuData))
-            m_imu_data = m_vector_imu_data.back();
-            m_vector_imu_data.pop_back();
+        int read_state = ReadData(); // 数据保存在 m_vector_imu_data
+        int vector_imu_length = m_vector_imu_data.size();
+        for (int i = 0; i < vector_imu_length; i++){            
+            m_imu_data = *(m_vector_imu_data.begin() + i);
 
             EstimateAtt();
             EstimateVehicelState(); 
@@ -112,6 +111,7 @@ void DataFusion::RunFusion( )
             
         DeleteOldData();  
         DeleteOldRadiusData();
+        m_vector_imu_data.clear(); // 清空缓存的buffer
         usleep(1); // 1us       
     }
 }
@@ -184,8 +184,6 @@ int DataFusion::ReadDataFromLog( )
             double imu_temperature, imu_timestamp;    
             string imu_flag;
 
-            m_vector_imu_data.clear(); // 清空vector
-
             ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>imu_flag>>acc_data_raw[0]>>acc_data_raw[1]>>acc_data_raw[2]
                     >>gyro_data_raw[0]>>gyro_data_raw[1]>>gyro_data_raw[2]>>imu_temperature;
             imu_timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;                 
@@ -255,7 +253,6 @@ int DataFusion::ReadImuOnline( )
     struct GsensorData data_raw[80];
     struct StructImuData imu_data;
 
-    m_vector_imu_data.clear(); // 清空vector
     imu_fifo_total = read_gsensor(data_raw, sizeof(data_raw)/sizeof(data_raw[0]));
     gettimeofday(&time_imu, NULL);
     time_imu_read = time_imu.tv_sec + time_imu.tv_usec*1e-6;
@@ -848,4 +845,124 @@ void DataFusion::PrintSpeedData(const int is_print_speed)
 {
     m_is_print_speed_data = is_print_speed;
 }
+
+// the strategy is to average 50 points over 0.5 seconds, then do it
+// again and see if the 2nd average is within a small margin of the first
+int DataFusion::GyroParameterCalibration(   double gyro_bias[3] )
+{
+	double gyro_sum[3],gyro_avg[3],gyro_diff[3], accel_diff[3], last_average[3], best_avg[3], accel_start[3];
+	double gyro_diff_norm, acc_diff_norm;
+	double pre_gyro_offset[3], new_gyro_offset[3], best_gyro_diff;
+	int converged, num_converged;
+    bool gyro_cal_ok = 0;
+    StructImuData imu_data_t;
+    int gyro_sample_num = 50; // the gyro sample numbers each cycle
+
+    double m_gyro_drift[3];
+    m_imu_attitude_estimate.GetGyroBias(m_gyro_drift);
+    memcpy(pre_gyro_offset, m_gyro_drift, sizeof(m_gyro_drift)); 
+    memset(new_gyro_offset, 0, sizeof(new_gyro_offset)); 
+    memset(last_average, 0, sizeof(last_average));
+    
+	converged = false;
+	num_converged = 0;
+
+    // 预先读取1s,100个数据
+    for ( int i=0; i<100; i++) {
+        ReadImuOnline();// Getting imu data
+        imu_data_t = *(m_vector_imu_data.begin());
+        m_vector_imu_data.clear();
+        usleep(10000); // 10ms
+     }
+		
+	// we try to get a good calibration estimate for up to 30 seconds if the gyros are stable, we should get it in 1 second
+    for ( int j_cal_cycle = 0; j_cal_cycle <= 30*4 && num_converged<5; j_cal_cycle++) 
+	{
+	    printf("j_cal_cycle = %d\n", j_cal_cycle);
+		gyro_diff_norm = 0.0f;
+        memset(gyro_sum, 0, sizeof(gyro_sum)); 
+	    memcpy(accel_start, imu_data_t.acc, sizeof(imu_data_t.acc)); 
+        
+        for ( int i=0; i<gyro_sample_num; i++) {
+            ReadImuOnline();// Getting imu data
+            imu_data_t = *(m_vector_imu_data.begin());
+            m_vector_imu_data.clear();
+
+			gyro_sum[0] += imu_data_t.gyro_raw[0];
+			gyro_sum[1] += imu_data_t.gyro_raw[1];
+			gyro_sum[2] += imu_data_t.gyro_raw[2];
+            usleep(10000); // 10ms
+        }
+		
+		accel_diff[0] = imu_data_t.acc[0] - accel_start[0];
+		accel_diff[1] = imu_data_t.acc[1] - accel_start[1];
+		accel_diff[2] = imu_data_t.acc[2] - accel_start[2];         
+		acc_diff_norm = sqrtf(accel_diff[0]*accel_diff[0] + accel_diff[1]*accel_diff[1] + accel_diff[2]*accel_diff[2]);
+        printf("acc_diff_norm = %f\n", acc_diff_norm);
+        if (acc_diff_norm >  0.2) {
+            // the accelerometers changed during the gyro sum. Skip this sample. This copes with doing gyro cal on a
+            // steadily moving platform. The value 0.2 corresponds with around 5 degrees/second of rotation.
+            printf("acc_diff_norm >  0.2f\n");
+            continue; // -YJ- comment
+        }
+
+		gyro_avg[0] = gyro_sum[0]/ gyro_sample_num;
+		gyro_avg[1] = gyro_sum[1]/ gyro_sample_num;
+		gyro_avg[2] = gyro_sum[2]/ gyro_sample_num;
+		gyro_diff[0] = last_average[0] - gyro_avg[0];
+		gyro_diff[1] = last_average[1] - gyro_avg[1];
+		gyro_diff[2] = last_average[2] - gyro_avg[2];
+        gyro_diff_norm = sqrtf(gyro_diff[0]*gyro_diff[0] + gyro_diff[1]*gyro_diff[1] + gyro_diff[2]*gyro_diff[2]);
+        
+        printf("gyro_avg = %f %f %f\n", gyro_avg[0], gyro_avg[1], gyro_avg[2]);
+        printf("gyro_diff_norm=%f\n", gyro_diff_norm);
+        
+		if (j_cal_cycle == 0){
+			best_gyro_diff = gyro_diff_norm;
+            memcpy(best_avg, gyro_avg, sizeof(gyro_avg)); 
+
+        } else if (gyro_diff_norm < 0.04/57.3){
+            // we want the average to be within 0.04 degrees/s
+            last_average[0] = (gyro_avg[0] * 0.5f) + (last_average[0] * 0.5f);
+			last_average[1] = (gyro_avg[1] * 0.5f) + (last_average[1] * 0.5f);
+			last_average[2] = (gyro_avg[2] * 0.5f) + (last_average[2] * 0.5f);			
+
+			// last_average_length
+			double last_average_norm = sqrtf(last_average[0]*last_average[0] + last_average[1]*last_average[1] + last_average[2]*last_average[2]);
+			// new_gyro_offset_length
+			double new_gyro_offset_norm = sqrtf(new_gyro_offset[0]*new_gyro_offset[0] + new_gyro_offset[1]*new_gyro_offset[1] + new_gyro_offset[2]*new_gyro_offset[2]);	
+
+			// l_last_average < new_gyro_offset_length, the first time converged=0, so will goin the if
+			if (!converged || last_average_norm < new_gyro_offset_norm)
+                memcpy(new_gyro_offset, last_average, sizeof(last_average)); 
+        
+            converged = true;
+            printf("gyro calibate %d, bias= %f %f %f\n", num_converged, new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
+			if(num_converged++ >= 5)// 收敛的累计
+                break;            
+        } else if (gyro_diff_norm < best_gyro_diff) {
+            best_gyro_diff = gyro_diff_norm;			
+            best_avg[0] = (gyro_avg[0] * 0.5f) + (last_average[0] * 0.5f);
+			best_avg[1] = (gyro_avg[1] * 0.5f) + (last_average[1] * 0.5f);
+			best_avg[2] = (gyro_avg[2] * 0.5f) + (last_average[2] * 0.5f);			
+        }
+        memcpy(last_average, gyro_avg, sizeof(gyro_avg)); 
+    }
+
+	// we've kept the user waiting long enough - use the best pair we found so far
+	if (!converged) {
+	    printf("gyro did not converge: diff=%f dps\n",  best_gyro_diff*57.3);
+		// flag calibration as failed for this gyro
+	    gyro_cal_ok = false;
+        memcpy(gyro_bias, best_avg, sizeof(best_avg)); 
+        return -1;
+	} else {
+	    gyro_cal_ok = true;	
+        memcpy(gyro_bias, new_gyro_offset, sizeof(new_gyro_offset));  
+        printf("gyro calibate success, bias= %f %f %f\n", num_converged, new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
+        return 0;
+	}
+	
+}
+
 

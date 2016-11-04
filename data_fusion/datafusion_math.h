@@ -6,6 +6,9 @@
 #define D2R M_PI/180.0f
 #define ONE_G 9.80665f;
 
+#define GET_ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
+
+
 // 设置关于VLOG的打印等级
 #define VLOG_FATAL 0
 #define VLOG_ERROR 1

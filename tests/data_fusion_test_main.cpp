@@ -13,8 +13,6 @@
 #include "data_fusion.h"
 #include "datafusion_math.h"
 
-#define GET_ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
-
 
 // global variables
 static const char* program = "data_fudion_test";
@@ -36,8 +34,20 @@ struct StructImuParameter
 //   double acc_A0[3][3];
 };
 
-string g_file_addr = "data/imu_parameter.ini"; // //"/mnt/media_rw/sdcard1/imu_calibulation_paramer.ini";
+string g_file_addr = "/mnt/media_rw/sdcard1/imu_calibulation_paramer.ini";
 
+
+#pragma pack(1)    
+struct StructImuData
+{
+    double timestamp;
+    double acc_raw[3];
+    double gyro_raw[3];
+    double acc[3];
+    double gyro[3];
+    double temp;
+};
+#pragma pack()
 
 int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter);
 
@@ -108,7 +118,7 @@ int main(int argc, char *argv[])
         if(is_print_speed){
             printf("set is_print_speed = %d\n", is_print_speed);
             data_fusion.PrintSpeedData(is_print_speed);
-        }
+        }        
     }
     #else
     {
@@ -120,16 +130,22 @@ int main(int argc, char *argv[])
     }            
     #endif
 
-    data_fusion.StartDataFusionTask();  
 
-    // 测试读取IMU读取数据
-    StructImuParameter imu_parameter_t, imu_parameter_t1;
-    imu_parameter_t.gyro_bias[0] = 0.002;
-    imu_parameter_t.gyro_bias[1] = -0.004;
-    imu_parameter_t.gyro_bias[2] = 0.0025;
-
-    wite_imu_calibation_parameter(imu_parameter_t);
-    read_imu_calibation_parameter(&imu_parameter_t1);  
+    // data_fusion.StartDataFusionTask();  
+    // 校正
+    StructImuParameter imu_parameter_pre, imu_parameter_new;
+    
+    #if defined(ANDROID)
+    {
+        double gyro_bias[3];
+        data_fusion.GyroParameterCalibration(gyro_bias);
+        printf("gyro_bias= %f %f %f\n", gyro_bias[0], gyro_bias[1], gyro_bias[2]);
+        
+        //read_imu_calibation_parameter(&imu_parameter_pre); 
+        memcpy(imu_parameter_new.gyro_bias, gyro_bias, sizeof(gyro_bias));
+        wite_imu_calibation_parameter(imu_parameter_new);
+    }
+    #endif
 
     while(1){
         printf(" loop\n");
@@ -160,7 +176,7 @@ int read_imu_calibation_parameter( StructImuParameter *imu_parameter)
         imu_parameter->gyro_bias[2] = gyro_bias[2];
         printf("read imu parameter %s, %f %f %f\n", data_flag.c_str(), imu_parameter->gyro_bias[0], imu_parameter->gyro_bias[1], imu_parameter->gyro_bias[2]);
     }else{
-        printf("open file error!!!");
+        printf("open file error!!!\n");
     }  
 
     file_imu.close();
@@ -190,7 +206,7 @@ int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter)
         file_imu << buffer; 
         printf("write new gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0], imu_parameter.gyro_bias[1], imu_parameter.gyro_bias[2] );
     }else{
-        printf("write new gyro_bias failed!!");
+        printf("write new gyro_bias failed!!\n");
     }
 
     file_imu.close();

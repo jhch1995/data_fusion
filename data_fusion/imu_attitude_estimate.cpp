@@ -193,4 +193,21 @@ int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], doub
     return 1;
 }
 
+// 获取当前陀螺仪零偏
+void ImuAttitudeEstimate::GetGyroBias( double gyro_bias[3] )
+{
+    gyro_bias[0] = m_gyro_drift[0];
+    gyro_bias[1] = m_gyro_drift[1];
+    gyro_bias[2] = m_gyro_drift[2];
+}
+
+// 设置陀螺仪新零偏
+void ImuAttitudeEstimate::SetGyroBias( const double gyro_bias_new[3] )
+{
+    m_gyro_drift[0] = gyro_bias_new[0];
+    m_gyro_drift[1] = gyro_bias_new[1];
+    m_gyro_drift[2] = gyro_bias_new[2];
+
+}
+
 
