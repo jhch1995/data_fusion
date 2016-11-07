@@ -6,7 +6,6 @@ SET(DEBUG 1)
 IF(DEBUG)
     SET(CMAKE_BUILD_TYPE "Debug") 
     SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
-    MESSAGE(status, "debug 1111")
 ELSEIF (RELEASE)
 ENDIF()
 
@@ -41,7 +40,7 @@ ELSEIF (UNIX)
     ADD_DEFINITIONS(-DUSE_GLOG)
     ADD_DEFINITIONS(-D__unix__) # time.h
     #ADD_DEFINITIONS(-DLOG_STD_COUT) # LOG相关函数直接输出到直接输出到std::cout
-    #ADD_DEFINITIONS(-DUSE_RADIUS) # 当前进行转弯半径的调试 #MESSAGE(${USE_RADIUS})
+    ADD_DEFINITIONS(-DUSE_RADIUS) # 当前进行转弯半径的调试 #MESSAGE(${USE_RADIUS})
 ENDIF()
 
 

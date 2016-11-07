@@ -43,6 +43,8 @@ public:
     
     void SetGyroBias( const double gyro_bias[3] );
 
+    void ClearGyroBias();
+
 
 private:
     enum

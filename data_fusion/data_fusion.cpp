@@ -861,6 +861,7 @@ int DataFusion::GyroParameterCalibration(   double gyro_bias[3] )
     double m_gyro_drift[3];
     m_imu_attitude_estimate.GetGyroBias(m_gyro_drift);
     memcpy(pre_gyro_offset, m_gyro_drift, sizeof(m_gyro_drift)); 
+    m_imu_attitude_estimate.ClearGyroBias(); // bias清零
     memset(new_gyro_offset, 0, sizeof(new_gyro_offset)); 
     memset(last_average, 0, sizeof(last_average));
     
@@ -959,7 +960,7 @@ int DataFusion::GyroParameterCalibration(   double gyro_bias[3] )
 	} else {
 	    gyro_cal_ok = true;	
         memcpy(gyro_bias, new_gyro_offset, sizeof(new_gyro_offset));  
-        printf("gyro calibate success, bias= %f %f %f\n", num_converged, new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
+        printf("gyro calibate success, bias=%d %f %f %f\n", num_converged, new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
         return 0;
 	}
 	

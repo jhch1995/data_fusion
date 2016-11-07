@@ -4,8 +4,8 @@ INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/data_fusion/")
 
 IF (WIN32)
 ELSEIF(ANDROID_ABI)
-    ADD_EXECUTABLE(data_fusion_test_main  "./data_fusion_test_main.cpp")
-    TARGET_LINK_LIBRARIES(data_fusion_test_main data_fusion miniglog gflags concurrency time  )
+    ADD_EXECUTABLE(imu_calibrate_main  "./imu_calibrate_main.cpp")
+    TARGET_LINK_LIBRARIES(imu_calibrate_main data_fusion miniglog gflags concurrency time  )
 
 ELSE()    
     find_package(OpenCV REQUIRED)
@@ -20,8 +20,8 @@ ELSE()
                           concurrency relative_locate time gflags glog 
                           opencv_imgcodecs opencv_core opencv_highgui pthread)
 
-    ADD_EXECUTABLE(data_fusion_test_main  "./data_fusion_test_main.cpp")
-    TARGET_LINK_LIBRARIES(data_fusion_test_main data_fusion halio
+    ADD_EXECUTABLE(imu_calibrate_main  "./imu_calibrate_main.cpp")
+    TARGET_LINK_LIBRARIES(imu_calibrate_main halio
                           concurrency relative_locate time gflags glog 
                           opencv_imgcodecs opencv_core opencv_highgui pthread  )
 endif()
