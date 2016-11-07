@@ -16,6 +16,7 @@ public:
 
     void StartDataFusionTask();
 
+    // timestamp_search in microseconds
     int GetTurnRadius(const int64 &timestamp_search, double *R);
 
 private:
