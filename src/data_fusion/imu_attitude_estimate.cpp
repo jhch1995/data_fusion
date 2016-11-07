@@ -2,6 +2,8 @@
 #include "datafusion_math.h"
 #include <stdio.h>
 
+namespace imu {
+
 ImuAttitudeEstimate::ImuAttitudeEstimate()
 {
     Initialize( );    
@@ -193,4 +195,4 @@ int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], doub
     return 1;
 }
 
-
+}

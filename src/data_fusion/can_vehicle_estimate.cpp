@@ -2,21 +2,23 @@
 
 using namespace common;
 
+namespace imu {
+
 CAN_VehicleEstimate::CAN_VehicleEstimate()
 {
     m_vehicle_L = 2.637f;
-        
+
     m_min_steer_angle = 5.0f; //最小的有效方向盘转角，小于这个角度不计算
     m_k_steer2wheel_angle = 0.07f;
     m_virtual_front_angle = 0.0f;
     m_fai = 0.0f;
-    
+
     m_vehicle_vel[0] = 0.0f;
     m_vehicle_vel[1] = 0.0f;
 
     m_vehicle_pos[0] = 0.0f;
     m_vehicle_pos[1] = 0.0f;
-    
+
 }
 
 void CAN_VehicleEstimate::Initialize( )
@@ -80,9 +82,9 @@ void CAN_VehicleEstimate::ResetState()
     m_vehicle_vel[0] = 0.0f;  // X
     m_vehicle_vel[1] = 0.0f;   // Y
 
-    m_vehicle_pos[0] = 0.0f; 
-    m_vehicle_pos[1] = 0.0f; 
+    m_vehicle_pos[0] = 0.0f;
+    m_vehicle_pos[1] = 0.0f;
 }
 
-
+}
 

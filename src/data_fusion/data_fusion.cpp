@@ -1,6 +1,9 @@
 #include "data_fusion.h"
 
 using namespace common;
+
+namespace imu {
+
 DataFusion::DataFusion()
 {
     Init();    
@@ -849,3 +852,4 @@ void DataFusion::PrintSpeedData(const int is_print_speed)
     m_is_print_speed_data = is_print_speed;
 }
 
+}
