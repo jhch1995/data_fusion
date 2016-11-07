@@ -50,6 +50,7 @@ void speed_callback(struct timeval *tv, int type, float speed)
 
 }
 
+using namespace imu;
 
 int main(int argc, char *argv[])
 {
