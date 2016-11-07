@@ -10,6 +10,8 @@
 
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
+#include "glog/logging.h"
+
 #include "common/base/stdint.h"
 #include "common/math/polyfit.h"
 #include "common/base/log_level.h"
