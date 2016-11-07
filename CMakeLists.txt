@@ -85,15 +85,7 @@ ELSEIF (UNIX)
 
 ENDIF()
 
-ADD_SUBDIRECTORY(common/time)
-ADD_SUBDIRECTORY(common/base)
-ADD_SUBDIRECTORY(common/system)
-ADD_SUBDIRECTORY(common/string)
-ADD_SUBDIRECTORY(common/relative_locate)
-ADD_SUBDIRECTORY(common/concurrency)
-ADD_SUBDIRECTORY(common/hal)
 ADD_SUBDIRECTORY(src)
-ADD_SUBDIRECTORY(tests)
 
 IF (ANDROID_ABI)
     ADD_SUBDIRECTORY(thirdparty/miniglog)
