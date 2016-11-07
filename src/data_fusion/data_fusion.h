@@ -24,6 +24,9 @@
 
 using namespace std;
 
+
+namespace imu {
+
 class DataFusion
 {
 private:
@@ -226,9 +229,7 @@ private:
     double m_can_speed_R_filt_hz; //车速的低通
     StructTurnRadius m_struct_turn_radius;
     std::vector<StructTurnRadius> m_vector_turn_radius;
-    
-
 };
-
+}
 
 #endif  // DATA_FUSION_H

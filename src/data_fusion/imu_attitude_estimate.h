@@ -7,6 +7,8 @@
 #include "datafusion_math.h"
 
 
+namespace imu {
+
 class ImuAttitudeEstimate
 {
 public:
@@ -61,9 +63,7 @@ private:
     double m_gyro_range_scale;
     double m_gyro_drift[3]; // = {0.0155f, -0.0421f, -0.0217f};  // 陀螺仪零偏，在线估计    
     double m_gyro_offset[3]; // gyro calibation;
-    
-
 };
-
+}
 
 #endif  // IMU_ATTITUDE_ESTIMATE_H

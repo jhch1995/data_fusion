@@ -92,7 +92,7 @@ ADD_SUBDIRECTORY(common/string)
 ADD_SUBDIRECTORY(common/relative_locate)
 ADD_SUBDIRECTORY(common/concurrency)
 ADD_SUBDIRECTORY(common/hal)
-ADD_SUBDIRECTORY(data_fusion)
+ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(tests)
 
 IF (ANDROID_ABI)
