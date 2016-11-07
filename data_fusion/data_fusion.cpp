@@ -848,7 +848,7 @@ void DataFusion::PrintSpeedData(const int is_print_speed)
 
 // the strategy is to average 50 points over 0.5 seconds, then do it
 // again and see if the 2nd average is within a small margin of the first
-int DataFusion::GyroParameterCalibration(   double gyro_bias[3] )
+int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 {
 	double gyro_sum[3],gyro_avg[3],gyro_diff[3], accel_diff[3], last_average[3], best_avg[3], accel_start[3];
 	double gyro_diff_norm, acc_diff_norm;

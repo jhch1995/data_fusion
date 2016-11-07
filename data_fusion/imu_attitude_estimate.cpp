@@ -7,7 +7,7 @@ ImuAttitudeEstimate::ImuAttitudeEstimate()
     Initialize( );    
 }
 
-
+// TODO:待增加读取imu.flag配置文件的接口
 void ImuAttitudeEstimate::Initialize( )
 {
     m_accel_range_scale = 8.0f/32768;
@@ -27,7 +27,6 @@ void ImuAttitudeEstimate::Initialize( )
     m_A1[2][1] = 0.0064;
     m_A1[2][2] = 0.9859;
 
-    // 
 //    m_gyro_drift[0] = 0;
 //    m_gyro_drift[1] = 0;
 //    m_gyro_drift[2] = 0;

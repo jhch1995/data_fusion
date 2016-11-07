@@ -47,12 +47,12 @@ ELSEIF (UNIX)
                           concurrency relative_locate time glog gflags pthread
                           opencv_imgcodecs opencv_core opencv_highgui )
 
-    ADD_EXECUTABLE(turn_radius_test_main "./turn_radius_test_main.cpp")
-    TARGET_LINK_LIBRARIES(turn_radius_test_main data_fusion halio
+    ADD_EXECUTABLE(turn_radius_main "./turn_radius_main.cpp")
+    TARGET_LINK_LIBRARIES(turn_radius_main data_fusion halio
                           concurrency relative_locate time gflags glog 
                           opencv_imgcodecs opencv_core opencv_highgui pthread)
 
-    ADD_EXECUTABLE(imu_calibrate_main  "./imu_calibrate_main.cpp")
-    TARGET_LINK_LIBRARIES(imu_calibrate_main data_fusion halio
+    ADD_EXECUTABLE(data_fusion_test_main  "./data_fusion_test_main.cpp")
+    TARGET_LINK_LIBRARIES(data_fusion_test_main data_fusion halio
                           gflags glog opencv_core  pthread  )
 ENDIF()

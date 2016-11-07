@@ -130,7 +130,7 @@ public:
     float Raw2Degree(short raw);
 
     // 校准陀螺仪零偏
-    int GyroParameterCalibration(   double new_gyro_bias[3] );
+    int CalibrateGyroBias(   double new_gyro_bias[3] );
 
     // 外部调用接口: 预测特征点的坐标
     int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur, 

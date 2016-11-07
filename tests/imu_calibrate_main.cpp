@@ -13,20 +13,6 @@
 #include "data_fusion.h"
 #include "datafusion_math.h"
 
-
-// global variables
-static const char* program = "data_fudion_test";
-static const char* version = "0.1.0";
-static const char* usage = "Usage: %s [options]\n"
-"\n"
-"Options:\n"
-"  -h, --help                   Print this help message and exit\n"
-"  -v, --version                Print version message and exit\n"
-"  -i, --imu                    Print the imu data\n"
-"  -s, --speed                  Print the speed data\n"
-
-"\n";
-
 struct StructImuParameter
 {
    double gyro_bias[3];
@@ -34,10 +20,7 @@ struct StructImuParameter
 //   double acc_A0[3][3];
 };
 
-string g_file_addr = "./gflags.flag";
-//string g_file_addr = "/mnt/media_rw/sdcard1/imu_calibulation_paramer.ini";
-
-
+string g_file_addr; // = "./gflags.flag";
 
 #pragma pack(1)    
 struct StructImuData
@@ -68,110 +51,35 @@ int main(int argc, char *argv[])
 
     #if defined(ANDROID)
     {
-        int show_help = 0;
-        int show_version = 0;
-        int is_print_imu = 0;
-        int is_print_speed = 0;
-
-//        static struct option long_options[] = {
-//            {"help", no_argument, &show_help, 'h'},
-//            {"version", no_argument, &show_version, 'v'},
-//            {"imu", no_argument, &is_print_imu, 'i'},
-//            {"speed", no_argument, &is_print_speed, 's'},
-//            {0, 0, 0, 0}
-//        };
-
-//        while (true){
-//            // "hvi:"  :表示i后面要跟参数
-//            int opt = getopt_long(argc, argv, "hvis", long_options, NULL);
-//            if (opt == -1){
-//                break;
-//            }else if (opt == 'h'){
-//                printf(usage, program);
-//                exit(EXIT_SUCCESS);
-//            }else if (opt == 'v'){
-//                printf("%s version %s\n", program, version);
-//                exit(EXIT_SUCCESS);
-//            } else if (opt == 'i') {
-//                is_print_imu = 1;
-//            } else if (opt == 's'){            
-//                is_print_speed = 1;
-//            } else{  // 'h'
-//                fprintf(stderr, usage, program);
-//                exit(EXIT_FAILURE);
-//            }
-//        }
-
         //读取车速测试
         HalIO &halio = HalIO::Instance();
-        //bool res = halio.Init(speed_callback, MOBILEEYE);
         bool res = halio.Init(NULL, MOBILEEYE);
         if (!res) {
             std::cerr << "HALIO init fail" << std::endl;
             return -1;
         } 
-
-        if(is_print_imu){
-            printf("set is_print_imu = %d\n", is_print_imu);
-            data_fusion.PrintImuData(is_print_imu);
-        }
-
-        if(is_print_speed){
-            printf("set is_print_speed = %d\n", is_print_speed);
-            data_fusion.PrintSpeedData(is_print_speed);
-        }        
-    }
-    #else
-    {
-        #if defined(USE_GLOG)
-            FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
-            FLAGS_log_dir = "./log/";
-            google::InitGoogleLogging(argv[0]);
-        #endif
-    }            
+    }          
     #endif
 
-
-    // data_fusion.StartDataFusionTask();  
     // 校正
-    StructImuParameter imu_parameter_pre, imu_parameter_new;
-    
+    StructImuParameter imu_parameter_pre, imu_parameter_new;    
     #if defined(ANDROID)
     {
-        g_file_addr = "./imu.flag"; //  "/system/bin/imu.flag"; 
+        g_file_addr = "./imu.flag"; 
         double gyro_bias[3];
-        data_fusion.GyroParameterCalibration(gyro_bias);
-        printf("gyro_bias= %f %f %f\n", gyro_bias[0], gyro_bias[1], gyro_bias[2]);
-        
+        data_fusion.CalibrateGyroBias(gyro_bias);        
         //read_imu_calibation_parameter(&imu_parameter_pre); 
         memcpy(imu_parameter_new.gyro_bias, gyro_bias, sizeof(gyro_bias));
         wite_imu_calibation_parameter(imu_parameter_new);
 
-         // 测试gflags读取配置并修改
-         printf("origin--gyro_bias_x=%f, gyro_bias_y=%f, gyro_bias_z=%f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);        
-         google::ParseCommandLineFlags(&argc, &argv, true);
-         printf("parse--gyro_bias_x=%f, gyro_bias_y=%f, gyro_bias_z=%f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);
-         
-    }
-    #else
-    {
-         g_file_addr = "./imu.flag";
-         
-         // 测试gflags读取配置并修改
-         std::cout << "origin--gyro_bias_x : " << FLAGS_gyro_bias_x << std::endl;
-         std::cout << "origin--gyro_bias_y : " << FLAGS_gyro_bias_y << std::endl;
-         std::cout << "origin--gyro_bias_z : " << FLAGS_gyro_bias_z << std::endl;
-         
-         google::ParseCommandLineFlags(&argc, &argv, true);
-         std::cout << "parse--gyro_bias_x : " << FLAGS_gyro_bias_x << std::endl;
-         std::cout << "parse--gyro_bias_y : " << FLAGS_gyro_bias_y << std::endl;
-         std::cout << "parse--gyro_bias_z : " << FLAGS_gyro_bias_z << std::endl;    
+        // 测试gflags读取配置并修改   
+        google::ParseCommandLineFlags(&argc, &argv, true);
+        printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);         
     }
     #endif
 
-
     while(1){
-        printf(" loop\n");
+        printf("imu calibrate success!!\n");
         sleep(1); 
     }
     return 0;
@@ -200,10 +108,8 @@ int read_imu_calibation_parameter( StructImuParameter *imu_parameter)
         printf("read imu parameter %s, %f %f %f\n", data_flag.c_str(), imu_parameter->gyro_bias[0], imu_parameter->gyro_bias[1], imu_parameter->gyro_bias[2]);
     }else{
         printf("open file error!!!\n");
-    }  
-
+    }
     file_imu.close();
-
 }
 
 
@@ -211,7 +117,6 @@ int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter)
 {
     // 文件格式: gyro_bias gyro_bias[0] gyro_bias[1] gyro_bias[2]
     char buffer[100]; 
-
     // clear content
     fstream file_imu;    
     file_imu.open(g_file_addr.c_str(), std::ifstream::out | std::ifstream::trunc );
