@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
 
 #include
-INCLUDE_DIRECTORIES("${PROJECT_ROOT_PATH}/data_fusion/")
+INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/src/data_fusion/")
 IF (MSVC)
 ELSEIF (ANDROID_ABI)
     MESSAGE(STATUS "include: ANDORID platform")
@@ -36,7 +36,7 @@ IF (MSVC)
 ELSEIF(ANDROID_ABI)
     MESSAGE(STATUS "LINK: ANDROID")
     ADD_EXECUTABLE(imu_calibrate_main  "./imu_calibrate_main.cpp")
-    TARGET_LINK_LIBRARIES(imu_calibrate_main data_fusion miniglog gflags concurrency time  )
+    TARGET_LINK_LIBRARIES(data_fusion_test_main imu miniglog gflags concurrency time  )
 
 ELSEIF (UNIX) 
     MESSAGE(STATUS "LINK: UNIX") 
@@ -53,6 +53,7 @@ ELSEIF (UNIX)
                           opencv_imgcodecs opencv_core opencv_highgui pthread)
 
     ADD_EXECUTABLE(data_fusion_test_main  "./data_fusion_test_main.cpp")
-    TARGET_LINK_LIBRARIES(data_fusion_test_main data_fusion halio
+    TARGET_LINK_LIBRARIES(data_fusion_test_main imu halio
                           gflags glog opencv_core  pthread  )
+                          opencv_imgcodecs opencv_core opencv_highgui pthread  )
 ENDIF()

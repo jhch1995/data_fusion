@@ -23,6 +23,7 @@
 #include "datafusion_math.h"
    
 using namespace std;
+using namespace imu;
 
 DEFINE_string(image_name, "./1.jpg", "image_name");
 DEFINE_double(fu, 1506.64297, "fu");

@@ -8,6 +8,8 @@
 #include "common/relative_locate/linear_r3.h"
 #include "datafusion_math.h"
 
+namespace imu {
+
 class CAN_VehicleEstimate
 {
 public:
@@ -44,6 +46,6 @@ private:
     double m_yaw; // 汽车航向角(相对车道线，定时会清零)
 
 };
-
+}
 
 #endif  // CAN_VEHICLE_ESTIMATE_H

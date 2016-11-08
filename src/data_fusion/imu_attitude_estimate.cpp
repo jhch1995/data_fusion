@@ -2,6 +2,8 @@
 #include "datafusion_math.h"
 #include <stdio.h>
 
+namespace imu {
+
 ImuAttitudeEstimate::ImuAttitudeEstimate()
 {
     Initialize( );    
@@ -222,6 +224,6 @@ void ImuAttitudeEstimate::ClearGyroBias(  )
     m_gyro_drift[2] = 0;
 
 }
-
+}
 
 

@@ -44,4 +44,3 @@ ELSEIF(ANDROID_ABI)
 ELSEIF(UNIX)    
     TARGET_LINK_LIBRARIES(data_fusion halio glog gflags concurrency)
 endif()	
-
