@@ -137,30 +137,18 @@ public:
             int64_t image_timestamp_pre,
             int64_t image_timestamp_cur,
             std::vector<cv::Point2f>* vector_feature_predict);
+
     // 计算特征点预测坐标
-    int FeaturePredict( const std::vector<cv::Point2f>& vector_feature_pre , double vehicle_pos_pre[2], double att_pre[3], double angle_z_pre,
-                                 double vehicle_pos_cur[2], double att_cur[3], double angle_z_cur, std::vector<cv::Point2f>* vector_feature_predict);
+    int FeaturePredict(const std::vector<cv::Point2f>& vector_feature_pre ,
+            double vehicle_pos_pre[2], double att_pre[3], double angle_z_pre,
+            double vehicle_pos_cur[2], double att_cur[3], double angle_z_cur,
+            std::vector<cv::Point2f>* vector_feature_predict);
 
     // 外部调用接口:获取转弯半径
     int GetTurnRadius( const int64 &timestamp_search, double *R);
 
     // 计算测量的转弯半径
     void CalculateVehicleTurnRadius();
-
-    // 数据融合的线程
-    static void *ThreadRunFusion(void *p)//线程执行函数
-    {
-        DataFusion *ptr = (DataFusion *)p;
-        ptr->RunFusion(); //通过p指针间接访问类的非静态成员;
-    }
-
-    pthread_t data_fusion_id;
-    int ExecTaskRunFusion()
-    {
-        int ERR = pthread_create(&data_fusion_id, NULL, ThreadRunFusion, (void *)this); //启动线程执行例程
-        return ERR;
-    }
-
 
 private:
     // 线程
