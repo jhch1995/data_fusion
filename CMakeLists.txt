@@ -41,7 +41,7 @@ ELSEIF (UNIX)
     ADD_DEFINITIONS(-DUSE_GLOG)
     ADD_DEFINITIONS(-D__unix__) # time.h
     #ADD_DEFINITIONS(-DLOG_STD_COUT) # LOG相关函数直接输出到直接输出到std::cout
-    ADD_DEFINITIONS(-DUSE_RADIUS) # 当前进行转弯半径的调试 #MESSAGE(${USE_RADIUS})
+#    ADD_DEFINITIONS(-DUSE_RADIUS) # 当前进行转弯半径的调试 #MESSAGE(${USE_RADIUS})
 ENDIF()
 
 
