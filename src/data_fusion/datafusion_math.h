@@ -1,7 +1,7 @@
 #ifndef DATA_FUSION_MATH_H
 #define DATA_FUSION_MATH_H
 
-#include "gflags/gflags.h"
+//#include "gflags/gflags.h"
 
 #define R2D 180.0f/M_PI 
 #define D2R M_PI/180.0f
@@ -25,8 +25,8 @@
 #endif
 
 // gflog
-DECLARE_double(gyro_bias_x);
-DECLARE_double(gyro_bias_y);
-DECLARE_double(gyro_bias_z);
+//DECLARE_double(gyro_bias_x);
+//DECLARE_double(gyro_bias_y);
+//DECLARE_double(gyro_bias_z);
 
 #endif  // DATA_FUSION_MATH_H

@@ -4,8 +4,6 @@
 #include "common/relative_locate/linear_r3.h"
 #include "common/base/log_level.h"
 
-#include "datafusion_math.h"
-
 
 namespace imu {
 

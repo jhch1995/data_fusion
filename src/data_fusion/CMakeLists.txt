@@ -10,7 +10,8 @@ ELSEIF (ANDROID_ABI)
     INCLUDE_DIRECTORIES(
         "${PROJECT_ROOT_PATH}/thirdparty/miniglog/"
         "${PROJECT_ROOT_PATH}/thirdparty/gflags/android/include/"
-        "${PROJECT_ROOT_PATH}/data_fusion/"
+        "${PROJECT_ROOT_PATH}/data_fusion/src/data_fusion"
+        "${PROJECT_ROOT_PATH}"
     )
     LINK_DIRECTORIES(
         "${PROJECT_ROOT_PATH}/thirdparty/gflags/android/lib/${PLATFORM}/"
@@ -25,7 +26,7 @@ ELSEIF (UNIX)
 
     INCLUDE_DIRECTORIES(
         "${PROJECT_ROOT_PATH}"
-        "${PROJECT_ROOT_PATH}/data_fusion/"
+        "${PROJECT_ROOT_PATH}/data_fusion/src/"
         "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/include/"	
         "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/include/"
     )

@@ -12,6 +12,7 @@
 
 #include "data_fusion.h"
 #include "datafusion_math.h"
+using namespace imu;
 
 struct StructImuParameter
 {

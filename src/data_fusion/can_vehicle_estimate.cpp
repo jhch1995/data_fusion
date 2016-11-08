@@ -1,6 +1,5 @@
 #include "can_vehicle_estimate.h"
-
-using namespace common;
+#include "datafusion_math.h"
 
 namespace imu {
 

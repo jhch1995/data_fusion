@@ -23,7 +23,6 @@ ELSEIF( "${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
     SET(PLATFORM x64)
 ENDIF() 
 
-
 IF (MSVC)
 ELSEIF (ANDROID_ABI)
     ADD_DEFINITIONS(-DUSE_RADIUS) # 当前进行转弯半径的调试 #MESSAGE(${USE_RADIUS})
@@ -41,11 +40,18 @@ ELSEIF (UNIX)
     INCLUDE_DIRECTORIES("${PROJECT_ROOT_PATH}")
 ENDIF()
 
-ADD_SUBDIRECTORY(src)
+ADD_SUBDIRECTORY(common/time)
+ADD_SUBDIRECTORY(common/base)
+ADD_SUBDIRECTORY(common/system)
+ADD_SUBDIRECTORY(common/string)
+ADD_SUBDIRECTORY(common/relative_locate)
+ADD_SUBDIRECTORY(common/concurrency)
+ADD_SUBDIRECTORY(common/hal)
+
 IF (ANDROID_ABI)
-    ADD_SUBDIRECTORY(thirdparty/miniglog)
+    ADD_SUBDIRECTORY(thirdparty/miniglog)     
 ENDIF()
-ADD_SUBDIRECTORY(data_fusion)
+ADD_SUBDIRECTORY(src) 
 ADD_SUBDIRECTORY(tests)
 
 

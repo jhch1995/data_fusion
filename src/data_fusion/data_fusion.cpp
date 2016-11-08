@@ -564,8 +564,8 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
 
         if(!att_data_search_ok)
         {
-            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, nearest_time= "<<(m_vector_att.end()-1)->timestamp<<", farthest_time= "
-                           <<m_vector_att.begin()->timestamp<<endl;
+            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, nearest_time= "<<std::fixed<<(m_vector_att.end()-1)->timestamp<<", farthest_time= "
+                           <<std::fixed<<m_vector_att.begin()->timestamp<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att_length= "<<att_data_length<<", att:(ms) "<<"dt_t_cur= "
                            <<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl;
         }
@@ -631,7 +631,7 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
     is_data_search_pre_ok = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre);
     is_data_search_cur_ok = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur, &m_angle_z_cur);
 
-    VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: pre = "<<image_timestamp_pre<<", cur: "<<image_timestamp_cur<<endl;
+    VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: pre = "<<std::fixed<<image_timestamp_pre<<", cur: "<<std::fixed<<image_timestamp_cur<<endl;
     VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: dt(ms) = "<<image_timestamp_cur - image_timestamp_pre<<endl;
 
     if(is_data_search_cur_ok && is_data_search_pre_ok){
@@ -781,8 +781,8 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
         if(!R_search_ok)
         {
             VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"R timestamp stat = "<<R_search_ok<<endl;
-            VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"R, nearest_time= "<<(m_vector_turn_radius.end()-1)->timestamp<<", farthest_time= "
-                           <<m_vector_turn_radius.begin()->timestamp<<endl;
+            VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"R, nearest_time= "<<std::fixed<<(m_vector_turn_radius.end()-1)->timestamp<<", farthest_time= "
+                           <<std::fixed<<m_vector_turn_radius.begin()->timestamp<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"att_length= "<<R_data_length<<", att:(ms) "<<"dt_t_cur= "
                            <<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl;
         }
@@ -969,4 +969,5 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 	
 }
 
+}
 
