@@ -101,22 +101,41 @@ void DataFusion::StartDataFusionTask()
 // 线程循环执行的函数
 void DataFusion::RunFusion( )
 {
+    struct timeval time_counter_pre, time_counter_cur;
+    int64_t dt_counter;
+    int64_t run_fusion_period_us = 5000;// 数据生成的频率是100hz， 读取判断最好是2倍，保证数据的实时性
+        
     while (m_is_running) {
+        gettimeofday(&time_counter_pre, NULL); // 用于控制频率
         ReadData(); // 数据保存在  m_vector_imu_data
         int vector_imu_length = m_vector_imu_data.size();
-        for (int i = 0; i < vector_imu_length; i++){            
+        for (int i = 0; i < vector_imu_length; i++){     
+            // 只有当IMU有有效数据的时候，才进行fusion
             m_imu_data = *(m_vector_imu_data.begin() + i);
-
             EstimateAtt();
             EstimateVehicelState();
             CalculateVehicleTurnRadius();
+
+            // 更新数据，清除历史数据
+            DeleteOldData();  
+            DeleteOldRadiusData();
+            m_vector_imu_data.clear(); // 清空缓存的buffer
         }
-            
-        DeleteOldData();  
-        DeleteOldRadiusData();
-        m_vector_imu_data.clear(); // 清空缓存的buffer
-        usleep(1); // 1us       
-    }
+
+        // 因为在PC端，日志可能会很大, 可以考虑不进行刷新频率控制；
+        // 但是在板子上不存在这个问题，所以进行刷新频率控制，减少无意义资源占用
+        #if defined(ANDROID) || 1
+        {
+            gettimeofday(&time_counter_cur, NULL);
+            dt_counter = (time_counter_cur.tv_sec - time_counter_pre.tv_sec)*1000000 + (time_counter_cur.tv_usec - time_counter_pre.tv_usec);
+            if(dt_counter < run_fusion_period_us){   // 10ms
+                int64_t sleep_us = run_fusion_period_us - dt_counter; 
+                //printf("run fusion use time = %d\n", dt_counter);
+                usleep(sleep_us);
+            }
+        }
+        #endif
+    }  
 }
 
 
@@ -149,14 +168,14 @@ int DataFusion::ReadDataFromLog( )
     string data_flag;
     struct StructImuData imu_data;
     // 第一次运行程序，初始化m_cur_data_timestamp
-    if (m_is_first_run_read_data) {
-        getline(infile_log, buffer_log);
-        ss_tmp.clear();
-        ss_tmp.str(buffer_log);
-        ss_tmp>>log_data[0]>>log_data[1]>>data_flag;
-        m_cur_data_timestamp = log_data[0] + log_data[1]*1e-6;
-        m_is_first_run_read_data = 0;
-    }
+//    if (m_is_first_run_read_data) {
+//        getline(infile_log, buffer_log);
+//        ss_tmp.clear();
+//        ss_tmp.str(buffer_log);
+//        ss_tmp>>log_data[0]>>log_data[1]>>data_flag;
+//        m_cur_data_timestamp = log_data[0] + log_data[1]*1e-6;
+//        m_is_first_run_read_data = 0;
+//    }
 
     if(m_is_continue_read_data){
         getline(infile_log, buffer_log);
@@ -780,9 +799,9 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
 
         if(!R_search_ok)
         {
-            VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"R timestamp stat = "<<R_search_ok<<endl;
-            VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"R, nearest_time= "<<std::fixed<<(m_vector_turn_radius.end()-1)->timestamp<<", farthest_time= "
-                           <<std::fixed<<m_vector_turn_radius.begin()->timestamp<<endl;
+            VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"R timestamp_search = "<<std::fixed<<timestamp_search<<", R data_length = "<<R_data_length<<endl;
+            VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"vector_turn_radius_time= ["<<std::fixed<<m_vector_turn_radius.begin()->timestamp<<", "
+                           <<std::fixed<<(m_vector_turn_radius.end()-1)->timestamp<<"]"<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"att_length= "<<R_data_length<<", att:(ms) "<<"dt_t_cur= "
                            <<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl;
         }
