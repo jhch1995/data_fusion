@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     // 写R
     ofstream  offile_log;
     string of_log_addr = "./data/radius/radius.txt"; 
-    bool is_save_R = false; //true; // 是否将R保存为txt
+    bool is_save_R = true; //true; // 是否将R保存为txt
 
     TimeUtils f_time_counter;
     double g_R_cur;
@@ -41,8 +41,8 @@ int main(int argc, char *argv[])
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";  
     #if defined(USE_GLOG)
-        //FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
-        FLAGS_v = 0;
+        FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
+        //FLAGS_v = 0;
     #endif
 
     // 进行数据融合的类
@@ -74,7 +74,12 @@ int main(int argc, char *argv[])
             int camera_raw_timestamp[2];
             string camera_flag, camera_add, image_index_str, image_name;
             ss_log>>camera_raw_timestamp[0]>>camera_raw_timestamp[1]>>camera_flag>>camera_add>>image_index_str;
-            image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6;                     
+            image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6;    
+
+            if(image_timestamp > 1476005093.155)
+            {
+                int kk = 1;
+            }
 
             // 执行查询转弯半径
             int64_t t_1, t_2;
@@ -109,9 +114,9 @@ int main(int argc, char *argv[])
                     printf("write log file is not opened!");                
                 }
             }
-            printf("R = %f\n", g_R_cur); 
+//            printf("R = %f\n", g_R_cur); 
         } 
-        usleep(10000); // 40ms 模拟计算的板子上最快25hz的计算时间， 如果只是为了计算R，可以缩小这个限制
+        usleep(10); // 40ms 模拟计算的板子上最快25hz的计算时间， 如果只是为了计算R，可以缩小这个限制
     }
 
     offile_log.close();

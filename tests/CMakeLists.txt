@@ -26,10 +26,11 @@ ELSEIF (UNIX)
     INCLUDE_DIRECTORIES(
         #"${PROJECT_ROOT_PATH}"
         "${PROJECT_SOURCE_DIR}/src/data_fusion/"
+        "${PROJECT_SOURCE_DIR}/src/"
         "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/include/"	
         "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/include/"
     )
-    LINK_DIRECTORIES(
+    LINK_DIRECTORIES(StartDataFusionTask();
         "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/lib/x64/"
         "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/static/x64/"
     )
@@ -46,7 +47,7 @@ ELSEIF (UNIX)
     find_package(OpenCV REQUIRED)
 
     ADD_EXECUTABLE(lane_tracking_test_main "./lane_tracking_test_main.cpp")
-    TARGET_LINK_LIBRARIES(lane_tracking_test_main data_fusion halio
+    TARGET_LINK_LIBRARIES(lane_tracking_test_main imu halio
                           concurrency relative_locate time glog gflags pthread
                           opencv_imgcodecs opencv_core opencv_highgui )
 

@@ -531,6 +531,7 @@ void DataFusion::EstimateVehicelState()
     }else{
         //dt = cur_vehicle_timestamp - m_pre_vehicle_timestamp; // 暂时没用
         dt = 1/m_imu_sample_hz; // 每次IMU更新数据便计算一次
+        
         m_can_vehicle_estimate.UpdateVehicleStateImu(m_struct_att.angle_z, can_speed_data.speed, dt );
         m_pre_vehicle_timestamp = cur_vehicle_timestamp;
 
@@ -538,6 +539,10 @@ void DataFusion::EstimateVehicelState()
         m_can_vehicle_estimate.GetVehicleState(m_struct_vehicle_state.vel, m_struct_vehicle_state.pos, &(m_struct_vehicle_state.yaw));
         m_struct_vehicle_state.timestamp = cur_vehicle_timestamp;
         m_vector_vehicle_state.push_back(m_struct_vehicle_state);
+
+        VLOG(VLOG_WARNING)<<"DF:EstimateVehicelState--"<<"speed = "<<can_speed_data.speed<<endl;
+        VLOG(VLOG_WARNING)<<"DF:EstimateVehicelState--"<<"pos = "<<m_struct_vehicle_state.pos[0]<<", "<<m_struct_vehicle_state.pos[1]<<endl;
+        VLOG(VLOG_WARNING)<<"DF:EstimateVehicelState--"<<"vel = "<<m_struct_vehicle_state.vel[0]<<", "<<m_struct_vehicle_state.vel[1]<<endl;
     }
 
 }

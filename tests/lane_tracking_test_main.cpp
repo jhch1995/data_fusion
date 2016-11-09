@@ -21,6 +21,8 @@
 
 #include "data_fusion.h"
 #include "datafusion_math.h"
+#include "imu_module.h"
+
    
 using namespace std;
 using namespace imu;
@@ -103,6 +105,7 @@ DataFusion data_fusion;
 TimeUtils f_time_counter;
 
 
+
 int main(int argc, char *argv[])
 {      
     // 初始化
@@ -137,7 +140,9 @@ int main(int argc, char *argv[])
     
 
 // 初始化融合函数
-    data_fusion.StartDataFusionTask();  
+    //data_fusion.StartDataFusionTask();  
+    ImuModule::Instance().StartDataFusionTask();
+
 
 // 本地利用标注的数据测试   
     string str_image_frame_add = "data/doing/frame/";
@@ -488,7 +493,8 @@ void do_predict_feature()
     {
         // 测试运行时间
         t_1 = f_time_counter.Microseconds();
-        r_1 = data_fusion.GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
+        //r_1 = data_fusion.GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
+        r_1 = ImuModule::Instance().GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
         t_2 = f_time_counter.Microseconds();
 
         int64 predict_cal_dt = (t_2 - t_1) ;
