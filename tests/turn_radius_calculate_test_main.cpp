@@ -25,7 +25,7 @@ using namespace imu;
 int main(int argc, char *argv[])
 {   
     // 读入log
-    ifstream infile_log("data/radius/log.txt");       // 指定log的路径
+    ifstream infile_log("data/doing/log.txt");       // 指定log的路径
     string buffer_log;
     string data_flag;    
     stringstream ss_log;
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 
     // 写R
     ofstream  offile_log;
-    string of_log_addr = "./data/radius/radius.txt"; 
+    string of_log_addr = "./data/doing/radius.txt"; 
     bool is_save_R = true; //true; // 是否将R保存为txt
 
     TimeUtils f_time_counter;
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
         } 
         usleep(10); // 40ms 模拟计算的板子上最快25hz的计算时间， 如果只是为了计算R，可以缩小这个限制
     }
-
+    printf("radius calcilate over!!");
     offile_log.close();
     infile_log.close();
     

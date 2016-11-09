@@ -22,32 +22,20 @@ DataFusion::~DataFusion()
 
 void DataFusion::Init( )
 {
-    // read data from log
-    #if !defined(ANDROID)
-    {
-        #if defined(USE_RADIUS)
-        {
-            infile_log.open("data/radius/log.txt");       // ofstream
-            printf("try open \"data/radius/log.txt\"\n");
-            if(!infile_log)
-                printf("open \"data/radius/log.txt\" ERROR!!\n");
-        }
-        #else
-        {
-            infile_log.open("data/doing/log.txt");       // ofstream
-            printf("try open \"data/doing/log.txt\"\n");
-            if(!infile_log)
-                printf("open \"data/doing/log.txt\" ERROR!!\n");
-        }
-        #endif
-    }
-    #endif
-
+    
     #if defined(ANDROID)
     {
         int stste = init_gsensor();
         if(stste < 0)
             printf("DataFusion::Init--init_gsensor ERROR!!!\n");
+    }
+    #else
+    {
+        // read data from log
+        infile_log.open("data/doing/log.txt");       // ofstream
+        printf("try open \"data/doing/log.txt\"\n");
+        if(!infile_log)
+            printf("open \"data/doing/log.txt\" ERROR!!\n");        
     }
     #endif
 

@@ -43,9 +43,9 @@ DEFINE_double(y_res, 0.1, "y resolution");
 
 
 // 读入log和图片路径
-string str_image_frame_add = "data/radius/frame/";
+string str_image_frame_add = "data/doing/frame/";
 
-ifstream infile_log("data/radius/log.txt");       // 指定log的路径
+ifstream infile_log("data/doing/log.txt");       // 指定log的路径
 string buffer_log;
 string data_flag;    
 stringstream ss_log;
