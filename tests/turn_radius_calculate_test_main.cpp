@@ -17,6 +17,8 @@
 
 #include "data_fusion.h"
 #include "datafusion_math.h"
+#include "imu_module.h"
+
 
 using namespace imu;
 
@@ -46,8 +48,9 @@ int main(int argc, char *argv[])
     #endif
 
     // 进行数据融合的类
-    DataFusion data_fusion;
-    data_fusion.StartDataFusionTask();  
+//    DataFusion data_fusion;
+//    data_fusion.StartDataFusionTask();  
+    ImuModule::Instance().StartDataFusionTask();
 
     // 清空文件内容
     offile_log.open(of_log_addr.c_str(), std::ifstream::out | std::ifstream::trunc );
@@ -91,7 +94,8 @@ int main(int argc, char *argv[])
             {
                 // 测试运行时间
                 t_1 = f_time_counter.Microseconds();
-                r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &g_R_cur);        
+//                r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &g_R_cur);  
+                r_1 = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int*1000, &g_R_cur);  
                 t_2 = f_time_counter.Microseconds();
 
                 int64_t R_cal_dt = (t_2 - t_1) ;

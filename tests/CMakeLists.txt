@@ -57,7 +57,7 @@ ELSEIF (UNIX)
                           opencv_imgcodecs opencv_core opencv_highgui pthread)
 
     ADD_EXECUTABLE(turn_radius_calculate_test_main "./turn_radius_calculate_test_main.cpp")
-    TARGET_LINK_LIBRARIES(turn_radius_calculate_test_main data_fusion halio
+    TARGET_LINK_LIBRARIES(turn_radius_calculate_test_main data_fusion imu halio
                           gflags glog  pthread 
                           opencv_imgcodecs opencv_core opencv_highgui )                          
 ENDIF()
