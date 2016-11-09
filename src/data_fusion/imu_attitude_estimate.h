@@ -4,8 +4,6 @@
 #include "common/relative_locate/linear_r3.h"
 #include "common/base/log_level.h"
 
-#include "datafusion_math.h"
-
 
 namespace imu {
 
@@ -40,6 +38,12 @@ public:
     int GyrocDataCalibation(const double gyro_data_raw[3], double gyro_data_new[3] );
 
     void ResetState();    
+
+    void GetGyroBias( double gyro_bias[3] );
+    
+    void SetGyroBias( const double gyro_bias[3] );
+
+    void ClearGyroBias();
 
 
 private:
