@@ -500,6 +500,9 @@ void DataFusion::EstimateAtt()
         m_imu_attitude_estimate.GetAttitudeAngleZ(m_struct_att.att, &(m_struct_att.angle_z));
         m_struct_att.timestamp = cur_att_timestamp;
         m_vector_att.push_back(m_struct_att);
+
+        VLOG(VLOG_WARNING)<<"DF:EstimateAtt--"<<"gyro_data = "<<imu_data.gyro[0]<<", "<<imu_data.gyro[1]<<", "<<imu_data.gyro[2]<<", "<<endl;
+        VLOG(VLOG_WARNING)<<"DF:EstimateAtt--"<<"angle_z = "<<m_struct_att.angle_z<<endl;
     }
 }
 
@@ -580,8 +583,7 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
             if(dt_t_pre<0 && dt_t_cur<0)
                 VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is fall behid the timestamp_search!!!\n"<<endl;
             else if(dt_t_pre>0 && dt_t_cur>0)
-                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is ahead of the timestamp_search!!!\n"<<endl;                
-
+                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is ahead of the timestamp_search!!!\n"<<endl;  
                 
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, nearest_time= "<<std::fixed<<(m_vector_att.end()-1)->timestamp<<", farthest_time= "
                            <<std::fixed<<m_vector_att.begin()->timestamp<<endl;
