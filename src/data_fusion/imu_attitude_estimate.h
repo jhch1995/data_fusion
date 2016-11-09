@@ -1,7 +1,9 @@
 #ifndef IMU_ATTITUDE_ESTIMATE_H
 #define IMU_ATTITUDE_ESTIMATE_H
-
-#include "common/relative_locate/linear_r3.h"
+#include <vector>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
 #include "common/base/log_level.h"
 
 

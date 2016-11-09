@@ -168,8 +168,9 @@ int main(int argc, char *argv[])
                     mark_IPM_radius(ipm_para, g_R_cur, 0.9,  ipm_image );
 
                     cv::imshow("ipm", ipm_image);
-                    if(cv::waitKey(10)) // 值太小IPM图会显示黑色 ???
-                    {}                        
+                    if(cv::waitKey(10)) 
+                    {}  
+                    
 
                 }
             }                

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
 
-IF (MSVC)
+IF (WIN32)
 ELSEIF (ANDROID_ABI)
     MESSAGE(STATUS "include: ANDORID platform")
     #include directory
@@ -35,7 +35,7 @@ ELSEIF (UNIX)
     )
 ENDIF()
 
-IF (MSVC)
+IF (WIN32)
 ELSEIF(ANDROID_ABI)
     MESSAGE(STATUS "LINK: ANDROID")
     ADD_EXECUTABLE(imu_calibrate_main  "./imu_calibrate_main.cpp")

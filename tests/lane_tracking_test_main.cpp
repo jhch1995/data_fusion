@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
     get_max_min_image_index(max_frame_index, min_frame_index, frame_file_addr);
 
     // 外部lane循环控制
-    int image_cal_step = 5;// 每隔多少帧计算一次车道线预测
+    int image_cal_step = 4;// 每隔多少帧计算一次车道线预测
 
     bool is_lane_match_image = 0;    
     bool is_camera_index_mached = 0; // 是否已经从log中寻找到当前图像的匹配的时间戳

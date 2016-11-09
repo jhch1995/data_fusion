@@ -10,7 +10,7 @@
 #define GET_ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
 
-// ÉèÖÃ¹ØÓÚVLOGµÄ´òÓ¡µÈ¼¶
+// è®¾ç½®å…³äºVLOGçš„æ‰“å°ç­‰çº§
 #define VLOG_FATAL 0
 #define VLOG_ERROR 1
 #define VLOG_WARNING 2
