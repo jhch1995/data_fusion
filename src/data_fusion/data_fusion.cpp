@@ -21,8 +21,7 @@ DataFusion::~DataFusion()
 
 
 void DataFusion::Init( )
-{
-    
+{    
     #if defined(ANDROID)
     {
         int stste = init_gsensor();
@@ -547,6 +546,9 @@ void DataFusion::EstimateVehicelState()
 
 
 // 根据时间戳查找对应的数据
+// 1: 数据正常 
+// -1:int_timestamp_search < all_data_time 落后
+// -2:int_timestamp_search > all_data_time 超前
 int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z )
 {
     // m_vector_att
@@ -554,6 +556,7 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
     bool vehicle_data_search_ok = 0;
     int att_data_length = m_vector_att.size();
     double timestamp_cur, timestamp_pre, dt_t_cur, dt_t_pre, dt_t;
+    int data_search_state = 0;
 
     if(att_data_length >= 2){
         for(int i = 1; i<att_data_length; i++){
@@ -584,14 +587,16 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
             }
         }
 
-        if(!att_data_search_ok)
-        {
+        if(!att_data_search_ok){
             // 判断是什么原因没匹配上
-            if(dt_t_pre<0 && dt_t_cur<0)
+            if(dt_t_pre<0 && dt_t_cur<0){
                 VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is fall behid the timestamp_search!!!\n"<<endl;
-            else if(dt_t_pre>0 && dt_t_cur>0)
-                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is ahead of the timestamp_search!!!\n"<<endl;  
-                
+                data_search_state = -1; // vector_R中数据都落后于timestamp_search
+            }else if(dt_t_pre>0 && dt_t_cur>0){
+                 VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is ahead of the timestamp_search!!!\n"<<endl;    
+                data_search_state = -2; // vector_R中数据都早于timestamp_search
+            }            
+                          
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, nearest_time= "<<std::fixed<<(m_vector_att.end()-1)->timestamp<<", farthest_time= "
                            <<std::fixed<<m_vector_att.begin()->timestamp<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att_length= "<<att_data_length<<", att:(ms) "<<"dt_t_cur= "
@@ -627,10 +632,9 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
         if(!vehicle_data_search_ok){
             // 判断是什么原因没匹配上
             if(dt_t_pre<0 && dt_t_cur<0)
-                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is fall behid the timestamp_search!!!\n"<<endl;
+                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the vehicle_data time is fall behid the timestamp_search!!!\n"<<endl;
             else if(dt_t_pre>0 && dt_t_cur>0)
-                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is ahead of the timestamp_search!!!\n"<<endl;  
-            
+                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the vehicle_data time is ahead of the timestamp_search!!!\n"<<endl;              
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_state, nearest_time= "<<(m_vector_vehicle_state.end()-1)->timestamp
                            <<", farthest_time= "<<m_vector_vehicle_state.begin()->timestamp<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_length= "<<vehicle_data_length<<", pos:(ms) "
@@ -640,43 +644,49 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
         VLOG(VLOG_WARNING)<<"DF:GetTimestampData--"<<"!!!WARNING:vehicle data too less vehicle_data_length= "<<vehicle_data_length<<endl;
     }
 
-    if(att_data_search_ok && vehicle_data_search_ok)
+    if(att_data_search_ok && vehicle_data_search_ok){
         return 1;
-    else
-        return 0;
+    }else{
+        return data_search_state;
+    }
 }
 
 
 // 给外部调用的接口:特征点预测
+// 1: 数据正常 
+// -1:int_timestamp_search < all_data_time 落后
+// -2:int_timestamp_search > all_data_time 超前
 int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur,
                                                std::vector<cv::Point2f>* vector_feature_predict)
 {
-    bool is_data_search_cur_ok; // 搜索指定时间戳的数据是否成功
-    bool is_data_search_pre_ok;
+    int data_search_state_cur=0, data_search_state_pre = 0; // 搜索指定时间戳的数据是否成功
     double att_cur[3], att_pre[3], vehicle_pos_cur[2], vehicle_pos_pre[2];
     double image_timestamp_cur_t = image_timestamp_cur/1000.0;
     double image_timestamp_pre_t = image_timestamp_pre/1000.0;
+    int predict_state = 0;
 
     feature_rw_lock.WriterLock();
     m_call_predict_timestamp = image_timestamp_cur/1000.0; // 更新时间戳
     feature_rw_lock.Unlock();
 
     // 寻找跟需求的 timestamp对应的att,vehicle数据
-    is_data_search_pre_ok = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre);
-    is_data_search_cur_ok = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur, &m_angle_z_cur);
+    data_search_state_pre = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre);
+    data_search_state_cur = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur, &m_angle_z_cur);
 
     VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: pre(s) = "<<std::fixed<<image_timestamp_pre_t<<", cur(s): "<<std::fixed<<image_timestamp_cur_t<<endl;
     VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: dt(ms) = "<<image_timestamp_cur - image_timestamp_pre<<endl;
 
-    if(is_data_search_cur_ok && is_data_search_pre_ok){
+    if(data_search_state_cur && data_search_state_pre){
         FeaturePredict( vector_feature_pre , vehicle_pos_pre, att_pre, m_angle_z_pre, vehicle_pos_cur, att_cur, m_angle_z_pre, vector_feature_predict);
         return 1;
-    }else if(!is_data_search_pre_ok && !is_data_search_cur_ok){
-        VLOG(VLOG_WARNING)<<"DF:GetPredictFeature--"<<"warning cur & pre-camera both timestamp dismatch"<<endl;
-    }else if(!is_data_search_pre_ok && is_data_search_cur_ok){
-        VLOG(VLOG_WARNING)<<"DF:GetPredictFeature--"<<"warning pre-camera timestamp dismatch"<<endl;
-    }else if( is_data_search_pre_ok && !is_data_search_cur_ok){
-        VLOG(VLOG_WARNING)<<"DF:GetPredictFeature--"<<"warning cur-camera timestamp dismatch"<<endl;
+    }else if(data_search_state_pre == -1 || data_search_state_cur == -1){
+        VLOG(VLOG_WARNING)<<"DF:GetPredictFeature--"<<"state_pre = "<<data_search_state_pre<<"state_cur = "<<data_search_state_cur<<endl;
+        predict_state = -1;
+        return predict_state;
+    }else if(data_search_state_pre == -2 || data_search_state_cur == -2){
+        VLOG(VLOG_WARNING)<<"DF:GetPredictFeature--"<<"state_pre = "<<data_search_state_pre<<"state_cur = "<<data_search_state_cur<<endl;
+        predict_state = -2;
+        return predict_state;
     }
     return 0;
 
@@ -777,13 +787,17 @@ void DataFusion::CalculateVehicleTurnRadius()
 
 
 // 给外部调用的接口:特征点预测
+// 1: 数据正常 
+// -1:int_timestamp_search < all_data_time 落后
+// -2:int_timestamp_search > all_data_time 超前
 int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
 {
     bool R_search_ok = 0;
     int R_data_length = m_vector_turn_radius.size();
     double time_cur, time_pre, dt_t_cur, dt_t_pre, dt_t;
-    double R_t;
+    double R_t = 0;
     double timestamp_search = int_timestamp_search/1000.0;
+    int R_search_state = 0;
 
     radius_rw_lock.WriterLock();
     //m_call_radius_timestamp = timestamp_search;// 更新时间戳
@@ -810,13 +824,15 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
            }
         }
 
-        if(!R_search_ok)
-        {
+        if(!R_search_ok){
             // 判断是什么原因没匹配上
-            if(dt_t_pre<0 && dt_t_cur<0)
-                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is fall behid the timestamp_search!!!\n"<<endl;
-            else if(dt_t_pre>0 && dt_t_cur>0)
-                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is ahead of the timestamp_search!!!\n"<<endl;  
+            if(dt_t_pre<0 && dt_t_cur<0){
+                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the R data time is fall behid the timestamp_search!!!\n"<<endl;
+                R_search_state = -1; // vector_R中数据都落后于timestamp_search
+            }else if(dt_t_pre>0 && dt_t_cur>0){
+                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the R data time is ahead of the timestamp_search!!!\n"<<endl;  
+                R_search_state = -2; // vector_R中数据都早于timestamp_search
+            }
             
             VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"R timestamp_search = "<<std::fixed<<timestamp_search<<", R data_length = "<<R_data_length<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"vector_turn_radius_time= ["<<std::fixed<<m_vector_turn_radius.begin()->timestamp<<", "
@@ -830,10 +846,10 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
 
     if(R_search_ok){
         *R = R_t;
-        return 0;
+        return 1;
     }else{
         *R = 0;
-        return -1;
+        return R_search_state;
     }
 }
 
