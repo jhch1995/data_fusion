@@ -64,6 +64,13 @@ void DataFusion::Init( )
     m_data_speed_update = 0;
     m_data_image_update = 0;
 
+    m_can_speed_data.speed = 0;
+    m_can_speed_data.timestamp = 0;
+    memset(&m_imu_data, 0, sizeof(StructImuData));
+    memset(&m_image_frame_info, 0, sizeof(StructImageFrameInfo));
+    memset(&m_struct_vehicle_state, 0, sizeof(StructVehicleState));
+    memset(&m_struct_att, 0, sizeof(StructAtt));
+    memset(&m_struct_turn_radius, 0, sizeof(StructTurnRadius));    
 
     // 读取数据控制
     m_is_first_fusion_timestamp = 1; // 第一次更新
