@@ -19,7 +19,7 @@
 #include "common/relative_locate/bird_perspective_mapping.h"
 #include "common/time/time_utils.h"
 
-#include "data_fusion.h"
+//#include "data_fusion.h"
 #include "datafusion_math.h"
 #include "imu_module.h"
 
@@ -101,7 +101,7 @@ void mark_IPM_lane(cv::Mat &ipm_image, const cv::Mat lane_coeffs, const IPMPara 
 void do_predict_feature();
 
 // 进行数据融合的类
-DataFusion data_fusion;
+//DataFusion data_fusion;
 TimeUtils f_time_counter;
 
 
