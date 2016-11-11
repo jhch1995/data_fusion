@@ -32,13 +32,14 @@ void DataFusion::Init( )
     {
         // read data from log
         infile_log.open("data/doing/log.txt");       // ofstream
-        printf("try open \"data/doing/log.txt\"\n");
-        if(!infile_log)
-            printf("open \"data/doing/log.txt\" ERROR!!\n");        
+        if(!infile_log){
+            printf("open \"data/doing/log.txt\" ERROR!!\n"); 
+            // TODO:阻塞线程
+            
+        }else
+            printf("open \"data/doing/log.txt\" OK\n"); 
     }
-    #endif
-
-    m_pre_vehicle_timestamp = 0.0f; /// CAN;
+    #endif  
 
     // IMU
     m_imu_sample_hz = 100.0;
@@ -62,6 +63,7 @@ void DataFusion::Init( )
     m_data_gsensor_update = 0;
     m_data_speed_update = 0;
     m_data_image_update = 0;
+    m_pre_vehicle_timestamp = 0.0f; /// CAN;
 
     m_can_speed_data.speed = 0;
     m_can_speed_data.timestamp = 0;
@@ -161,15 +163,6 @@ int DataFusion::ReadDataFromLog( )
     double log_data[2], timestamp_raw[2];
     string data_flag;
     struct StructImuData imu_data;
-    // 第一次运行程序，初始化m_cur_data_timestamp
-//    if (m_is_first_run_read_data) {
-//        getline(infile_log, buffer_log);
-//        ss_tmp.clear();
-//        ss_tmp.str(buffer_log);
-//        ss_tmp>>log_data[0]>>log_data[1]>>data_flag;
-//        m_cur_data_timestamp = log_data[0] + log_data[1]*1e-6;
-//        m_is_first_run_read_data = 0;
-//    }
 
     if(m_is_continue_read_data){
         getline(infile_log, buffer_log);
@@ -934,8 +927,7 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
      }
 		
 	// we try to get a good calibration estimate for up to 30 seconds if the gyros are stable, we should get it in 1 second
-    for ( int j_cal_cycle = 0; j_cal_cycle <= 30*4 && num_converged<5; j_cal_cycle++) 
-	{
+    for ( int j_cal_cycle = 0; j_cal_cycle <= 30*4 && num_converged<5; j_cal_cycle++) {
 	    printf("j_cal_cycle = %d\n", j_cal_cycle);
 		gyro_diff_norm = 0.0f;
         memset(gyro_sum, 0, sizeof(gyro_sum)); 
@@ -957,10 +949,11 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 		accel_diff[2] = imu_data_t.acc[2] - accel_start[2];         
 		acc_diff_norm = sqrtf(accel_diff[0]*accel_diff[0] + accel_diff[1]*accel_diff[1] + accel_diff[2]*accel_diff[2]);
         printf("acc_diff_norm = %f\n", acc_diff_norm);
-        if (acc_diff_norm >  0.2) {
+        if (acc_diff_norm > 0.5) {
             // the accelerometers changed during the gyro sum. Skip this sample. This copes with doing gyro cal on a
             // steadily moving platform. The value 0.2 corresponds with around 5 degrees/second of rotation.
-            printf("acc_diff_norm >  0.2f\n");
+            printf("acc_diff_norm > 0.2f, please keep the device stable!!!!\n");
+            sleep(2);
             continue; // -YJ- comment
         }
 
@@ -1017,7 +1010,7 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 	} else {
 	    gyro_cal_ok = true;	
         memcpy(gyro_bias, new_gyro_offset, sizeof(new_gyro_offset));  
-        printf("gyro calibate success, bias=%d %f %f %f\n", num_converged, new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
+        printf("gyro calibate success, bias= %f %f %f\n", new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
         return 0;
 	}
 	

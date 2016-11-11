@@ -44,17 +44,17 @@ DEFINE_double(y_end_offset, 70.0, "y end offset");
 DEFINE_double(x_res, 0.04, "x resolution");
 DEFINE_double(y_res, 0.1, "y resolution");
 
-
+DEFINE_string(log_base_addr, "data/doing/", "log lane address");// 加载文件的基础路径
 
 // 读入log
-ifstream infile_log("data/doing/log.txt");       // 指定log的路径
+ifstream infile_log; //("data/doing/log.txt");       // 指定log的路径
 string buffer_log;
 string data_flag;    
 stringstream ss_log;
 stringstream ss_tmp;
 
 /// lane标注数据
-ifstream infile_lane("data/doing/lane_data.txt");       // 指定车道线标注结果的路径
+ifstream infile_lane; //("data/doing/lane_data.txt");       // 指定车道线标注结果的路径
 int m_order = 2;
 int lane_num = 2;
 int pts_num = 8;
@@ -74,7 +74,6 @@ double image_timestamp_pre;
 bool is_first_lane_predict = 1;
 
 time_t  time_predict1,  time_predict2;  
-
 
 void LoadImage(cv::Mat* image, string image_name);
 
@@ -96,7 +95,6 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path);
 // 在IPM图上画车道线
 void mark_IPM_lane(cv::Mat &ipm_image, const cv::Mat lane_coeffs, const IPMPara ipm_para, const float lane_color_value);
 
-
 // 车道线预测
 void do_predict_feature();
 
@@ -104,14 +102,16 @@ void do_predict_feature();
 DataFusion data_fusion;
 TimeUtils f_time_counter;
 
-
-
 int main(int argc, char *argv[])
-{      
-    // 初始化
+{ 
+    //解析
+    google::ParseCommandLineFlags(&argc, &argv, true);
+    printf("log_base_addr cur: %s\n", FLAGS_log_base_addr.c_str());
+
+        // 初始化
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";
-    
+
     CameraPara camera_para;
     camera_para.fu = FLAGS_fu;
     camera_para.fv = FLAGS_fv;
@@ -135,25 +135,40 @@ int main(int argc, char *argv[])
 
     // 设置VLOG打印等级
     #if defined(USE_GLOG)
-        FLAGS_v = VLOG_DEBUG;
-    #endif  
-    
+        FLAGS_v = 0; // VLOG_DEBUG;
+    #endif 
 
 // 初始化融合函数
     //data_fusion.StartDataFusionTask();  
     ImuModule::Instance().StartDataFusionTask();
 
-
 // 本地利用标注的数据测试   
-    string str_image_frame_add = "data/doing/frame/";
+    string str_image_frame_add = FLAGS_log_base_addr + "frame/";
     string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字    
     string frame_file_addr = str_image_frame_add + frame_file_name;// 获取图片的max,min index
+
+    // log.txt
+    string str_log_add = FLAGS_log_base_addr + "log.txt";
+    infile_log.open(str_log_add.c_str());
+    if (!infile_log.is_open() || infile_log.fail()){
+        infile_log.close();
+        printf("Error : failed to open infile_log(%s) file!\n", str_log_add.c_str());
+        return -1;
+    }
+
+    string str_lane_add = FLAGS_log_base_addr + "lane_data.txt";
+    infile_lane.open(str_lane_add.c_str());
+    if (!infile_lane.is_open() || infile_lane.fail()){
+        infile_lane.close();
+        printf("Error : failed to open infile_lane(%s) file!\n", str_lane_add.c_str());
+        return -1;
+    }
+
     int max_frame_index, min_frame_index;
     get_max_min_image_index(max_frame_index, min_frame_index, frame_file_addr);
 
     // 外部lane循环控制
     int image_cal_step = 4;// 每隔多少帧计算一次车道线预测
-
     bool is_lane_match_image = 0;    
     bool is_camera_index_mached = 0; // 是否已经从log中寻找到当前图像的匹配的时间戳
     for(int image_index = min_frame_index+5; image_index <= max_frame_index; image_index += image_cal_step)

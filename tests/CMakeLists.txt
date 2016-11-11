@@ -30,7 +30,7 @@ ELSEIF (UNIX)
         "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/include/"	
         "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/include/"
     )
-    LINK_DIRECTORIES(StartDataFusionTask();
+    LINK_DIRECTORIES(
         "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/lib/x64/"
         "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/static/x64/"
     )

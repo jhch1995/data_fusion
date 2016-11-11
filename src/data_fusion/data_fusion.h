@@ -24,7 +24,6 @@
 
 using namespace std;
 
-
 namespace imu {
 
 class DataFusion
@@ -162,7 +161,7 @@ private:
     string buffer_log;
     stringstream ss_log;
     stringstream ss_tmp;
-    ifstream infile_log;       // ofstream
+    ifstream infile_log;   
 
     // read data
     bool m_is_first_read_gsensor;
