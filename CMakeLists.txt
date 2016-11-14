@@ -37,6 +37,7 @@ ELSEIF (ANDROID_ABI)
         "${PROJECT_ROOT_PATH}/thirdparty/opencv/android/sdk/native/3rdparty/libs/arm64-v8a/"
     )
 ELSEIF (UNIX)
+    ADD_DEFINITIONS(-DUSE_GSENSOR_LOG)
     INCLUDE_DIRECTORIES("${PROJECT_ROOT_PATH}")
 ENDIF()
 

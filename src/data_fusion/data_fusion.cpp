@@ -11,7 +11,7 @@ DataFusion::DataFusion()
 
 DataFusion::~DataFusion()
 {
-#if !defined(ANDROID)
+#if defined(USE_GSENSOR_LOG)
     infile_log.close();
 #endif
 
@@ -22,7 +22,7 @@ DataFusion::~DataFusion()
 
 void DataFusion::Init( )
 {
-    #if defined(ANDROID)
+    #if !defined(USE_GSENSOR_LOG)
     {
         int stste = init_gsensor();
         if(stste < 0)
@@ -118,7 +118,7 @@ void DataFusion::RunFusion( )
 
         // 因为在PC端，日志可能会很大, 可以考虑不进行刷新频率控制；
         // 但是在板子上不存在这个问题，所以进行刷新频率控制，减少无意义资源占用
-        #if defined(ANDROID)
+        #if !defined(USE_GSENSOR_LOG)
         {
             gettimeofday(&time_counter_cur, NULL);
             dt_counter = (time_counter_cur.tv_sec - time_counter_pre.tv_sec)*1000000 + (time_counter_cur.tv_usec - time_counter_pre.tv_usec);
@@ -139,7 +139,7 @@ void DataFusion::RunFusion( )
 int DataFusion::ReadData( )
 {
     int rtn_state;
-    #if !defined(ANDROID)
+    #if defined(USE_GSENSOR_LOG)
     {
         //从log中离线读取数据，需要通过时间戳来确定是否要继续读取数据，更新is_continue_read_data
         UpdateRreadDataState();
@@ -406,7 +406,7 @@ void DataFusion::DeleteOldData( )
     int delete_conter = 0;
     double cur_timestamp = 0;
 
-    #if !defined(ANDROID)
+    #if defined(USE_GSENSOR_LOG)
     {
         feature_rw_lock.ReaderLock();
         cur_timestamp = m_call_predict_timestamp;
@@ -459,7 +459,7 @@ void DataFusion::DeleteOldRadiusData( )
     int R_delete_conter = 0;
     double R_cur_timestamp = 0;
 
-    #if !defined(ANDROID)
+    #if defined(USE_GSENSOR_LOG)
     {
         radius_rw_lock.ReaderLock();
         R_cur_timestamp = m_call_predict_timestamp;
