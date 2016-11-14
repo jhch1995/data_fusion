@@ -18,8 +18,9 @@
 #include "common/relative_locate/bird_perspective_mapping.h"
 #include "common/time/time_utils.h"
 
-#include "data_fusion.h"
+//#include "data_fusion.h"
 #include "datafusion_math.h"
+#include "imu_module.h"
 
 using namespace std;
 using namespace imu;
@@ -69,7 +70,7 @@ void do_get_turn_radius();
 
 
 // 进行数据融合的类
-DataFusion data_fusion;
+//DataFusion data_fusion;
 TimeUtils f_time_counter;
 double g_R_cur;
 double image_timestamp;
@@ -108,7 +109,8 @@ int main(int argc, char *argv[])
     
 
 // 初始化融合函数
-    data_fusion.StartDataFusionTask();    
+//    data_fusion.StartDataFusionTask();
+    ImuModule::Instance().StartDataFusionTask();
 
     string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字    
     string frame_file_addr = str_image_frame_add + frame_file_name;// 获取图片的max,min index
@@ -347,7 +349,8 @@ void do_get_turn_radius()
     {
         // 测试运行时间
         t_1 = f_time_counter.Microseconds();
-        r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &g_R_cur);        
+        //r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &g_R_cur);
+        r_1 = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int, &g_R_cur);
         t_2 = f_time_counter.Microseconds();
 
         int64 predict_cal_dt = (t_2 - t_1) ;
