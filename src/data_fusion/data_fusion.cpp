@@ -21,20 +21,20 @@ DataFusion::~DataFusion()
 
 
 void DataFusion::Init( )
-{    
+{
     #if defined(ANDROID)
     {
         int stste = init_gsensor();
         if(stste < 0)
-            printf("DataFusion::Init--init_gsensor ERROR!!!\n");
+            LOG(ERROR) << "DataFusion::Init--init_gsensor ERROR!!!";
     }
     #else
     {
         // read data from log
         infile_log.open("data/doing/log.txt");       // ofstream
-        printf("try open \"data/doing/log.txt\"\n");
+        LOG(ERROR) << "try open \"data/doing/log.txt\"\n";
         if(!infile_log)
-            printf("open \"data/doing/log.txt\" ERROR!!\n");        
+            VLOG(VLOG_WARNING) << "open \"data/doing/log.txt\" ERROR!!\n";
     }
     #endif
 
@@ -69,7 +69,7 @@ void DataFusion::Init( )
     memset(&m_image_frame_info, 0, sizeof(StructImageFrameInfo));
     memset(&m_struct_vehicle_state, 0, sizeof(StructVehicleState));
     memset(&m_struct_att, 0, sizeof(StructAtt));
-    memset(&m_struct_turn_radius, 0, sizeof(StructTurnRadius));    
+    memset(&m_struct_turn_radius, 0, sizeof(StructTurnRadius));
 
     // 读取数据控制
     m_is_first_fusion_timestamp = 1; // 第一次更新
@@ -98,12 +98,12 @@ void DataFusion::RunFusion( )
     struct timeval time_counter_pre, time_counter_cur;
     int64_t dt_counter;
     int64_t run_fusion_period_us = 5000;// 数据生成的频率是100hz， 读取判断最好是2倍，保证数据的实时性
-        
+
     while (m_is_running) {
         gettimeofday(&time_counter_pre, NULL); // 用于控制频率
         ReadData(); // 数据保存在  m_vector_imu_data
         int vector_imu_length = m_vector_imu_data.size();
-        for (int i = 0; i < vector_imu_length; i++){     
+        for (int i = 0; i < vector_imu_length; i++){
             // 只有当IMU有有效数据的时候，才进行fusion
             m_imu_data = *(m_vector_imu_data.begin() + i);
             EstimateAtt();
@@ -111,25 +111,25 @@ void DataFusion::RunFusion( )
             CalculateVehicleTurnRadius();
 
             // 更新数据，清除历史数据
-            DeleteOldData();  
+            DeleteOldData();
             DeleteOldRadiusData();
             m_vector_imu_data.clear(); // 清空缓存的buffer
         }
 
         // 因为在PC端，日志可能会很大, 可以考虑不进行刷新频率控制；
         // 但是在板子上不存在这个问题，所以进行刷新频率控制，减少无意义资源占用
-        #if defined(ANDROID) 
+        #if defined(ANDROID)
         {
             gettimeofday(&time_counter_cur, NULL);
             dt_counter = (time_counter_cur.tv_sec - time_counter_pre.tv_sec)*1000000 + (time_counter_cur.tv_usec - time_counter_pre.tv_usec);
             if(dt_counter < run_fusion_period_us){   // 10ms
-                int64_t sleep_us = run_fusion_period_us - dt_counter; 
+                int64_t sleep_us = run_fusion_period_us - dt_counter;
                 //printf("run fusion use time = %d\n", dt_counter);
                 usleep(sleep_us);
             }
         }
         #endif
-    }  
+    }
 }
 
 
@@ -279,7 +279,7 @@ int DataFusion::ReadImuOnline( )
             return GSENSOR_READ_AGAIN;
         else if (GSENSOR_FIFO_RESET == imu_fifo_total) {
             fifo_reseted = 1 ;// IMU FIFO 溢出
-            printf("ReadImuOnline: IMU fifo leak \n");
+            LOG(ERROR) << "ReadImuOnline: IMU fifo leak \n";
             return GSENSOR_FIFO_RESET;
         }
         else
@@ -528,7 +528,7 @@ void DataFusion::EstimateVehicelState()
     }else{
         //dt = cur_vehicle_timestamp - m_pre_vehicle_timestamp; // 暂时没用
         dt = 1/m_imu_sample_hz; // 每次IMU更新数据便计算一次
-        
+
         m_can_vehicle_estimate.UpdateVehicleStateImu(m_struct_att.angle_z, can_speed_data.speed, dt );
         m_pre_vehicle_timestamp = cur_vehicle_timestamp;
 
@@ -546,7 +546,7 @@ void DataFusion::EstimateVehicelState()
 
 
 // 根据时间戳查找对应的数据
-// 1: 数据正常 
+// 1: 数据正常
 // -1:int_timestamp_search < all_data_time 落后
 // -2:int_timestamp_search > all_data_time 超前
 int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z )
@@ -593,10 +593,10 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
                 VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is fall behid the timestamp_search!!!\n"<<endl;
                 data_search_state = -1; // vector_R中数据都落后于timestamp_search
             }else if(dt_t_pre>0 && dt_t_cur>0){
-                 VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is ahead of the timestamp_search!!!\n"<<endl;    
+                 VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the att data time is ahead of the timestamp_search!!!\n"<<endl;
                 data_search_state = -2; // vector_R中数据都早于timestamp_search
-            }            
-                          
+            }
+
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, nearest_time= "<<std::fixed<<(m_vector_att.end()-1)->timestamp<<", farthest_time= "
                            <<std::fixed<<m_vector_att.begin()->timestamp<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att_length= "<<att_data_length<<", att:(ms) "<<"dt_t_cur= "
@@ -634,7 +634,7 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
             if(dt_t_pre<0 && dt_t_cur<0)
                 VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the vehicle_data time is fall behid the timestamp_search!!!\n"<<endl;
             else if(dt_t_pre>0 && dt_t_cur>0)
-                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the vehicle_data time is ahead of the timestamp_search!!!\n"<<endl;              
+                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the vehicle_data time is ahead of the timestamp_search!!!\n"<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_state, nearest_time= "<<(m_vector_vehicle_state.end()-1)->timestamp
                            <<", farthest_time= "<<m_vector_vehicle_state.begin()->timestamp<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_length= "<<vehicle_data_length<<", pos:(ms) "
@@ -653,7 +653,7 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
 
 
 // 给外部调用的接口:特征点预测
-// 1: 数据正常 
+// 1: 数据正常
 // -1:int_timestamp_search < all_data_time 落后
 // -2:int_timestamp_search > all_data_time 超前
 int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur,
@@ -787,7 +787,7 @@ void DataFusion::CalculateVehicleTurnRadius()
 
 
 // 给外部调用的接口:特征点预测
-// 1: 数据正常 
+// 1: 数据正常
 // -1:int_timestamp_search < all_data_time 落后
 // -2:int_timestamp_search > all_data_time 超前
 int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
@@ -830,10 +830,10 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
                 VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the R data time is fall behid the timestamp_search!!!\n"<<endl;
                 R_search_state = -1; // vector_R中数据都落后于timestamp_search
             }else if(dt_t_pre>0 && dt_t_cur>0){
-                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the R data time is ahead of the timestamp_search!!!\n"<<endl;  
+                VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the R data time is ahead of the timestamp_search!!!\n"<<endl;
                 R_search_state = -2; // vector_R中数据都早于timestamp_search
             }
-            
+
             VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"R timestamp_search = "<<std::fixed<<timestamp_search<<", R data_length = "<<R_data_length<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"vector_turn_radius_time= ["<<std::fixed<<m_vector_turn_radius.begin()->timestamp<<", "
                            <<std::fixed<<(m_vector_turn_radius.end()-1)->timestamp<<"]"<<endl;
@@ -917,11 +917,11 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 
     double m_gyro_drift[3];
     m_imu_attitude_estimate.GetGyroBias(m_gyro_drift);
-    memcpy(pre_gyro_offset, m_gyro_drift, sizeof(m_gyro_drift)); 
+    memcpy(pre_gyro_offset, m_gyro_drift, sizeof(m_gyro_drift));
     m_imu_attitude_estimate.ClearGyroBias(); // bias清零
-    memset(new_gyro_offset, 0, sizeof(new_gyro_offset)); 
+    memset(new_gyro_offset, 0, sizeof(new_gyro_offset));
     memset(last_average, 0, sizeof(last_average));
-    
+
 	converged = false;
 	num_converged = 0;
 
@@ -932,15 +932,15 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
         m_vector_imu_data.clear();
         usleep(10000); // 10ms
      }
-		
+
 	// we try to get a good calibration estimate for up to 30 seconds if the gyros are stable, we should get it in 1 second
-    for ( int j_cal_cycle = 0; j_cal_cycle <= 30*4 && num_converged<5; j_cal_cycle++) 
+    for ( int j_cal_cycle = 0; j_cal_cycle <= 30*4 && num_converged<5; j_cal_cycle++)
 	{
 	    printf("j_cal_cycle = %d\n", j_cal_cycle);
 		gyro_diff_norm = 0.0f;
-        memset(gyro_sum, 0, sizeof(gyro_sum)); 
-	    memcpy(accel_start, imu_data_t.acc, sizeof(imu_data_t.acc)); 
-        
+        memset(gyro_sum, 0, sizeof(gyro_sum));
+	    memcpy(accel_start, imu_data_t.acc, sizeof(imu_data_t.acc));
+
         for ( int i=0; i<gyro_sample_num; i++) {
             ReadImuOnline();// Getting imu data
             imu_data_t = *(m_vector_imu_data.begin());
@@ -951,10 +951,10 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 			gyro_sum[2] += imu_data_t.gyro_raw[2];
             usleep(10000); // 10ms
         }
-		
+
 		accel_diff[0] = imu_data_t.acc[0] - accel_start[0];
 		accel_diff[1] = imu_data_t.acc[1] - accel_start[1];
-		accel_diff[2] = imu_data_t.acc[2] - accel_start[2];         
+		accel_diff[2] = imu_data_t.acc[2] - accel_start[2];
 		acc_diff_norm = sqrtf(accel_diff[0]*accel_diff[0] + accel_diff[1]*accel_diff[1] + accel_diff[2]*accel_diff[2]);
         printf("acc_diff_norm = %f\n", acc_diff_norm);
         if (acc_diff_norm >  0.2) {
@@ -971,40 +971,40 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 		gyro_diff[1] = last_average[1] - gyro_avg[1];
 		gyro_diff[2] = last_average[2] - gyro_avg[2];
         gyro_diff_norm = sqrtf(gyro_diff[0]*gyro_diff[0] + gyro_diff[1]*gyro_diff[1] + gyro_diff[2]*gyro_diff[2]);
-        
+
         printf("gyro_avg = %f %f %f\n", gyro_avg[0], gyro_avg[1], gyro_avg[2]);
         printf("gyro_diff_norm=%f\n", gyro_diff_norm);
-        
+
 		if (j_cal_cycle == 0){
 			best_gyro_diff = gyro_diff_norm;
-            memcpy(best_avg, gyro_avg, sizeof(gyro_avg)); 
+            memcpy(best_avg, gyro_avg, sizeof(gyro_avg));
 
         } else if (gyro_diff_norm < 0.04/57.3){
             // we want the average to be within 0.04 degrees/s
             last_average[0] = (gyro_avg[0] * 0.5f) + (last_average[0] * 0.5f);
 			last_average[1] = (gyro_avg[1] * 0.5f) + (last_average[1] * 0.5f);
-			last_average[2] = (gyro_avg[2] * 0.5f) + (last_average[2] * 0.5f);			
+			last_average[2] = (gyro_avg[2] * 0.5f) + (last_average[2] * 0.5f);
 
 			// last_average_length
 			double last_average_norm = sqrtf(last_average[0]*last_average[0] + last_average[1]*last_average[1] + last_average[2]*last_average[2]);
 			// new_gyro_offset_length
-			double new_gyro_offset_norm = sqrtf(new_gyro_offset[0]*new_gyro_offset[0] + new_gyro_offset[1]*new_gyro_offset[1] + new_gyro_offset[2]*new_gyro_offset[2]);	
+			double new_gyro_offset_norm = sqrtf(new_gyro_offset[0]*new_gyro_offset[0] + new_gyro_offset[1]*new_gyro_offset[1] + new_gyro_offset[2]*new_gyro_offset[2]);
 
 			// l_last_average < new_gyro_offset_length, the first time converged=0, so will goin the if
 			if (!converged || last_average_norm < new_gyro_offset_norm)
-                memcpy(new_gyro_offset, last_average, sizeof(last_average)); 
-        
+                memcpy(new_gyro_offset, last_average, sizeof(last_average));
+
             converged = true;
             printf("gyro calibate %d, bias= %f %f %f\n", num_converged, new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
 			if(num_converged++ >= 5)// 收敛的累计
-                break;            
+                break;
         } else if (gyro_diff_norm < best_gyro_diff) {
-            best_gyro_diff = gyro_diff_norm;			
+            best_gyro_diff = gyro_diff_norm;
             best_avg[0] = (gyro_avg[0] * 0.5f) + (last_average[0] * 0.5f);
 			best_avg[1] = (gyro_avg[1] * 0.5f) + (last_average[1] * 0.5f);
-			best_avg[2] = (gyro_avg[2] * 0.5f) + (last_average[2] * 0.5f);			
+			best_avg[2] = (gyro_avg[2] * 0.5f) + (last_average[2] * 0.5f);
         }
-        memcpy(last_average, gyro_avg, sizeof(gyro_avg)); 
+        memcpy(last_average, gyro_avg, sizeof(gyro_avg));
     }
 
 	// we've kept the user waiting long enough - use the best pair we found so far
@@ -1012,15 +1012,15 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 	    printf("gyro did not converge: diff=%f dps\n",  best_gyro_diff*57.3);
 		// flag calibration as failed for this gyro
 	    gyro_cal_ok = false;
-        memcpy(gyro_bias, best_avg, sizeof(best_avg)); 
+        memcpy(gyro_bias, best_avg, sizeof(best_avg));
         return -1;
 	} else {
-	    gyro_cal_ok = true;	
-        memcpy(gyro_bias, new_gyro_offset, sizeof(new_gyro_offset));  
+	    gyro_cal_ok = true;
+        memcpy(gyro_bias, new_gyro_offset, sizeof(new_gyro_offset));
         printf("gyro calibate success, bias=%d %f %f %f\n", num_converged, new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
         return 0;
 	}
-	
+
 }
 
 }

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 PROJECT (DATA_FUSION) # PROJECT_SOURCE_DIR
 cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
 
-SET(DEBUG 1)
+SET(DEBUG 0)
 IF(DEBUG)
     SET(CMAKE_BUILD_TYPE "Debug") 
     SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
