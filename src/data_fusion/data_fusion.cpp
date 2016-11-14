@@ -255,6 +255,7 @@ int DataFusion::ReadDataFromLog( )
             m_data_speed_update = 1;
         }
     }
+    return 1;
 }
 
 
