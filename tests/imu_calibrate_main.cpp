@@ -39,6 +39,7 @@ struct StructImuData
 DEFINE_double(gyro_bias_x, 0.00897, "imu gyro bias x ");
 DEFINE_double(gyro_bias_y, -0.0322, "imu gyro bias y ");
 DEFINE_double(gyro_bias_z, -0.0214, "imu gyro bias z ");
+DEFINE_string(imu_parameter_addr, "./imu.flag", "imu parameter address ");
 
 
 int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter);
@@ -73,8 +74,8 @@ int main(int argc, char *argv[])
         wite_imu_calibation_parameter(imu_parameter_new);
 
         // 测试gflags读取配置并修改   
-        //google::ParseCommandLineFlags(&argc, &argv, true);
-        //printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);         
+        google::ParseCommandLineFlags(&argc, &argv, true);
+        printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);         
     }
     #endif
 
@@ -129,10 +130,10 @@ int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter)
 
     file_imu.open(g_file_addr.c_str());  
     if (file_imu.is_open()) {
-//        sprintf(buffer, "--gyro_bias_x=%f\n--gyro_bias_y=%f\n--gyro_bias_z=%f\n", 
-//                imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
-          sprintf(buffer, "gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
-        file_imu << buffer; 
+        sprintf(buffer, "--gyro_bias_x=%f\n--gyro_bias_y=%f\n--gyro_bias_z=%f\n", 
+                imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
+//          sprintf(buffer, "gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
+//        file_imu << buffer; 
         printf("write new gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0], imu_parameter.gyro_bias[1], imu_parameter.gyro_bias[2] );
     }else{
         printf("write new gyro_bias failed!!\n");

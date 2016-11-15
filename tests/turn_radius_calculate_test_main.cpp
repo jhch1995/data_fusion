@@ -17,7 +17,7 @@
 
 #include "data_fusion.h"
 #include "datafusion_math.h"
-#include "imu_module.h"
+//#include "imu_module.h"
 
 
 using namespace imu;
@@ -46,11 +46,13 @@ int main(int argc, char *argv[])
         FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
         //FLAGS_v = 0;
     #endif
+    
+//    printf("test %f %f\n", -1.0, abs(-1.0));
 
     // 进行数据融合的类
-//    DataFusion data_fusion;
-//    data_fusion.StartDataFusionTask();  
-    ImuModule::Instance().StartDataFusionTask();
+    DataFusion data_fusion;
+    data_fusion.StartDataFusionTask();  
+//    ImuModule::Instance().StartDataFusionTask();
 
     // 清空文件内容
     offile_log.open(of_log_addr.c_str(), std::ifstream::out | std::ifstream::trunc );
@@ -85,8 +87,8 @@ int main(int argc, char *argv[])
             while(r_1<0){
                 // 测试运行时间
                 t_1 = f_time_counter.Microseconds();
-//                r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &R_cur);  
-                r_1 = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int*1000, &R_cur);  
+                r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &R_cur);  
+//                r_1 = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int*1000, &R_cur);  
                 t_2 = f_time_counter.Microseconds();
 
                 int64_t R_cal_dt = (t_2 - t_1) ;
@@ -99,10 +101,15 @@ int main(int argc, char *argv[])
                 main_sleep_counter++;       
             }
 
+            bool is_R_ok = false;
+            if(r_1 == 1 ){
+                is_R_ok = true;
+            }
+            
             if(is_save_R){
                 char buffer[100];
                 if (offile_log.is_open()) {
-                    sprintf(buffer, "%d %d %s %s %f\n", camera_raw_timestamp[0], camera_raw_timestamp[1], camera_add.c_str(), image_index_str.c_str(), R_cur);
+                    sprintf(buffer, "%d %d %s %s %f %d\n", camera_raw_timestamp[0], camera_raw_timestamp[1], camera_add.c_str(), image_index_str.c_str(), R_cur, is_R_ok);
                     offile_log << buffer; 
                 }else{
                     printf("write log file is not opened!");                

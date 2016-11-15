@@ -46,18 +46,18 @@ ELSEIF (UNIX)
     MESSAGE(STATUS "LINK: UNIX") 
     find_package(OpenCV REQUIRED)
 
-    ADD_EXECUTABLE(lane_tracking_test_main "./lane_tracking_test_main.cpp")
-    TARGET_LINK_LIBRARIES(lane_tracking_test_main imu halio
+    ADD_EXECUTABLE(lane_tracking_test "./lane_tracking_test_main.cpp")
+    TARGET_LINK_LIBRARIES(lane_tracking_test data_fusion halio
                           concurrency relative_locate time glog gflags pthread
                           opencv_imgcodecs opencv_core opencv_highgui )
 
-    ADD_EXECUTABLE(turn_radius_ipm_test_main "./turn_radius_ipm_test_main.cpp")
-    TARGET_LINK_LIBRARIES(turn_radius_ipm_test_main data_fusion halio
+    ADD_EXECUTABLE(turn_radius_ipm_test "./turn_radius_ipm_test_main.cpp")
+    TARGET_LINK_LIBRARIES(turn_radius_ipm_test data_fusion halio
                           concurrency relative_locate time gflags glog 
                           opencv_imgcodecs opencv_core opencv_highgui pthread)
 
-    ADD_EXECUTABLE(turn_radius_calculate_test_main "./turn_radius_calculate_test_main.cpp")
-    TARGET_LINK_LIBRARIES(turn_radius_calculate_test_main data_fusion imu halio
+    ADD_EXECUTABLE(turn_radius_calculate_test "./turn_radius_calculate_test_main.cpp")
+    TARGET_LINK_LIBRARIES(turn_radius_calculate_test data_fusion halio
                           gflags glog  pthread 
                           opencv_imgcodecs opencv_core opencv_highgui )                          
 ENDIF()

@@ -57,6 +57,7 @@ void DataFusion::Init( )
     m_gyro_R_filt_hz = 2.0;
     m_can_speed_R_filt_hz = 2.0;
     m_call_radius_timestamp = 0;
+    m_is_R_ok = false;
 
     // read data
     m_is_first_read_gsensor = 1;
@@ -766,10 +767,26 @@ void DataFusion::CalculateVehicleTurnRadius()
     StructCanSpeedData can_speed_data;
     memcpy(&can_speed_data, &m_can_speed_data, sizeof(StructCanSpeedData));
 
-    if(fabs(gyro_filter_R[2])>0.01 && fabs(can_speed_data.speed)>15/3.6)
-        R = can_speed_data.speed/gyro_filter_R[2];
-    else // 太小的速度和角速度
+    m_struct_turn_radius.is_R_ok = false;
+    if(fabs(gyro_filter_R[2]) < 30/57.3 && fabs(imu_data.gyro_raw[2]) < 30/57.3 && fabs(imu_data.acc_raw[2])<25){
+        if(fabs(gyro_filter_R[2])>0.01 && fabs(can_speed_data.speed)>15/3.6){
+            R = can_speed_data.speed/gyro_filter_R[2];
+        }else // 太小的速度和角速度
+            R = 0;
+        
+        if( fabs(R)>20){
+            m_struct_turn_radius.is_R_ok= true;
+        }else{            
+            R = 0;            
+            m_struct_turn_radius.is_R_ok= false;
+        }
+    }else{
+        m_struct_turn_radius.is_R_ok = false;
         R = 0;
+    }
+
+    if(R>-6.8 && R<-4.0)
+        int tt = 111;
 
     // save R
     m_struct_turn_radius.timestamp = imu_data.timestamp;
@@ -791,6 +808,7 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
     double R_t = 0;
     double timestamp_search = int_timestamp_search/1000.0;
     int R_search_state = 0;
+    bool is_R_ok = false;
 
     radius_rw_lock.WriterLock();
     //m_call_radius_timestamp = timestamp_search;// 更新时间戳
@@ -813,6 +831,8 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
                d_R = R_cur - R_pre;
                R_t = R_pre + (fabs(dt_t_pre)/fabs(dt_t))*d_R;// 线性插值
                R_search_ok = 1;
+
+               is_R_ok = (m_vector_turn_radius.end()-i)->is_R_ok && (m_vector_turn_radius.end()-i-1)->is_R_ok;
                break;
            }
         }
@@ -837,12 +857,17 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
         VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"!!!WARNING:radius data too less length= "<<R_data_length<<endl;
     }
 
-    if(R_search_ok){
-        *R = R_t;
-        return 1;
+    if( is_R_ok ){
+        if(R_search_ok){
+            *R = R_t;
+            return 1;
+        }else{
+            *R = 0;
+            return R_search_state;
+        }
     }else{
         *R = 0;
-        return R_search_state;
+        return 3;
     }
 }
 

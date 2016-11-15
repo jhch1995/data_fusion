@@ -21,7 +21,7 @@
 
 #include "data_fusion.h"
 #include "datafusion_math.h"
-#include "imu_module.h"
+//#include "imu_module.h"
 
    
 using namespace std;
@@ -102,11 +102,20 @@ void do_predict_feature();
 DataFusion data_fusion;
 TimeUtils f_time_counter;
 
+// gflog
+DEFINE_double(gyro_bias_x, 0.00897, "imu gyro bias x ");
+DEFINE_double(gyro_bias_y, -0.0322, "imu gyro bias y ");
+DEFINE_double(gyro_bias_z, -0.0214, "imu gyro bias z ");
+DEFINE_double(d_test, -1, "imu gyro bias z ");
+
 int main(int argc, char *argv[])
 { 
     //解析
     google::ParseCommandLineFlags(&argc, &argv, true);
     printf("log_base_addr cur: %s\n", FLAGS_log_base_addr.c_str());
+
+    printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);
+    printf("FLAG: d_test= %f\n", FLAGS_d_test); 
 
         // 初始化
     google::InitGoogleLogging(argv[0]);
@@ -139,8 +148,8 @@ int main(int argc, char *argv[])
     #endif 
 
 // 初始化融合函数
-    //data_fusion.StartDataFusionTask();  
-    ImuModule::Instance().StartDataFusionTask();
+    data_fusion.StartDataFusionTask();  
+//    ImuModule::Instance().StartDataFusionTask();
 
 // 本地利用标注的数据测试   
     string str_image_frame_add = FLAGS_log_base_addr + "frame/";
@@ -508,8 +517,8 @@ void do_predict_feature()
     {
         // 测试运行时间
         t_1 = f_time_counter.Microseconds();
-        //r_1 = data_fusion.GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
-        r_1 = ImuModule::Instance().GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
+        r_1 = data_fusion.GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
+//        r_1 = ImuModule::Instance().GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
         t_2 = f_time_counter.Microseconds();
 
         int64 predict_cal_dt = (t_2 - t_1) ;
