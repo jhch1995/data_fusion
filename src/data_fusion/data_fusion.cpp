@@ -776,7 +776,9 @@ void DataFusion::CalculateVehicleTurnRadius()
         
         if( fabs(R)>20){
             m_struct_turn_radius.is_R_ok= true;
-        }else{            
+        }else if(R == 0){ 
+            m_struct_turn_radius.is_R_ok= true;
+        }else{           
             R = 0;            
             m_struct_turn_radius.is_R_ok= false;
         }

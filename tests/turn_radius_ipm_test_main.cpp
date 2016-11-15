@@ -103,7 +103,8 @@ int main(int argc, char *argv[])
 
     // 设置VLOG打印等级
     #if defined(USE_GLOG)
-        FLAGS_v = VLOG_DEBUG;
+//        FLAGS_v = VLOG_DEBUG;
+        FLAGS_v = 0;
     #endif  
     
 
