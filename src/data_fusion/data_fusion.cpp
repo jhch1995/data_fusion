@@ -11,7 +11,7 @@ DataFusion::DataFusion()
 
 DataFusion::~DataFusion()
 {
-#if defined(USE_GSENSOR_LOG)
+#if defined(DATA_FROM_LOG)
     infile_log.close();
 #endif
 
@@ -22,7 +22,7 @@ DataFusion::~DataFusion()
 
 void DataFusion::Init( )
 {
-    #if !defined(USE_GSENSOR_LOG)
+    #if !defined(DATA_FROM_LOG)
     {
         int stste = init_gsensor();
         if(stste < 0)
@@ -53,15 +53,17 @@ void DataFusion::Init( )
 
     // 转弯半径R
     m_is_first_R_filter = 1;
-    m_gyro_R_filt_hz = 2.0;
-    m_can_speed_R_filt_hz = 2.0;
+    m_gyro_R_filt_hz = 0.2;
+    m_can_speed_R_filt_hz = 1.0;
     m_call_radius_timestamp = 0;
+    m_is_R_ok = false;
 
     // read data
     m_is_first_read_gsensor = 1;
     m_data_gsensor_update = 0;
     m_data_speed_update = 0;
     m_data_image_update = 0;
+    m_pre_vehicle_timestamp = 0.0f; /// CAN;
 
     m_can_speed_data.speed = 0;
     m_can_speed_data.timestamp = 0;
@@ -118,7 +120,7 @@ void DataFusion::RunFusion( )
 
         // 因为在PC端，日志可能会很大, 可以考虑不进行刷新频率控制；
         // 但是在板子上不存在这个问题，所以进行刷新频率控制，减少无意义资源占用
-        #if !defined(USE_GSENSOR_LOG)
+        #if !defined(DATA_FROM_LOG)
         {
             gettimeofday(&time_counter_cur, NULL);
             dt_counter = (time_counter_cur.tv_sec - time_counter_pre.tv_sec)*1000000 + (time_counter_cur.tv_usec - time_counter_pre.tv_usec);
@@ -139,7 +141,7 @@ void DataFusion::RunFusion( )
 int DataFusion::ReadData( )
 {
     int rtn_state;
-    #if defined(USE_GSENSOR_LOG)
+    #if defined(DATA_FROM_LOG)
     {
         //从log中离线读取数据，需要通过时间戳来确定是否要继续读取数据，更新is_continue_read_data
         UpdateRreadDataState();
@@ -161,15 +163,6 @@ int DataFusion::ReadDataFromLog( )
     double log_data[2], timestamp_raw[2];
     string data_flag;
     struct StructImuData imu_data;
-    // 第一次运行程序，初始化m_cur_data_timestamp
-//    if (m_is_first_run_read_data) {
-//        getline(infile_log, buffer_log);
-//        ss_tmp.clear();
-//        ss_tmp.str(buffer_log);
-//        ss_tmp>>log_data[0]>>log_data[1]>>data_flag;
-//        m_cur_data_timestamp = log_data[0] + log_data[1]*1e-6;
-//        m_is_first_run_read_data = 0;
-//    }
 
     if(m_is_continue_read_data){
         getline(infile_log, buffer_log);
@@ -407,7 +400,7 @@ void DataFusion::DeleteOldData( )
     int delete_conter = 0;
     double cur_timestamp = 0;
 
-    #if defined(USE_GSENSOR_LOG)
+    #if defined(DATA_FROM_LOG)
     {
         feature_rw_lock.ReaderLock();
         cur_timestamp = m_call_predict_timestamp;
@@ -460,7 +453,7 @@ void DataFusion::DeleteOldRadiusData( )
     int R_delete_conter = 0;
     double R_cur_timestamp = 0;
 
-    #if defined(USE_GSENSOR_LOG)
+    #if defined(DATA_FROM_LOG)
     {
         radius_rw_lock.ReaderLock();
         R_cur_timestamp = m_call_predict_timestamp;
@@ -774,10 +767,27 @@ void DataFusion::CalculateVehicleTurnRadius()
     StructCanSpeedData can_speed_data;
     memcpy(&can_speed_data, &m_can_speed_data, sizeof(StructCanSpeedData));
 
-    if(fabs(gyro_filter_R[2])>0.01 && fabs(can_speed_data.speed)>15/3.6)
-        R = can_speed_data.speed/gyro_filter_R[2];
-    else // 太小的速度和角速度
+    m_struct_turn_radius.is_R_ok = false;
+    if(fabs(gyro_filter_R[2]) < 30/57.3 && fabs(imu_data.gyro_raw[2]) < 30/57.3 && fabs(imu_data.acc_raw[2])<25){
+        if(fabs(gyro_filter_R[2])>0.002 && fabs(can_speed_data.speed)>15/3.6){
+            R = can_speed_data.speed/gyro_filter_R[2];
+        }else // 太小的速度和角速度
+            R = 0;
+        
+        if( fabs(R)>20){
+            m_struct_turn_radius.is_R_ok= true;
+        }else if(R == 0){ 
+            m_struct_turn_radius.is_R_ok= true;
+        }else{           
+            R = 0;            
+            m_struct_turn_radius.is_R_ok= false;
+        }
+    }else{
+        m_struct_turn_radius.is_R_ok = false;
         R = 0;
+    }
+
+
 
     // save R
     m_struct_turn_radius.timestamp = imu_data.timestamp;
@@ -799,6 +809,7 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
     double R_t = 0;
     double timestamp_search = int_timestamp_search/1000.0;
     int R_search_state = 0;
+    bool is_R_ok = false;
 
     radius_rw_lock.WriterLock();
     //m_call_radius_timestamp = timestamp_search;// 更新时间戳
@@ -821,6 +832,8 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
                d_R = R_cur - R_pre;
                R_t = R_pre + (fabs(dt_t_pre)/fabs(dt_t))*d_R;// 线性插值
                R_search_ok = 1;
+
+               is_R_ok = (m_vector_turn_radius.end()-i)->is_R_ok && (m_vector_turn_radius.end()-i-1)->is_R_ok;
                break;
            }
         }
@@ -845,12 +858,17 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
         VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"!!!WARNING:radius data too less length= "<<R_data_length<<endl;
     }
 
-    if(R_search_ok){
-        *R = R_t;
-        return 1;
+    if( is_R_ok ){
+        if(R_search_ok){
+            *R = R_t;
+            return 1;
+        }else{
+            *R = 0;
+            return R_search_state;
+        }
     }else{
         *R = 0;
-        return R_search_state;
+        return 3;
     }
 }
 
@@ -935,8 +953,7 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
      }
 
 	// we try to get a good calibration estimate for up to 30 seconds if the gyros are stable, we should get it in 1 second
-    for ( int j_cal_cycle = 0; j_cal_cycle <= 30*4 && num_converged<5; j_cal_cycle++)
-	{
+    for ( int j_cal_cycle = 0; j_cal_cycle <= 30*4 && num_converged<5; j_cal_cycle++) {
 	    printf("j_cal_cycle = %d\n", j_cal_cycle);
 		gyro_diff_norm = 0.0f;
         memset(gyro_sum, 0, sizeof(gyro_sum));
@@ -958,10 +975,11 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 		accel_diff[2] = imu_data_t.acc[2] - accel_start[2];
 		acc_diff_norm = sqrtf(accel_diff[0]*accel_diff[0] + accel_diff[1]*accel_diff[1] + accel_diff[2]*accel_diff[2]);
         printf("acc_diff_norm = %f\n", acc_diff_norm);
-        if (acc_diff_norm >  0.2) {
+        if (acc_diff_norm > 0.5) {
             // the accelerometers changed during the gyro sum. Skip this sample. This copes with doing gyro cal on a
             // steadily moving platform. The value 0.2 corresponds with around 5 degrees/second of rotation.
-            printf("acc_diff_norm >  0.2f\n");
+            printf("acc_diff_norm > 0.2f, please keep the device stable!!!!\n");
+            sleep(2);
             continue; // -YJ- comment
         }
 
@@ -1018,7 +1036,7 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 	} else {
 	    gyro_cal_ok = true;
         memcpy(gyro_bias, new_gyro_offset, sizeof(new_gyro_offset));
-        printf("gyro calibate success, bias=%d %f %f %f\n", num_converged, new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
+        printf("gyro calibate success, bias= %f %f %f\n", new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
         return 0;
 	}
 
