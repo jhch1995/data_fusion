@@ -22,7 +22,7 @@ struct StructImuParameter
 //   double acc_A0[3][3];
 };
 
-string g_file_addr = "/system/bin/imu_paramer.flag";  // = "./gflags.flag";
+string g_file_addr = "/storage/sdcard0/imu/imu.flag";  // = "./gflags.flag";
 
 #pragma pack(1)    
 struct StructImuData
@@ -134,7 +134,7 @@ int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter)
         sprintf(buffer, "--gyro_bias_x=%f\n--gyro_bias_y=%f\n--gyro_bias_z=%f\n", 
                 imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
 //          sprintf(buffer, "gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
-//        file_imu << buffer; 
+        file_imu << buffer; 
         printf("write new gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0], imu_parameter.gyro_bias[1], imu_parameter.gyro_bias[2] );
     }else{
         printf("write new gyro_bias failed!!\n");

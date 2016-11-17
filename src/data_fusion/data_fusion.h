@@ -49,7 +49,7 @@ private:
     {
         double timestamp;
         double R;
-        bool is_R_ok;
+        bool is_imu_value_ok;
     };
 
     struct StructImageFrameInfo
@@ -165,6 +165,7 @@ private:
     ifstream infile_log;   
 
     // read data
+    bool m_init_state; // 初始化是否正常
     bool m_is_first_read_gsensor;
     bool m_data_gsensor_update; // 分别对应的数据是否已经更新
     bool m_data_speed_update;

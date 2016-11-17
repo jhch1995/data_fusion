@@ -30,7 +30,7 @@ void ImuAttitudeEstimate::Initialize( )
     m_A1[2][1] = 0.0064;
     m_A1[2][2] = 0.9859;
 
-    ReadGyroBias();
+    //ReadGyroBias();
 
 //    m_gyro_drift[0] = 0;
 //    m_gyro_drift[1] = 0;

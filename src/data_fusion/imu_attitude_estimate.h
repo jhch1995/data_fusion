@@ -9,6 +9,7 @@
 #include <vector>
 #include <math.h>
 #include <stdio.h>
+#include "gflags/gflags.h"
 #include "common/base/log_level.h"
 #include "datafusion_math.h"
 
