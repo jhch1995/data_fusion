@@ -11,7 +11,8 @@ CAN_VehicleEstimate::CAN_VehicleEstimate()
     m_k_steer2wheel_angle = 0.07f;
     m_virtual_front_angle = 0.0f;
     m_fai = 0.0f;
-
+    m_yaw = 0;
+    m_beta = 0;
     m_vehicle_vel[0] = 0.0f;
     m_vehicle_vel[1] = 0.0f;
 
