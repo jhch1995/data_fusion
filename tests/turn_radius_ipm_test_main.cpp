@@ -104,7 +104,8 @@ int main(int argc, char *argv[])
 
     // 设置VLOG打印等级
     #if defined(USE_GLOG)
-        FLAGS_v = VLOG_DEBUG;
+//        FLAGS_v = VLOG_DEBUG;
+        FLAGS_v = 0;
     #endif  
     
 
@@ -121,12 +122,10 @@ int main(int argc, char *argv[])
     int image_index_start = 1000;
     int image_cal_step = 2;// 每隔多少帧计算一次  
     bool is_camera_index_mached = 0; // 是否已经从log中寻找到当前图像的匹配的时间戳
-    for(int image_index = image_index_start; image_index <= max_frame_index; image_index += image_cal_step)
-    {
+    for(int image_index = image_index_start; image_index <= max_frame_index; image_index += image_cal_step){
         is_camera_index_mached = 0;
         double log_data_t[2];
-        while(!is_camera_index_mached)
-        {
+        while(!is_camera_index_mached){
             getline(infile_log, buffer_log);
             ss_tmp.clear();
             ss_tmp.str(buffer_log);
@@ -134,8 +133,7 @@ int main(int argc, char *argv[])
             ss_log.clear();
             ss_log.str(buffer_log);
 
-            if(data_flag == "cam_frame")
-            {
+            if(data_flag == "cam_frame"){
                 double camera_raw_timestamp[2];
                 string camera_flag, camera_add, image_index_str;
                 string image_name;
@@ -147,8 +145,7 @@ int main(int argc, char *argv[])
                 int pos1 = camera_add.find_last_of('_');
                 int pos2 = camera_add.find_last_of('.');
                 string log_str_file_name = camera_add.substr(pos1+1, pos2-1-pos1);
-                if(log_str_file_name.compare(frame_file_name) == 0 && log_image_index ==  image_index)
-                {
+                if(log_str_file_name.compare(frame_file_name) == 0 && log_image_index ==  image_index){
                     is_camera_index_mached = 1;
                     VLOG(VLOG_INFO)<<"image_index: "<<image_index;
                     
@@ -170,10 +167,8 @@ int main(int argc, char *argv[])
                     mark_IPM_radius(ipm_para, g_R_cur, 0.9,  ipm_image );
 
                     cv::imshow("ipm", ipm_image);
-                    if(cv::waitKey(10)) 
+                    if(cv::waitKey(30)) 
                     {}  
-                    
-
                 }
             }                
         }     
@@ -205,20 +200,17 @@ string get_file_name(string file_path)
     if((dp=opendir(filePath))==NULL)
         printf("can't open %s", filePath);
     
-    while(((dirp=readdir(dp))!=NULL))
-    {
+    while(((dirp=readdir(dp))!=NULL)){
          if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))
             continue;
         file_name_t = dirp->d_name;
         printf("%d: %s\n ",++n, file_name_t);
     }
 
-    if(n == 1)
-    {
+    if(n == 1){
         string str_file_name(file_name_t);
         return str_file_name;
-    }else
-    {
+    }else{
         printf("error: too many files!!! \n");
         return 0;
     }  
@@ -232,27 +224,23 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
     char *file_name_t;
     bool is_first_time = 1;
     const char *filePath = file_path.data();
-    if((dp=opendir(filePath))==NULL)
-    {
+    if((dp=opendir(filePath))==NULL){
         printf("can't open %s", filePath); 
         return 0;
     }       
 
-    while(((dirp=readdir(dp))!=NULL))
-    {
+    while(((dirp=readdir(dp))!=NULL)){
         if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))
            continue;
         
         file_name_t = dirp->d_name;
         string str_name(file_name_t);
         int number = std::atoi( str_name.c_str());
-        if(is_first_time)
-        {
+        if(is_first_time){
             is_first_time = 0;
             max_index = number;
             min_index = number;
-        }else
-        {
+        }else{
             if(number > max_index)
                 max_index = number;
             if(number < min_index)
@@ -268,11 +256,9 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
 // 图片IPM
 void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
 {
-    for (int i = 0; i < ipm_para.height; ++i) 
-    {
+    for (int i = 0; i < ipm_para.height; ++i){
         int base = i * ipm_para.width;
-        for (int j = 0; j < ipm_para.width; ++j) 
-        {
+        for (int j = 0; j < ipm_para.width; ++j){
             int offset = base + j;
             float ui = ipm_para.uv_grid.at<float>(0, offset);
             float vi = ipm_para.uv_grid.at<float>(1, offset);
@@ -298,41 +284,26 @@ void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  c
     int u, v;
 
     if(R == 0)
-    {
         y_max_t = ipm_para.y_limits[1];  // IPM 横向是x
-    }
     else
-    {
          y_max_t = min(ipm_para.y_limits[1], fabs(R));
-    }
     
-    for (double y_t = ipm_para.y_limits[0]; y_t < y_max_t; y_t+=ipm_para.y_scale) // x
-    {
+    for (double y_t = ipm_para.y_limits[0]; y_t < y_max_t; y_t+=ipm_para.y_scale) {
         if(R > 0)
-        {
             x_t = R - sqrt(R*R - y_t*y_t);
-        }
         else if(R < 0)
-        {
             x_t = R + sqrt(R*R - y_t*y_t);
-        }
         else
-        {
             x_t = 0;
-        }
 
         u = (-y_t + ipm_para.y_limits[1])/ipm_para.y_scale;
         v = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;       
         
 
         if (v < 0 || v > ipm_para.width )
-        {
            continue;
-        }
         else
-        {
-           ipm_image.at<float>(u, v) = val;
-        }            
+           ipm_image.at<float>(u, v) = val;        
     }
 }
 
@@ -345,24 +316,22 @@ void do_get_turn_radius()
 
     int r_1 = -1;
     int main_sleep_counter = 0; //  一次外部调用，main sleep的次数
-    while(r_1<0)
-    {
+    while(r_1<0){
         // 测试运行时间
         t_1 = f_time_counter.Microseconds();
         //r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &g_R_cur);
-        r_1 = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int, &g_R_cur);
+        r_1 = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int*1000, &g_R_cur);
         t_2 = f_time_counter.Microseconds();
 
         int64 predict_cal_dt = (t_2 - t_1) ;
         VLOG(VLOG_INFO)<<"DF:main- "<<"predict_cal_dt= "<<predict_cal_dt<<endl; 
         
-        if(main_sleep_counter > 0)
-        {            
+        if(main_sleep_counter > 0){            
             printf("main timestamp diamatch conunter:%d, match state= %d, so sleep\n", main_sleep_counter, r_1);
             sleep(1);
         }
         main_sleep_counter++;       
     }       
-    printf("R = %f\n", g_R_cur);   
+//    printf("R = %f\n", g_R_cur);   
        
 }

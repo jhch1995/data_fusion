@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8.2)
 PROJECT(DATA_FUSION) # PROJECT_ROOT_PATH
-#cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
+cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
+SET(DEBUG 1)
 
 IF (ANDROID_ABI)
     SET(CMAKE_CXX_FLAGS_RELEASE "-Wall -Wno-unused-result -Wno-unused-but-set-variable -Wno-unused-variable -O3 -std=gnu++0x")
@@ -9,6 +10,7 @@ ELSEIF(UNIX)
     SET(CMAKE_CXX_FLAGS_RELEASE "-Wall -Wno-unused-result -Wno-unused-but-set-variable -Wno-unused-variable -O3 -std=gnu++0x")
     SET(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wno-unused-result -Wno-unused-but-set-variable -Wno-unused-variable -g -std=gnu++0x")
 ENDIF ()
+
 
 SET(PROJECT_ROOT_PATH "${CMAKE_SOURCE_DIR}")
 MESSAGE(STATUS ${PROJECT_ROOT_PATH})
@@ -28,16 +30,13 @@ IF (MSVC)
 ELSEIF (ANDROID_ABI)
     MESSAGE(STATUS "DEFINE: ANDORID platform")
     ADD_DEFINITIONS(-DANDROID)
-    ADD_DEFINITIONS(-DUSE_GLOG)
-    ADD_DEFINITIONS(-DUSE_RADIUS) # 当前进行转弯半径的调试 #MESSAGE(${USE_RADIUS})
     ADD_CUSTOM_TARGET(MINIEYE_VERSION COMMAND ${SCRIPTS_PATH}/version.sh |tee ${PROJECT_ROOT_PATH}/version.h.in)
 ELSEIF (UNIX)
     MESSAGE(STATUS "DEFINE: UNIX platform")
     SET(OpenCV_DIR "/opt/opencv/default/share/OpenCV")
     FIND_PACKAGE(OpenCV REQUIRED)
-    ADD_DEFINITIONS(-DDATA_FROM_LOG)
-    ADD_DEFINITIONS(-DUSE_GLOG)
-    ADD_DEFINITIONS(-DUSE_GSENSOR_LOG)
+    ADD_DEFINITIONS(-DUSE_GLOG)    
+    ADD_DEFINITIONS(-DDATA_FROM_LOG) # read data from log    
 ENDIF ()
 
 IF (WIN32)

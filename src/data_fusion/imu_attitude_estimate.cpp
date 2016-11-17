@@ -1,6 +1,5 @@
 #include "imu_attitude_estimate.h"
-#include "datafusion_math.h"
-#include <stdio.h>
+
 
 namespace imu {
 
@@ -9,9 +8,11 @@ ImuAttitudeEstimate::ImuAttitudeEstimate()
     Initialize( );    
 }
 
-// TODO:待增加读取imu.flag配置文件的接口
 void ImuAttitudeEstimate::Initialize( )
 {
+    m_angle_z = 0.0;
+    m_att_init_counter = 30;
+    
     m_accel_range_scale = 8.0f/32768;
     m_gyro_range_scale = 2000.0/180*3.141593/32768;
 
@@ -28,6 +29,8 @@ void ImuAttitudeEstimate::Initialize( )
     m_A1[2][0] = -0.0159;
     m_A1[2][1] = 0.0064;
     m_A1[2][2] = 0.9859;
+
+    //ReadGyroBias();
 
 //    m_gyro_drift[0] = 0;
 //    m_gyro_drift[1] = 0;
@@ -48,8 +51,8 @@ void ImuAttitudeEstimate::Initialize( )
 //    m_gyro_drift[1] = -0.0421;
 //    m_gyro_drift[2] = -0.0217;  
 
-    m_angle_z = 0.0;
-    m_att_init_counter = 30;
+
+
 }
 
 void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double gyro_data[3], double dt)
@@ -222,8 +225,50 @@ void ImuAttitudeEstimate::ClearGyroBias(  )
     m_gyro_drift[0] = 0;
     m_gyro_drift[1] = 0;
     m_gyro_drift[2] = 0;
-
 }
+
+// 从配置文件中读取陀螺仪bias
+void ImuAttitudeEstimate::ReadGyroBias()
+{
+    string imu_coeff_file_addr;
+    #if defined(ANDROID)
+    {
+        imu_coeff_file_addr = "/system/bin/imu_paramer.flag";
+    }
+    #else
+    {
+        imu_coeff_file_addr = "./data/doing/imu_paramer.flag";
+    }
+    #endif
+
+    // 读入imu的参数
+    ifstream infile_imu_coeff;
+    infile_imu_coeff.open(imu_coeff_file_addr.c_str()); 
+    if(!infile_imu_coeff){
+        printf("open imu paramer: imu_paramer.flag ERROR!!\n");  
+        printf("please calibrate the imu first!!\n");
+    }else{
+        string buffer_data, data_flag;
+        double gyro_bias[3];
+        stringstream ss_tmp;
+        getline(infile_imu_coeff, buffer_data);
+        ss_tmp.clear();
+        ss_tmp.str(buffer_data);
+        ss_tmp>>data_flag>>gyro_bias[0]>>gyro_bias[1]>>gyro_bias[2];
+        if(fabs(gyro_bias[0])<0.1 && fabs(gyro_bias[1])<0.1 && fabs(gyro_bias[2])<0.1){
+            m_gyro_drift[0] = gyro_bias[0];
+            m_gyro_drift[1] = gyro_bias[1];
+            m_gyro_drift[2] = gyro_bias[2];
+            std::cout<<"IAE:Initialize--"<<"gyro bias: "<<gyro_bias[0]<<", "<<gyro_bias[1]<<", "<<gyro_bias[2]<<endl; 
+        }else{
+            std::cout<<"IAE:Initialize--"<<"gyro bias: "<<gyro_bias[0]<<", "<<gyro_bias[1]<<", "<<gyro_bias[2]<<endl; 
+            printf("ERROR:the gyro bias is too large!!\n");
+        }
+    } 
+    infile_imu_coeff.close();
+}
+
+
 }
 
 
