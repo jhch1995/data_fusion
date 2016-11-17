@@ -1,11 +1,19 @@
 #ifndef IMU_ATTITUDE_ESTIMATE_H
 #define IMU_ATTITUDE_ESTIMATE_H
+
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <iostream>
+
 #include <vector>
 #include <math.h>
 #include <stdio.h>
-#include <string.h>
+#include "gflags/gflags.h"
 #include "common/base/log_level.h"
+#include "datafusion_math.h"
 
+using namespace std;
 
 namespace imu {
 
@@ -46,6 +54,9 @@ public:
     void SetGyroBias( const double gyro_bias[3] );
 
     void ClearGyroBias();
+
+    // 从配置文件中读取陀螺仪bias
+    void ReadGyroBias();
 
 
 private:

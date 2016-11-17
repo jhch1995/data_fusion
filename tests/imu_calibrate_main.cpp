@@ -12,6 +12,7 @@
 
 #include "data_fusion.h"
 #include "datafusion_math.h"
+
 using namespace imu;
 
 struct StructImuParameter
@@ -21,7 +22,7 @@ struct StructImuParameter
 //   double acc_A0[3][3];
 };
 
-string g_file_addr; // = "./gflags.flag";
+string g_file_addr = "/storage/sdcard0/imu/imu.flag";  // = "./gflags.flag";
 
 #pragma pack(1)    
 struct StructImuData
@@ -39,6 +40,7 @@ struct StructImuData
 DEFINE_double(gyro_bias_x, 0.00897, "imu gyro bias x ");
 DEFINE_double(gyro_bias_y, -0.0322, "imu gyro bias y ");
 DEFINE_double(gyro_bias_z, -0.0214, "imu gyro bias z ");
+DEFINE_string(imu_parameter_addr, "./imu.flag", "imu parameter address ");
 
 
 int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter);
@@ -66,7 +68,6 @@ int main(int argc, char *argv[])
     StructImuParameter imu_parameter_pre, imu_parameter_new;    
     #if defined(ANDROID)
     {
-        g_file_addr = "./imu.flag"; 
         double gyro_bias[3];
         data_fusion.CalibrateGyroBias(gyro_bias);        
         //read_imu_calibation_parameter(&imu_parameter_pre); 
@@ -132,6 +133,7 @@ int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter)
     if (file_imu.is_open()) {
         sprintf(buffer, "--gyro_bias_x=%f\n--gyro_bias_y=%f\n--gyro_bias_z=%f\n", 
                 imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
+//          sprintf(buffer, "gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
         file_imu << buffer; 
         printf("write new gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0], imu_parameter.gyro_bias[1], imu_parameter.gyro_bias[2] );
     }else{

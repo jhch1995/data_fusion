@@ -11,7 +11,7 @@ DataFusion::DataFusion()
 
 DataFusion::~DataFusion()
 {
-#if defined(USE_GSENSOR_LOG)
+#if defined(DATA_FROM_LOG)
     infile_log.close();
 #endif
 
@@ -21,24 +21,8 @@ DataFusion::~DataFusion()
 
 
 void DataFusion::Init( )
-{
-    #if !defined(USE_GSENSOR_LOG)
-    {
-        int stste = init_gsensor();
-        if(stste < 0)
-            LOG(ERROR) << "DataFusion::Init--init_gsensor ERROR!!!";
-    }
-    #else
-    {
-        // read data from log
-        infile_log.open("data/doing/log.txt");       // ofstream
-        LOG(ERROR) << "try open \"data/doing/log.txt\"\n";
-        if(!infile_log)
-            VLOG(VLOG_WARNING) << "open \"data/doing/log.txt\" ERROR!!\n";
-    }
-    #endif
-
-    m_pre_vehicle_timestamp = 0.0f; /// CAN;
+{   
+    m_init_state = 0; // imu默认是初始化成功的(为了)
 
     // IMU
     m_imu_sample_hz = 100.0;
@@ -53,15 +37,17 @@ void DataFusion::Init( )
 
     // 转弯半径R
     m_is_first_R_filter = 1;
-    m_gyro_R_filt_hz = 2.0;
-    m_can_speed_R_filt_hz = 2.0;
+    m_gyro_R_filt_hz = 0.2;
+    m_can_speed_R_filt_hz = 1.0;
     m_call_radius_timestamp = 0;
+    m_is_R_ok = false;
 
     // read data
     m_is_first_read_gsensor = 1;
     m_data_gsensor_update = 0;
     m_data_speed_update = 0;
     m_data_image_update = 0;
+    m_pre_vehicle_timestamp = 0.0f; /// CAN;
 
     m_can_speed_data.speed = 0;
     m_can_speed_data.timestamp = 0;
@@ -79,6 +65,35 @@ void DataFusion::Init( )
     m_cur_data_timestamp = 0;
     m_call_predict_timestamp = 0;
     m_is_first_run_read_data = 1; // 第一次运行读取数据
+
+    #if !defined(DATA_FROM_LOG)
+    {
+        int stste = init_gsensor();
+        if(stste >= 0){
+            m_init_state = true;
+            printf("init_gsensor OK!\n");
+            LOG(ERROR) << "DataFusion::Init--init_gsensor OK!";
+        }else{
+            m_init_state = false;
+            printf("init_gsensor ERROR!!!\n");
+            LOG(ERROR) << "DataFusion::Init--init_gsensor ERROR!!!";
+        }
+    }
+    #else
+    {
+        m_init_state = true; // 读取log的时候认为是imu初始化是OK的
+        // read data from log
+        infile_log.open("data/doing/log.txt");       // ofstream
+        LOG(ERROR) << "try open \"data/doing/log.txt\"\n";
+        if(!infile_log){
+            LOG(ERROR) << "open \"data/doing/log.txt\" ERROR!!\n";
+            printf("open \"data/doing/log.txt\" ERROR!!\n");
+        }else{
+            VLOG(VLOG_WARNING) << "open \"data/doing/log.txt\" OK!\n";
+            printf("open \"data/doing/log.txt\" OK!\n");
+        }
+    }
+    #endif
 
 }
 
@@ -99,26 +114,27 @@ void DataFusion::RunFusion( )
     int64_t dt_counter;
     int64_t run_fusion_period_us = 5000;// 数据生成的频率是100hz， 读取判断最好是2倍，保证数据的实时性
 
-    while (m_is_running) {
-        gettimeofday(&time_counter_pre, NULL); // 用于控制频率
-        ReadData(); // 数据保存在  m_vector_imu_data
-        int vector_imu_length = m_vector_imu_data.size();
-        for (int i = 0; i < vector_imu_length; i++){
-            // 只有当IMU有有效数据的时候，才进行fusion
-            m_imu_data = *(m_vector_imu_data.begin() + i);
-            EstimateAtt();
-            EstimateVehicelState();
-            CalculateVehicleTurnRadius();
+    if(m_init_state){
+        while (m_is_running) {
+            gettimeofday(&time_counter_pre, NULL); // 用于控制频率
+            ReadData(); // 数据保存在  m_vector_imu_data
+            int vector_imu_length = m_vector_imu_data.size();
+            for (int i = 0; i < vector_imu_length; i++){
+                // 只有当IMU有有效数据的时候，才进行fusion
+                m_imu_data = *(m_vector_imu_data.begin() + i);
+                EstimateAtt();
+                EstimateVehicelState();
+                CalculateVehicleTurnRadius();
 
-            // 更新数据，清除历史数据
-            DeleteOldData();
-            DeleteOldRadiusData();
-            m_vector_imu_data.clear(); // 清空缓存的buffer
-        }
+                // 更新数据，清除历史数据
+                DeleteOldData();
+                DeleteOldRadiusData();
+                m_vector_imu_data.clear(); // 清空缓存的buffer
+            }
 
         // 因为在PC端，日志可能会很大, 可以考虑不进行刷新频率控制；
         // 但是在板子上不存在这个问题，所以进行刷新频率控制，减少无意义资源占用
-        #if !defined(USE_GSENSOR_LOG)
+        #if !defined(DATA_FROM_LOG)
         {
             gettimeofday(&time_counter_cur, NULL);
             dt_counter = (time_counter_cur.tv_sec - time_counter_pre.tv_sec)*1000000 + (time_counter_cur.tv_usec - time_counter_pre.tv_usec);
@@ -129,6 +145,10 @@ void DataFusion::RunFusion( )
             }
         }
         #endif
+        }
+    }else{
+        LOG(ERROR)<<"DF:init imu failed!!!"<<endl;
+        printf("DF:imu init failed!!!!\n");        
     }
 }
 
@@ -139,7 +159,7 @@ void DataFusion::RunFusion( )
 int DataFusion::ReadData( )
 {
     int rtn_state;
-    #if defined(USE_GSENSOR_LOG)
+    #if defined(DATA_FROM_LOG)
     {
         //从log中离线读取数据，需要通过时间戳来确定是否要继续读取数据，更新is_continue_read_data
         UpdateRreadDataState();
@@ -161,15 +181,6 @@ int DataFusion::ReadDataFromLog( )
     double log_data[2], timestamp_raw[2];
     string data_flag;
     struct StructImuData imu_data;
-    // 第一次运行程序，初始化m_cur_data_timestamp
-//    if (m_is_first_run_read_data) {
-//        getline(infile_log, buffer_log);
-//        ss_tmp.clear();
-//        ss_tmp.str(buffer_log);
-//        ss_tmp>>log_data[0]>>log_data[1]>>data_flag;
-//        m_cur_data_timestamp = log_data[0] + log_data[1]*1e-6;
-//        m_is_first_run_read_data = 0;
-//    }
 
     if(m_is_continue_read_data){
         getline(infile_log, buffer_log);
@@ -407,7 +418,7 @@ void DataFusion::DeleteOldData( )
     int delete_conter = 0;
     double cur_timestamp = 0;
 
-    #if defined(USE_GSENSOR_LOG)
+    #if defined(DATA_FROM_LOG)
     {
         feature_rw_lock.ReaderLock();
         cur_timestamp = m_call_predict_timestamp;
@@ -460,7 +471,7 @@ void DataFusion::DeleteOldRadiusData( )
     int R_delete_conter = 0;
     double R_cur_timestamp = 0;
 
-    #if defined(USE_GSENSOR_LOG)
+    #if defined(DATA_FROM_LOG)
     {
         radius_rw_lock.ReaderLock();
         R_cur_timestamp = m_call_predict_timestamp;
@@ -774,10 +785,27 @@ void DataFusion::CalculateVehicleTurnRadius()
     StructCanSpeedData can_speed_data;
     memcpy(&can_speed_data, &m_can_speed_data, sizeof(StructCanSpeedData));
 
-    if(fabs(gyro_filter_R[2])>0.01 && fabs(can_speed_data.speed)>15/3.6)
-        R = can_speed_data.speed/gyro_filter_R[2];
-    else // 太小的速度和角速度
+    m_struct_turn_radius.is_imu_value_ok = false;
+    if(fabs(gyro_filter_R[2]) < 30/57.3 && fabs(imu_data.gyro_raw[2]) < 30/57.3 && fabs(imu_data.acc_raw[2])<40){
+        if(fabs(gyro_filter_R[2])>0.002 && fabs(can_speed_data.speed)>15/3.6){
+            R = can_speed_data.speed/gyro_filter_R[2];
+        }else // 太小的速度和角速度
+            R = 0;
+        
+        if( fabs(R)>20){
+            m_struct_turn_radius.is_imu_value_ok= true;
+        }else if(R == 0){ 
+            m_struct_turn_radius.is_imu_value_ok= true;
+        }else{           
+            R = 0;            
+            m_struct_turn_radius.is_imu_value_ok= false;
+        }
+    }else{
+        m_struct_turn_radius.is_imu_value_ok = false;
         R = 0;
+    }
+
+
 
     // save R
     m_struct_turn_radius.timestamp = imu_data.timestamp;
@@ -791,6 +819,8 @@ void DataFusion::CalculateVehicleTurnRadius()
 // 1: 数据正常
 // -1:int_timestamp_search < all_data_time 落后
 // -2:int_timestamp_search > all_data_time 超前
+// -3:imu的值异常，默认返回R=0
+// -4:imu初始化失败，默认返回R=0
 int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
 {
     bool R_search_ok = 0;
@@ -799,6 +829,7 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
     double R_t = 0;
     double timestamp_search = int_timestamp_search/1000.0;
     int R_search_state = 0;
+    bool is_imu_value_ok = false; // 判断imu的值是否正常
 
     radius_rw_lock.WriterLock();
     //m_call_radius_timestamp = timestamp_search;// 更新时间戳
@@ -821,6 +852,8 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
                d_R = R_cur - R_pre;
                R_t = R_pre + (fabs(dt_t_pre)/fabs(dt_t))*d_R;// 线性插值
                R_search_ok = 1;
+
+               is_imu_value_ok = (m_vector_turn_radius.end()-i)->is_imu_value_ok && (m_vector_turn_radius.end()-i-1)->is_imu_value_ok;
                break;
            }
         }
@@ -845,12 +878,22 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
         VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"!!!WARNING:radius data too less length= "<<R_data_length<<endl;
     }
 
-    if(R_search_ok){
-        *R = R_t;
-        return 1;
-    }else{
+    if(m_init_state){  // imu 初始化是否OK
+        if(is_imu_value_ok ){ // imu值是否异常
+            if(R_search_ok){  
+                *R = R_t;
+                return 1;
+            }else{
+                *R = 0;
+                return R_search_state;
+            }
+        }else{ // imu值异常
+            *R = 0;
+            return -3;
+        }
+    }else{ // imu初始化失败
         *R = 0;
-        return R_search_state;
+        return -4;
     }
 }
 
@@ -935,9 +978,8 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
      }
 
 	// we try to get a good calibration estimate for up to 30 seconds if the gyros are stable, we should get it in 1 second
-    for ( int j_cal_cycle = 0; j_cal_cycle <= 30*4 && num_converged<5; j_cal_cycle++)
-	{
-	    printf("j_cal_cycle = %d\n", j_cal_cycle);
+    for ( int j_cal_cycle = 0; j_cal_cycle <= 30*4 && num_converged<5; j_cal_cycle++) {
+	    printf("index:  %d\n", j_cal_cycle);
 		gyro_diff_norm = 0.0f;
         memset(gyro_sum, 0, sizeof(gyro_sum));
 	    memcpy(accel_start, imu_data_t.acc, sizeof(imu_data_t.acc));
@@ -958,10 +1000,11 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 		accel_diff[2] = imu_data_t.acc[2] - accel_start[2];
 		acc_diff_norm = sqrtf(accel_diff[0]*accel_diff[0] + accel_diff[1]*accel_diff[1] + accel_diff[2]*accel_diff[2]);
         printf("acc_diff_norm = %f\n", acc_diff_norm);
-        if (acc_diff_norm >  0.2) {
+        if (acc_diff_norm > 0.3) {
             // the accelerometers changed during the gyro sum. Skip this sample. This copes with doing gyro cal on a
             // steadily moving platform. The value 0.2 corresponds with around 5 degrees/second of rotation.
-            printf("acc_diff_norm >  0.2f\n");
+            printf("acc_diff_norm > 0.3f, please keep the device stable!!!!\n");
+            sleep(1);
             continue; // -YJ- comment
         }
 
@@ -996,7 +1039,7 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
                 memcpy(new_gyro_offset, last_average, sizeof(last_average));
 
             converged = true;
-            printf("gyro calibate %d, bias= %f %f %f\n", num_converged, new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
+            printf("gyro calibate converg times: %d, bias= %f %f %f\n", num_converged, new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
 			if(num_converged++ >= 5)// 收敛的累计
                 break;
         } else if (gyro_diff_norm < best_gyro_diff) {
@@ -1018,7 +1061,7 @@ int DataFusion::CalibrateGyroBias(   double gyro_bias[3] )
 	} else {
 	    gyro_cal_ok = true;
         memcpy(gyro_bias, new_gyro_offset, sizeof(new_gyro_offset));
-        printf("gyro calibate success, bias=%d %f %f %f\n", num_converged, new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
+        printf("gyro calibate success, bias= %f %f %f\n", new_gyro_offset[0], new_gyro_offset[1], new_gyro_offset[2]);
         return 0;
 	}
 

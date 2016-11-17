@@ -24,7 +24,6 @@
 
 using namespace std;
 
-
 namespace imu {
 
 class DataFusion
@@ -50,6 +49,7 @@ private:
     {
         double timestamp;
         double R;
+        bool is_imu_value_ok;
     };
 
     struct StructImageFrameInfo
@@ -162,9 +162,10 @@ private:
     string buffer_log;
     stringstream ss_log;
     stringstream ss_tmp;
-    ifstream infile_log;       // ofstream
+    ifstream infile_log;   
 
     // read data
+    bool m_init_state; // 初始化是否正常
     bool m_is_first_read_gsensor;
     bool m_data_gsensor_update; // 分别对应的数据是否已经更新
     bool m_data_speed_update;
@@ -222,6 +223,7 @@ private:
     double m_can_speed_R_filt_hz; //车速的低通
     StructTurnRadius m_struct_turn_radius;
     std::vector<StructTurnRadius> m_vector_turn_radius;
+    bool m_is_R_ok; //南京那边可能会有IMU数据异常大的问题
 };
 }
 

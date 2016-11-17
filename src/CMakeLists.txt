@@ -1,4 +1,5 @@
 ADD_SUBDIRECTORY(data_fusion)
+cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
 
 AUX_SOURCE_DIRECTORY(. SRC_LIST1)
 AUX_SOURCE_DIRECTORY(data_fusion SRC_LIST2)

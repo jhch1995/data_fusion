@@ -19,9 +19,9 @@
 #include "common/relative_locate/bird_perspective_mapping.h"
 #include "common/time/time_utils.h"
 
-//#include "data_fusion.h"
+#include "data_fusion.h"
 #include "datafusion_math.h"
-#include "imu_module.h"
+//#include "imu_module.h"
 
    
 using namespace std;
@@ -44,17 +44,17 @@ DEFINE_double(y_end_offset, 70.0, "y end offset");
 DEFINE_double(x_res, 0.04, "x resolution");
 DEFINE_double(y_res, 0.1, "y resolution");
 
-
+DEFINE_string(log_base_addr, "data/doing/", "log lane address");// 加载文件的基础路径
 
 // 读入log
-ifstream infile_log("data/doing/log.txt");       // 指定log的路径
+ifstream infile_log; //("data/doing/log.txt");       // 指定log的路径
 string buffer_log;
 string data_flag;    
 stringstream ss_log;
 stringstream ss_tmp;
 
 /// lane标注数据
-ifstream infile_lane("data/doing/lane_data.txt");       // 指定车道线标注结果的路径
+ifstream infile_lane; //("data/doing/lane_data.txt");       // 指定车道线标注结果的路径
 int m_order = 2;
 int lane_num = 2;
 int pts_num = 8;
@@ -74,7 +74,6 @@ double image_timestamp_pre;
 bool is_first_lane_predict = 1;
 
 time_t  time_predict1,  time_predict2;  
-
 
 void LoadImage(cv::Mat* image, string image_name);
 
@@ -96,22 +95,32 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path);
 // 在IPM图上画车道线
 void mark_IPM_lane(cv::Mat &ipm_image, const cv::Mat lane_coeffs, const IPMPara ipm_para, const float lane_color_value);
 
-
 // 车道线预测
-void do_predict_feature();
+void do_predict_feature(DataFusion &data_fusion );
 
-// 进行数据融合的类
-//DataFusion data_fusion;
+
 TimeUtils f_time_counter;
 
-
+// gflog
+DEFINE_double(gyro_bias_x, 0.00897, "imu gyro bias x ");
+DEFINE_double(gyro_bias_y, -0.0322, "imu gyro bias y ");
+DEFINE_double(gyro_bias_z, -0.0214, "imu gyro bias z ");
+DEFINE_double(d_test, -1, "imu gyro bias z ");
+DEFINE_string(fileflag, ".\imu.flag", "imu gyro bias z ");
 
 int main(int argc, char *argv[])
-{      
-    // 初始化
+{ 
+    //解析
+    google::ParseCommandLineFlags(&argc, &argv, true);
+    printf("log_base_addr cur: %s\n", FLAGS_log_base_addr.c_str());
+
+    printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);
+    printf("FLAG: d_test= %f\n", FLAGS_d_test); 
+
+        // 初始化
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";
-    
+
     CameraPara camera_para;
     camera_para.fu = FLAGS_fu;
     camera_para.fv = FLAGS_fv;
@@ -135,33 +144,47 @@ int main(int argc, char *argv[])
 
     // 设置VLOG打印等级
     #if defined(USE_GLOG)
-        FLAGS_v = VLOG_DEBUG;
-    #endif  
-    
+        FLAGS_v = 0; // VLOG_DEBUG;
+    #endif 
 
 // 初始化融合函数
-    //data_fusion.StartDataFusionTask();  
-    ImuModule::Instance().StartDataFusionTask();
-
+    DataFusion data_fusion;
+    data_fusion.StartDataFusionTask();  
+//    ImuModule::Instance().StartDataFusionTask();
 
 // 本地利用标注的数据测试   
-    string str_image_frame_add = "data/doing/frame/";
+    string str_image_frame_add = FLAGS_log_base_addr + "frame/";
     string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字    
     string frame_file_addr = str_image_frame_add + frame_file_name;// 获取图片的max,min index
+
+    // log.txt
+    string str_log_add = FLAGS_log_base_addr + "log.txt";
+    infile_log.open(str_log_add.c_str());
+    if (!infile_log.is_open() || infile_log.fail()){
+        infile_log.close();
+        printf("Error : failed to open infile_log(%s) file!\n", str_log_add.c_str());
+        return -1;
+    }
+
+    string str_lane_add = FLAGS_log_base_addr + "lane_data.txt";
+    infile_lane.open(str_lane_add.c_str());
+    if (!infile_lane.is_open() || infile_lane.fail()){
+        infile_lane.close();
+        printf("Error : failed to open infile_lane(%s) file!\n", str_lane_add.c_str());
+        return -1;
+    }
+
     int max_frame_index, min_frame_index;
     get_max_min_image_index(max_frame_index, min_frame_index, frame_file_addr);
 
     // 外部lane循环控制
     int image_cal_step = 4;// 每隔多少帧计算一次车道线预测
-
     bool is_lane_match_image = 0;    
     bool is_camera_index_mached = 0; // 是否已经从log中寻找到当前图像的匹配的时间戳
-    for(int image_index = min_frame_index+5; image_index <= max_frame_index; image_index += image_cal_step)
-    {
+    for(int image_index = min_frame_index+5; image_index <= max_frame_index; image_index += image_cal_step){
         is_camera_index_mached = 0;
         double log_data_t[2];
-        while(!is_camera_index_mached)
-        {
+        while(!is_camera_index_mached){
             getline(infile_log, buffer_log);
             ss_tmp.clear();
             ss_tmp.str(buffer_log);
@@ -220,7 +243,7 @@ int main(int argc, char *argv[])
                     image_IPM(ipm_image, org_image, ipm_para);
                     
                     // 执行预测lane
-                    do_predict_feature();
+                    do_predict_feature(data_fusion);
 
                     /// 拟合当前lane
                     xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);            
@@ -277,30 +300,25 @@ int polyfit_vector(std::vector<float>* lane_coeffs, std::vector<cv::Point2f>& ve
     cv::Mat A = cv::Mat(feature_points_num, order + 1, CV_32FC1);
     cv::Mat b = cv::Mat(feature_points_num+1, 1, CV_32FC1);
 
-    for (int i = 0; i < feature_points_num; i++) 
-    {
+    for (int i = 0; i < feature_points_num; i++){
         x[i] = (vector_feature.begin()+i)->y;
         y[i] = (vector_feature.begin()+i)->x; 
 
         for (int j = 0; j <= order; j++) 
-        {
             A.at<float>(i, j) = pow(y[i], j);
-        }
+        
         b.at<float>(i) = x[i];
     }
     
     cv::Mat coeffs;
     int ret = cv::solve(A, b, coeffs, CV_SVD);
-    if(ret<=0)
-    {    
+    if(ret<=0){    
         printf("cv:solve error!!!\n");
         return -1;
     }
     
     for(int i=0; i<order+1; i++)
-    {
         lane_coeffs->push_back(coeffs.at<float>(i,0));
-    }    
     return 1;
 }
 
@@ -313,30 +331,25 @@ int polyfit1(std::vector<float>* lane_coeffs, const cv::Mat xy_feature, int orde
     cv::Mat A = cv::Mat(feature_points_num, order + 1, CV_32FC1);
     cv::Mat b = cv::Mat(feature_points_num+1, 1, CV_32FC1);
 
-        for (int i = 0; i < feature_points_num; i++) 
-        {
+        for (int i = 0; i < feature_points_num; i++) {
             x[i] = xy_feature.at<float>(0, i);
             y[i] = xy_feature.at<float>(1, i); 
     
             for (int j = 0; j <= order; j++) 
-            {
                 A.at<float>(i, j) = pow(y[i], j);
-            }
             b.at<float>(i) = x[i];
         }
         
         cv::Mat coeffs;
         int ret = cv::solve(A, b, coeffs, CV_SVD);
-        if(ret<=0)
-        {    
+        if(ret<=0){    
             printf("cv:solve error!!!\n");
             return -1;
         }
         
         for(int i=0; i<order+1; i++)
-        {
             lane_coeffs->push_back(coeffs.at<float>(i,0));
-        }    
+  
         return 1;
 }
 
@@ -352,20 +365,17 @@ string get_file_name(string file_path)
     if((dp=opendir(filePath))==NULL)
         printf("can't open %s", filePath);
     
-    while(((dirp=readdir(dp))!=NULL))
-    {
+    while(((dirp=readdir(dp))!=NULL)){
          if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))
             continue;
         file_name_t = dirp->d_name;
         printf("%d: %s\n ",++n, file_name_t);
     }
 
-    if(n == 1)
-    {
+    if(n == 1){
         string str_file_name(file_name_t);
         return str_file_name;
-    }else
-    {
+    }else{
         printf("error: too many files!!! \n");
         return 0;
     }  
@@ -379,27 +389,23 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
     char *file_name_t;
     bool is_first_time = 1;
     const char *filePath = file_path.data();
-    if((dp=opendir(filePath))==NULL)
-    {
+    if((dp=opendir(filePath))==NULL){
         printf("can't open %s", filePath); 
         return 0;
     }       
 
-    while(((dirp=readdir(dp))!=NULL))
-    {
+    while(((dirp=readdir(dp))!=NULL)){
         if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))
            continue;
         
         file_name_t = dirp->d_name;
         string str_name(file_name_t);
         int number = std::atoi( str_name.c_str());
-        if(is_first_time)
-        {
+        if(is_first_time){
             is_first_time = 0;
             max_index = number;
             min_index = number;
-        }else
-        {
+        }else{
             if(number > max_index)
                 max_index = number;
             if(number < min_index)
@@ -415,11 +421,9 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
 // 图片IPM
 void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
 {
-    for (int i = 0; i < ipm_para.height; ++i) 
-    {
+    for (int i = 0; i < ipm_para.height; ++i){
         int base = i * ipm_para.width;
-        for (int j = 0; j < ipm_para.width; ++j) 
-        {
+        for (int j = 0; j < ipm_para.width; ++j){
             int offset = base + j;
             float ui = ipm_para.uv_grid.at<float>(0, offset);
             float vi = ipm_para.uv_grid.at<float>(1, offset);
@@ -442,30 +446,26 @@ void mark_IPM_lane(cv::Mat &ipm_image, const cv::Mat lane_coeffs, const IPMPara 
     std::vector<int> x(ipm_para.height+2);
     std::vector<int> y(ipm_para.height+2);
     int i_index = -1;            
-    for (float i = ipm_para.y_limits[0]; i < ipm_para.y_limits[1]; i+=ipm_para.y_scale) // x
-    {
+    for (float i = ipm_para.y_limits[0]; i < ipm_para.y_limits[1]; i+=ipm_para.y_scale) {
        i_index += 1;
        y[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
        float x_t = lane_coeffs.at<float>(0, 1) + lane_coeffs.at<float>(1, 1)*i + lane_coeffs.at<float>(2, 1)*i*i;
        x[i_index] = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
 
        if (x[i_index] <= 0 || x[i_index] >= ipm_para.width )
-       {
            continue;
-       }else{
-           ipm_image.at<float>(y[i_index], x[i_index]) = lane_color_value;
-       }            
+       else
+           ipm_image.at<float>(y[i_index], x[i_index]) = lane_color_value;         
     }
 }
 
 
 // 预测特征点并画图
-void do_predict_feature()
+void do_predict_feature(DataFusion &data_fusion )
 {
     int64 t_1, t_2;
     
-    if(is_first_lane_predict)
-    {
+    if(is_first_lane_predict){
         is_first_lane_predict = 0;
         image_timestamp_pre = image_timestamp;
     }
@@ -477,8 +477,7 @@ void do_predict_feature()
     double X[5] = {2.0, 5.0, 10.0, 20.0, 35.0};
     cv::Point2f point_xy;
     vector_feature_pre.clear();
-    for(int points_index = 0; points_index<lane_points_nums; points_index++)
-    {   
+    for(int points_index = 0; points_index<lane_points_nums; points_index++){   
         point_xy.x = X[points_index];
         point_xy.y = lane_coeffs_pre.at<float>(0, 1) + lane_coeffs_pre.at<float>(1, 1)*X[points_index] + lane_coeffs_pre.at<float>(2, 1)*X[points_index]*X[points_index];
         vector_feature_pre.push_back(point_xy);
@@ -489,12 +488,11 @@ void do_predict_feature()
 
     int r_1 = 0;
     int main_sleep_counter = 0; //  一次外部调用，main sleep的次数
-    while(!r_1)
-    {
+    while(!r_1){
         // 测试运行时间
         t_1 = f_time_counter.Microseconds();
-        //r_1 = data_fusion.GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
-        r_1 = ImuModule::Instance().GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
+        r_1 = data_fusion.GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
+//        r_1 = ImuModule::Instance().GetPredictFeature( vector_feature_pre, image_timestamp_pre_int, image_timestamp_cur_int, &vector_feature_predict);
         t_2 = f_time_counter.Microseconds();
 
         int64 predict_cal_dt = (t_2 - t_1) ;
@@ -511,11 +509,8 @@ void do_predict_feature()
     std::vector<float> lane_coeffs_t;
     polyfit_vector(&lane_coeffs_t, vector_feature_predict, m_order );
     for(int i = 0; i<m_order+1; i++)
-    {
         lane_coeffs_predict.at<float>(i, 1) = lane_coeffs_t[i];
-    }
-                            
+                           
     image_timestamp_pre = image_timestamp;
-
     
 }
