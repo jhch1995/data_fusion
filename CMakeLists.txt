@@ -30,6 +30,7 @@ IF (MSVC)
 ELSEIF (ANDROID_ABI)
     MESSAGE(STATUS "DEFINE: ANDORID platform")
     ADD_DEFINITIONS(-DANDROID)
+    ADD_DEFINITIONS(-DUSE_GLOG)
     ADD_CUSTOM_TARGET(MINIEYE_VERSION COMMAND ${SCRIPTS_PATH}/version.sh |tee ${PROJECT_ROOT_PATH}/version.h.in)
 ELSEIF (UNIX)
     MESSAGE(STATUS "DEFINE: UNIX platform")
@@ -52,7 +53,6 @@ ELSEIF (ANDROID_ABI)
             "${PROJECT_ROOT_PATH}/thirdparty/miniglog/"
             "${PROJECT_ROOT_PATH}/src/"
             "${PROJECT_ROOT_PATH}/src/data_fusion/"
-            "${PROJECT_ROOT_PATH}"
     )
     LINK_DIRECTORIES(
             "${PROJECT_ROOT_PATH}/thirdparty/opencv/android/sdk/native/libs/arm64-v8a/"

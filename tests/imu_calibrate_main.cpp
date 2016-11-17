@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     #endif
 
     // 校正
-    StructImuParameter imu_parameter_pre, imu_parameter_new;    
+    StructImuParameter imu_parameter_pre, imu_parameter_new;
     #if defined(ANDROID)
     {
         double gyro_bias[3];
@@ -112,6 +112,7 @@ int read_imu_calibation_parameter( StructImuParameter *imu_parameter)
         printf("open file error!!!\n");
     }
     file_imu.close();
+    return 1;
 }
 
 
@@ -141,5 +142,6 @@ int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter)
     }
 
     file_imu.close();
+    return 1;
 }
 
