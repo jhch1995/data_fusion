@@ -3,7 +3,7 @@
 
 //#include "gflags/gflags.h"
 
-#define R2D 180.0f/M_PI 
+#define R2D 180.0f/M_PI
 #define D2R M_PI/180.0f
 #define ONE_G 9.80665f;
 
