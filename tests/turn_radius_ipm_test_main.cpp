@@ -330,8 +330,9 @@ void do_get_turn_radius()
             printf("main timestamp diamatch conunter:%d, match state= %d, so sleep\n", main_sleep_counter, r_1);
             sleep(1);
         }
-        main_sleep_counter++;       
+        main_sleep_counter++;    
+        printf("state: %d, R = %f\n",r_1, g_R_cur);   
     }       
-//    printf("R = %f\n", g_R_cur);   
+    
        
 }

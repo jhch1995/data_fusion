@@ -62,7 +62,6 @@ ELSEIF (ANDROID_ABI)
             "${PROJECT_ROOT_PATH}/thirdparty/miniglog/"
             "${PROJECT_ROOT_PATH}/src/"
             "${PROJECT_ROOT_PATH}/src/data_fusion/"
-            "${PROJECT_ROOT_PATH}"
     )
     LINK_DIRECTORIES(
             "${PROJECT_ROOT_PATH}/thirdparty/opencv/android/sdk/native/libs/arm64-v8a/"

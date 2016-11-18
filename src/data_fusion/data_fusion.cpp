@@ -37,7 +37,7 @@ void DataFusion::Init( )
 
     // 转弯半径R
     m_is_first_R_filter = 1;
-    m_gyro_R_filt_hz = 0.2;
+    m_gyro_R_filt_hz = 0.6;
     m_can_speed_R_filt_hz = 1.0;
     m_call_radius_timestamp = 0;
     m_is_R_ok = false;
@@ -380,7 +380,7 @@ int DataFusion::ReadSpeedOnline( )
         printf("# %s\n",  buf1);
     }
 
-    return 0;
+    return 1;
 }
 
 
@@ -817,6 +817,7 @@ void DataFusion::CalculateVehicleTurnRadius()
 
 // 给外部调用的接口:特征点预测
 // 1: 数据正常
+// 0: no R in the buffer
 // -1:int_timestamp_search < all_data_time 落后
 // -2:int_timestamp_search > all_data_time 超前
 // -3:imu的值异常，默认返回R=0
@@ -829,7 +830,7 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
     double R_t = 0;
     double timestamp_search = int_timestamp_search/1000.0;
     int R_search_state = 0;
-    bool is_imu_value_ok = false; // 判断imu的值是否正常
+    bool is_imu_value_ok = true; // 判断imu的值是否正常:默认正常，只有有R的结果并发现imu值异常才会显示不读值
 
     radius_rw_lock.WriterLock();
     //m_call_radius_timestamp = timestamp_search;// 更新时间戳
@@ -876,6 +877,7 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
         }
     }else{
         VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"!!!WARNING:radius data too less length= "<<R_data_length<<endl;
+        R_search_state = 0;
     }
 
     if(m_init_state){  // imu 初始化是否OK
