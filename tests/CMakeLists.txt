@@ -29,6 +29,7 @@ ELSEIF (ANDROID_ABI)
 ELSEIF (UNIX)
     MESSAGE(STATUS "include: UNIX platform")
     ADD_DEFINITIONS(-DUSE_GLOG)
+    ADD_DEFINITIONS(-DLOG_STD_COUT)
     INCLUDE_DIRECTORIES(
         #"${PROJECT_ROOT_PATH}"
         "${PROJECT_SOURCE_DIR}/src/data_fusion/"
@@ -46,13 +47,22 @@ IF (WIN32)
 ELSEIF(ANDROID_ABI)
     MESSAGE(STATUS "LINK: ANDROID")
     ADD_EXECUTABLE(imu_calibrate  "./imu_calibrate_main.cpp")
-    TARGET_LINK_LIBRARIES(imu_calibrate -Wl,--start-group
+    TARGET_LINK_LIBRARIES(imu_calibrate 
+            -Wl,--start-group
             data_fusion halio
             ${ARM_LIBS}
             gflags
             -Wl,--end-group
-            )
+    )
 
+    ADD_EXECUTABLE(turn_radius_andriod  "./turn_radius_andriod.cpp")
+    TARGET_LINK_LIBRARIES(turn_radius_andriod 
+            -Wl,--start-group
+            imu halio
+            ${ARM_LIBS}
+            gflags
+            -Wl,--end-group
+    )
 ELSEIF (UNIX) 
     MESSAGE(STATUS "LINK: UNIX")
     find_package(OpenCV REQUIRED)

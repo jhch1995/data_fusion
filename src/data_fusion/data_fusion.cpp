@@ -779,43 +779,40 @@ void DataFusion::CalculateVehicleTurnRadius()
 
     m_imu_attitude_estimate.LowpassFilter3f(gyro_filter_R_pre, imu_data.gyro_raw, dt_imu, m_gyro_R_filt_hz, gyro_filter_R);
     memcpy(gyro_filter_R_pre, gyro_filter_R, sizeof(double)*3);
-//    printf("filter new = %f, filter = %f\n", imu_data.gyro_raw[2], gyro_filter_R[2]);
 
     // CAN speed
     StructCanSpeedData can_speed_data;
     memcpy(&can_speed_data, &m_can_speed_data, sizeof(StructCanSpeedData));
 
-    m_struct_turn_radius.is_imu_value_ok = false;
-    if(fabs(gyro_filter_R[2]) < 30/57.3 && fabs(imu_data.gyro_raw[2]) < 30/57.3 && fabs(imu_data.acc_raw[2])<40){
+    m_struct_turn_radius.is_imu_value_ok = true;
+    if(fabs(gyro_filter_R[2]) < 50/57.3 && fabs(imu_data.gyro_raw[2]) < 50/57.3 && fabs(imu_data.acc_raw[2])<40){
         if(fabs(gyro_filter_R[2])>0.002 && fabs(can_speed_data.speed)>15/3.6){
             R = can_speed_data.speed/gyro_filter_R[2];
         }else // 太小的速度和角速度
             R = 0;
-        
-        if( fabs(R)>20){
-            m_struct_turn_radius.is_imu_value_ok= true;
-        }else if(R == 0){ 
-            m_struct_turn_radius.is_imu_value_ok= true;
-        }else{           
-            R = 0;            
-            m_struct_turn_radius.is_imu_value_ok= false;
-        }
+         //
+//        if( fabs(R)>20){
+//            m_struct_turn_radius.is_imu_value_ok= true;
+//        }else if(R == 0){
+//            m_struct_turn_radius.is_imu_value_ok= true;
+//        }else{
+//            printf("1-imu error R=%f\n ", R);
+//            R = 0;
+//            m_struct_turn_radius.is_imu_value_ok= false;
+//        }
     }else{
         m_struct_turn_radius.is_imu_value_ok = false;
         R = 0;
     }
 
-
-
     // save R
     m_struct_turn_radius.timestamp = imu_data.timestamp;
     m_struct_turn_radius.R = R;
     m_vector_turn_radius.push_back(m_struct_turn_radius);
-
 }
 
 
-// 给外部调用的接口:特征点预测
+// 给外部调用的接口:
 // 1: 数据正常
 // 0: no R in the buffer
 // -1:int_timestamp_search < all_data_time 落后

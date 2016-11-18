@@ -46,13 +46,15 @@ void ImuAttitudeEstimate::Initialize( )
 //    m_gyro_drift[1] = -0.01601;
 //    m_gyro_drift[2] = -0.06251;
     
+    // nj ceshiji
+    m_gyro_drift[0] = -0.045082;
+    m_gyro_drift[1] = -0.039585;
+    m_gyro_drift[2] = -0.017939;
+
     // Y-1
 //    m_gyro_drift[0] = 0.0155;
 //    m_gyro_drift[1] = -0.0421;
 //    m_gyro_drift[2] = -0.0217;  
-
-
-
 }
 
 void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double gyro_data[3], double dt)
@@ -216,7 +218,6 @@ void ImuAttitudeEstimate::SetGyroBias( const double gyro_bias_new[3] )
     m_gyro_drift[0] = gyro_bias_new[0];
     m_gyro_drift[1] = gyro_bias_new[1];
     m_gyro_drift[2] = gyro_bias_new[2];
-
 }
 
 // 陀螺仪新零偏清零
@@ -268,7 +269,5 @@ void ImuAttitudeEstimate::ReadGyroBias()
     infile_imu_coeff.close();
 }
 
-
 }
-
 

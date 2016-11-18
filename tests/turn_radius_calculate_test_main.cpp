@@ -6,7 +6,7 @@
 #include <vector>
 #include <queue>
 #include <dirent.h>
-#include <time.h>   
+#include <time.h>
 
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
@@ -18,7 +18,6 @@
 #include "data_fusion.h"
 #include "datafusion_math.h"
 //#include "imu_module.h"
-
 
 using namespace imu;
 
@@ -43,8 +42,8 @@ int main(int argc, char *argv[])
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";  
     #if defined(USE_GLOG)
-        //FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
-        FLAGS_v = 0;
+        FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
+        //FLAGS_v = 0;
     #endif
 
     // 进行数据融合的类
@@ -80,30 +79,17 @@ int main(int argc, char *argv[])
             int64_t t_1, t_2;
             int64_t image_timestamp_cur_int = (int64_t)(image_timestamp*1000);
             int r_1 = -1;
-            int main_sleep_counter = 0; //  一次外部调用，main sleep的次数
+            t_1 = f_time_counter.Microseconds();// 测试运行时间
+            r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &R_cur);
+//          r_1 = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int*1000, &R_cur);
+            t_2 = f_time_counter.Microseconds();
+            int64_t R_cal_dt = (t_2 - t_1) ;
             
-            while(r_1<0){
-                // 测试运行时间
-                t_1 = f_time_counter.Microseconds();
-                r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &R_cur);  
-//                r_1 = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int*1000, &R_cur);  
-                t_2 = f_time_counter.Microseconds();
-
-                int64_t R_cal_dt = (t_2 - t_1) ;
-                //printf("R_cal_dt(us) = %f\n", R_cal_dt);
+            if(r_1 <= 0){
+                printf("main timestamp diamatch conunter:%d, match state= %d, so sleep\n", main_sleep_counter, r_1);
+                sleep(1);
+            }
                 
-                if(main_sleep_counter > 0){            
-                    printf("main timestamp diamatch conunter:%d, match state= %d, so sleep\n", main_sleep_counter, r_1);
-                    sleep(1);
-                }
-                main_sleep_counter++;       
-            }
-
-            bool is_R_ok = false;
-            if(r_1 == 1 ){
-                is_R_ok = true;
-            }
-            
             if(is_save_R){
                 char buffer[100];
                 if (offile_log.is_open()) {
@@ -115,7 +101,7 @@ int main(int argc, char *argv[])
             }
 //            printf("R = %f\n", R_cur); 
         } 
-        usleep(10); // 40ms 模拟计算的板子上最快25hz的计算时间， 如果只是为了计算R，可以缩小这个限制
+        usleep(10); /
     }
     printf("radius calculate over!!\n");
     offile_log.close();
