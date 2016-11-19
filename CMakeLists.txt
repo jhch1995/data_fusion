@@ -17,6 +17,16 @@ MESSAGE(STATUS ${PROJECT_ROOT_PATH})
 SET(EXECUTABLE_OUTPUT_PATH "${PROJECT_BINARY_DIR}/bin")
 SET(LIBRARY_OUTPUT_PATH "${PROJECT_BINARY_DIR}/lib/")
 
+######################### configuration ###########################
+OPTION(USE_GSENSOR_LOG_SWITCH "switch for using chip-gsensor-data instantly OR from gsensor-log" OFF)
+
+IF (USE_GSENSOR_LOG_SWITCH)
+    MESSAGE(STATUS "use gsensor data from log")
+    ADD_DEFINITIONS(-DDATA_FROM_LOG) # read data from log    
+ELSE()
+    MESSAGE(STATUS "use gsensor data from chip")
+ENDIF()
+
 #root
 IF ("${CMAKE_SIZEOF_VOID_P}" EQUAL "4")
     MESSAGE(STATUS "root: x32 platform")
@@ -37,7 +47,6 @@ ELSEIF (UNIX)
     SET(OpenCV_DIR "/opt/opencv/default/share/OpenCV")
     FIND_PACKAGE(OpenCV REQUIRED)
     ADD_DEFINITIONS(-DUSE_GLOG)    
-    ADD_DEFINITIONS(-DDATA_FROM_LOG) # read data from log    
 ENDIF ()
 
 IF (WIN32)
