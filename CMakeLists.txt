@@ -26,7 +26,7 @@ IF (USE_GSENSOR_LOG_SWITCH)
 ELSE()
     MESSAGE(STATUS "use gsensor data from chip")
 ENDIF()
-
+ADD_DEFINITIONS(-DDATA_FROM_LOG)
 #root
 IF ("${CMAKE_SIZEOF_VOID_P}" EQUAL "4")
     MESSAGE(STATUS "root: x32 platform")

@@ -181,6 +181,7 @@ int read_imu_calibation_parameter( StructImuParameter *imu_parameter)
     }  
 
     file_imu.close();
+    return 1;
 
 }
 
@@ -211,5 +212,6 @@ int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter)
     }
 
     file_imu.close();
+    return 1;
 }
 

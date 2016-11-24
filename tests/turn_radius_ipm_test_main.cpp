@@ -42,9 +42,11 @@ DEFINE_double(y_end_offset, 70.0, "y end offset");
 DEFINE_double(x_res, 0.04, "x resolution");
 DEFINE_double(y_res, 0.1, "y resolution");
 
+//DEFINE_string(flagfile, "./data/doing/frame/detect.flag", " parameter address ");
+
 
 // 读入log和图片路径
-string str_image_frame_add = "data/doing/frame/";
+string str_image_frame_add = "data/doing/frame/image/";
 
 ifstream infile_log("data/doing/log.txt");       // 指定log的路径
 string buffer_log;
@@ -77,6 +79,9 @@ double image_timestamp;
 
 int main(int argc, char *argv[])
 {      
+    //解析
+    google::ParseCommandLineFlags(&argc, &argv, true);
+
     // 初始化
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";
@@ -88,7 +93,7 @@ int main(int argc, char *argv[])
     camera_para.cv = FLAGS_cv;
     camera_para.height = FLAGS_camera_height; // m
     camera_para.pitch = FLAGS_pitch * CV_PI / 180;
-    camera_para.yaw = FLAGS_yaw * CV_PI / 180;
+    camera_para.yaw = -FLAGS_yaw * CV_PI / 180;
     camera_para.image_width = FLAGS_image_width;
     camera_para.image_height = FLAGS_image_height;
     BirdPerspectiveMapping bp_mapping(camera_para);
@@ -119,8 +124,8 @@ int main(int argc, char *argv[])
     get_max_min_image_index(max_frame_index, min_frame_index, frame_file_addr);
 
     // 外部循环控制
-    int image_index_start = 1000;
-    int image_cal_step = 2;// 每隔多少帧计算一次  
+    int image_index_start = 1;
+    int image_cal_step = 5;// 每隔多少帧计算一次
     bool is_camera_index_mached = 0; // 是否已经从log中寻找到当前图像的匹配的时间戳
     for(int image_index = image_index_start; image_index <= max_frame_index; image_index += image_cal_step){
         is_camera_index_mached = 0;

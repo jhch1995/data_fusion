@@ -29,7 +29,8 @@ ELSEIF (ANDROID_ABI)
 ELSEIF (UNIX)
     MESSAGE(STATUS "include: UNIX platform")
     ADD_DEFINITIONS(-DUSE_GLOG)
-    ADD_DEFINITIONS(-DLOG_STD_COUT)
+    #ADD_DEFINITIONS(-DLOG_STD_COUT)
+    ADD_DEFINITIONS(-DDATA_FROM_LOG)
     INCLUDE_DIRECTORIES(
         #"${PROJECT_ROOT_PATH}"
         "${PROJECT_SOURCE_DIR}/src/data_fusion/"
@@ -53,8 +54,15 @@ ELSEIF(ANDROID_ABI)
             ${ARM_LIBS}
             gflags
             -Wl,--end-group
+    )    
+    ADD_EXECUTABLE(imu_calibrate_online  "./imu_calibrate_online.cpp")
+    TARGET_LINK_LIBRARIES(imu_calibrate_online 
+            -Wl,--start-group
+            imu halio
+            ${ARM_LIBS}
+            gflags
+            -Wl,--end-group
     )
-
     ADD_EXECUTABLE(turn_radius_andriod  "./turn_radius_andriod.cpp")
     TARGET_LINK_LIBRARIES(turn_radius_andriod 
             -Wl,--start-group
@@ -77,7 +85,12 @@ ELSEIF (UNIX)
                           opencv_imgcodecs opencv_core opencv_highgui pthread)
 
     ADD_EXECUTABLE(turn_radius_calculate_test "./turn_radius_calculate_test_main.cpp")
-    TARGET_LINK_LIBRARIES(turn_radius_calculate_test imu data_fusion imu halio
+    TARGET_LINK_LIBRARIES(turn_radius_calculate_test imu data_fusion halio
                           gflags glog  pthread 
-                          opencv_imgcodecs opencv_core opencv_highgui )                          
+                          opencv_imgcodecs opencv_core opencv_highgui )         
+                          
+    ADD_EXECUTABLE(imu_calibrate_online "./imu_calibrate_online.cpp")
+    TARGET_LINK_LIBRARIES(imu_calibrate_online imu halio
+                          gflags glog  pthread 
+                          opencv_imgcodecs opencv_core opencv_highgui )                   
 ENDIF()

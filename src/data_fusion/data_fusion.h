@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 
+#include "gflags/gflags.h"
 #include "opencv2/opencv.hpp"
 #include "common/relative_locate/linear_r3.h"
 #include "common/base/stdint.h"
@@ -23,12 +24,11 @@
 #include "datafusion_math.h"
 
 using namespace std;
-
 namespace imu {
 
 class DataFusion
 {
-private:
+public:
 #pragma pack(1)
     struct StructAtt
     {
@@ -74,6 +74,12 @@ private:
         double speed;
     };
 
+    struct StructImuParameter
+    {
+       double gyro_bias[3];
+    //   double acc_A0[3];
+    //   double acc_A0[3][3];
+    };
 #pragma pack()
 
 
@@ -128,12 +134,25 @@ public:
     // 进行数据融合
     void RunFusion( );
 
+    // 线程循环周期控制
+    void FusionScheduler(const timeval time_counter_pre, const int64_t period_us);
+
     int Polyfit(const cv::Mat& xy_feature, int order , std::vector<float>* lane_coeffs);
 
     float Raw2Degree(short raw);
 
     // 校准陀螺仪零偏
     int CalibrateGyroBias(   double new_gyro_bias[3] );
+
+    int DoCalibrateGyroBiasOnline( );
+
+    int CalibrateGyroBiasOnline(double gyro_bias[3]);
+
+    // 读取imu参数
+    int read_imu_calibation_parameter( StructImuParameter *imu_parameter);
+
+    // 写入imu校准结果
+    int write_imu_calibation_parameter(const StructImuParameter &imu_parameter);
 
     // 外部调用接口: 预测特征点的坐标
     int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,
@@ -179,6 +198,25 @@ private:
 
     int m_is_print_imu_data; // 是否打印IMU数据
     int m_is_print_speed_data;// 是否打印speed数据
+
+    // imu在线校准
+    double m_zero_speed_time_counter; // 持续速度为0时间计数
+    double m_zero_speed_time_pre; // 上一个speed为0时刻
+    bool m_is_first_zero_speed; // 是否是最近时段第一次速度为0
+    bool m_is_gyro_online_calibrate_ok; // 在线校准gyro是否OK
+
+    bool m_is_need_reset_calibrate; // 是否需要重置校准
+    bool m_is_first_calibrate;
+    double m_gyro_sum[3], m_gyro_avg[3], m_gyro_diff[3], m_accel_diff[3], m_last_average[3], m_best_avg[3], m_accel_start[3];
+    double m_gyro_diff_norm, m_acc_diff_norm;
+    double m_new_gyro_offset[3], m_best_gyro_diff;
+    int m_num_converged;
+    int m_num_converged_set; // 设定收敛多少次认为稳定
+    bool m_converged;
+    int m_gyro_sample_num; // the gyro sample numbers each cycle
+    int m_sample_counter; // 采样计数
+
+    string m_imu_parameter_addr; // imu参数存放地址
 
     // 数据读写锁
     RWLock radius_rw_lock;

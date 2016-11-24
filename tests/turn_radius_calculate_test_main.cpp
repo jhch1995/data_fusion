@@ -86,14 +86,15 @@ int main(int argc, char *argv[])
             int64_t R_cal_dt = (t_2 - t_1) ;
             
             if(r_1 <= 0){
-                printf("main timestamp diamatch conunter:%d, match state= %d, so sleep\n", main_sleep_counter, r_1);
+                printf("main timestamp diamatch, match state= %d, so sleep\n", r_1);
                 sleep(1);
             }
                 
             if(is_save_R){
                 char buffer[100];
                 if (offile_log.is_open()) {
-                    sprintf(buffer, "%d %d %s %s %f %d\n", camera_raw_timestamp[0], camera_raw_timestamp[1], camera_add.c_str(), image_index_str.c_str(), R_cur, is_R_ok);
+                    sprintf(buffer, "%d %d %s %s %f\n", camera_raw_timestamp[0], camera_raw_timestamp[1],
+                            camera_add.c_str(), image_index_str.c_str(), R_cur);
                     offile_log << buffer; 
                 }else{
                     printf("write log file is not opened!");                
@@ -101,7 +102,7 @@ int main(int argc, char *argv[])
             }
 //            printf("R = %f\n", R_cur); 
         } 
-        usleep(10); /
+        usleep(10);
     }
     printf("radius calculate over!!\n");
     offile_log.close();
