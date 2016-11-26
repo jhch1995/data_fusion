@@ -1,6 +1,5 @@
 #include "imu_attitude_estimate.h"
 
-
 namespace imu {
 
 ImuAttitudeEstimate::ImuAttitudeEstimate()
@@ -162,7 +161,7 @@ int ImuAttitudeEstimate::LowpassFilter3f(double y_pre[3], const double x_new[3],
     y_filter[1] = y_pre[1] + alpha*(x_new[1] - y_pre[1]);
     y_filter[2] = y_pre[2] + alpha*(x_new[2] - y_pre[2]);
 
-    memcpy(y_new, y_filter, sizeof(double)*3);
+    memcpy(y_new, y_filter, sizeof(y_filter));
     return 1;    
     
 }

@@ -39,8 +39,17 @@ void DataFusion::Init( )
     m_is_gyro_online_calibrate_ok = false;
     m_is_need_reset_calibrate = true;
     m_is_first_calibrate = true;
-
-    m_imu_parameter_addr = "./imu.flag";
+    #if defined(DATA_FROM_LOG)
+    {
+        m_imu_parameter_addr = "./imu.flag";
+        m_imu_parameter_log_addr = "./imu_paramer_log.flag";
+    }
+    #else
+    {
+        m_imu_parameter_addr = "/storage/sdcard0/imu/imu.flag";
+        m_imu_parameter_log_addr = "/storage/sdcard0/imu/imu_paramer_log.flag";
+    }
+    #endif
 
     memset(&m_gyro_sum, 0, sizeof(m_gyro_sum));
     memset(&m_gyro_avg, 0, sizeof(m_gyro_avg));
@@ -90,20 +99,7 @@ void DataFusion::Init( )
     m_call_predict_timestamp = 0;
     m_is_first_run_read_data = 1; // 第一次运行读取数据
 
-    #if !defined(DATA_FROM_LOG)
-    {
-        int stste = init_gsensor();
-        if(stste >= 0){
-            m_init_state = true;
-            printf("init_gsensor OK!\n");
-            LOG(ERROR) << "DataFusion::Init--init_gsensor OK!";
-        }else{
-            m_init_state = false;
-            printf("init_gsensor ERROR!!!\n");
-            LOG(ERROR) << "DataFusion::Init--init_gsensor ERROR!!!";
-        }
-    }
-    #else
+    #if defined(DATA_FROM_LOG)
     {
         m_init_state = true; // 读取log的时候认为是imu初始化是OK的
         // read data from log
@@ -119,9 +115,22 @@ void DataFusion::Init( )
 
         // 读取imu参数
         StructImuParameter imu_parameter;
-        int read_sate = read_imu_calibation_parameter( &imu_parameter);
+        int read_sate = read_imu_calibration_parameter( &imu_parameter);
         if(read_sate){
             m_imu_attitude_estimate.SetGyroBias(imu_parameter.gyro_bias);
+        }
+    }
+    #else
+    {
+        int stste = init_gsensor();
+        if(stste >= 0){
+           m_init_state = true;
+           printf("init_gsensor OK!\n");
+           LOG(ERROR) << "DataFusion::Init--init_gsensor OK!";
+        }else{
+           m_init_state = false;
+           printf("init_gsensor ERROR!!!\n");
+           LOG(ERROR) << "DataFusion::Init--init_gsensor ERROR!!!";
         }
     }
     #endif
@@ -132,7 +141,6 @@ void DataFusion::StartDataFusionTask()
 {
     m_fusion_thread.Start();
     m_is_running = true;
-
     Closure<void>* cls = NewClosure(this, &DataFusion::RunFusion);
     m_fusion_thread.AddTask(cls);
 }
@@ -173,12 +181,12 @@ void DataFusion::RunFusion( )
 // 线程循环周期控制
 // 因为在PC端，日志可能会很大, 可以考虑不进行刷新频率控制；
 // 但是在板子上不存在这个问题，所以进行刷新频率控制，减少无意义资源占用
-void DataFusion::FusionScheduler(const timeval time_counter_pre, const int64_t period_us)
+void DataFusion::FusionScheduler(const timeval time_counter_pre,  const int64_t period_us)
 {
     #if !defined(DATA_FROM_LOG)
     {
         int64_t dt_counter;
-        timeval time_counter_cur；
+        struct timeval time_counter_cur;
         gettimeofday(&time_counter_cur, NULL);
         dt_counter = (time_counter_cur.tv_sec - time_counter_pre.tv_sec)*1000000 + (time_counter_cur.tv_usec - time_counter_pre.tv_usec);
         if(dt_counter < period_us){   // 10ms
@@ -994,12 +1002,12 @@ int DataFusion::DoCalibrateGyroBiasOnline( )
                         StructImuParameter new_imu_parameter;
                         double old_gyro_bias[3];
                         m_imu_attitude_estimate.GetGyroBias(old_gyro_bias);
-                        new_imu_parameter.gyro_bias[0] = old_gyro_bias[0] + bias_drift_new[0];
-                        new_imu_parameter.gyro_bias[1] = old_gyro_bias[1] + bias_drift_new[1];
-                        new_imu_parameter.gyro_bias[2] = old_gyro_bias[2] + bias_drift_new[2];
+                        for(int i=0; i<3; i++)
+                            new_imu_parameter.gyro_bias[i] = old_gyro_bias[i] + bias_drift_new[i];
+
                         m_imu_attitude_estimate.SetGyroBias(new_imu_parameter.gyro_bias);
                         // 保存imu校准结果
-                        int write_state = write_imu_calibation_parameter( new_imu_parameter);
+                        int write_state = write_imu_calibration_parameter( new_imu_parameter);
                         if(write_state){
                             m_is_gyro_online_calibrate_ok = true;
                             printf("write imu calibation parameter sucess!!\n");
@@ -1024,14 +1032,14 @@ int DataFusion::DoCalibrateGyroBiasOnline( )
     }
     ////////////////////////////////////////////////////////////////////////
     // for log test
-    if(m_is_gyro_online_calibrate_ok){
-        m_is_gyro_online_calibrate_ok = false;
-        // 车子一旦动了，就重置状态
-        m_zero_speed_time_counter = 0;
-        m_is_first_zero_speed = true;
-        // 重置 online calibrate state
-        m_is_need_reset_calibrate = true;
-    }
+//    if(m_is_gyro_online_calibrate_ok){
+//        m_is_gyro_online_calibrate_ok = false;
+//        // 车子一旦动了，就重置状态
+//        m_zero_speed_time_counter = 0;
+//        m_is_first_zero_speed = true;
+//        // 重置 online calibrate state
+//        m_is_need_reset_calibrate = true;
+//    }
     return 0;
 }
 
@@ -1246,7 +1254,7 @@ int DataFusion::CalibrateGyroBias( double gyro_bias[3] )
 }
 
 
-int DataFusion:: read_imu_calibation_parameter( StructImuParameter *imu_parameter)
+int DataFusion:: read_imu_calibration_parameter( StructImuParameter *imu_parameter)
 {
     string buffer_log;
     stringstream ss_log;
@@ -1269,10 +1277,14 @@ int DataFusion:: read_imu_calibation_parameter( StructImuParameter *imu_paramete
     return 1;
 }
 
-
-int DataFusion::write_imu_calibation_parameter(const StructImuParameter &imu_parameter)
+// 保存陀螺仪校准
+// 文件格式: gyro_bias gyro_bias[0] gyro_bias[1] gyro_bias[2]
+// 1:　正常
+// -1 :擦除原有结果失败
+// -2: 写入新结果失败
+// -3: 记录历史校正结果失败
+int DataFusion::write_imu_calibration_parameter(const StructImuParameter &imu_parameter)
 {
-    // 文件格式: gyro_bias gyro_bias[0] gyro_bias[1] gyro_bias[2]
     char buffer[100];
     // clear content
     fstream file_imu;
@@ -1286,20 +1298,28 @@ int DataFusion::write_imu_calibation_parameter(const StructImuParameter &imu_par
 
     file_imu.open(m_imu_parameter_addr.c_str());
     if (file_imu.is_open()) {
-//        sprintf(buffer, "--gyro_bias_x=%f\n--gyro_bias_y=%f\n--gyro_bias_z=%f\n",
-//                imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
-          sprintf(buffer, "gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
+        sprintf(buffer, "gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
         file_imu << buffer;
         printf("write new gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0], imu_parameter.gyro_bias[1], imu_parameter.gyro_bias[2] );
     }else{
         printf("write new gyro_bias failed!!\n");
         return -2;
     }
-
     file_imu.close();
+
+    // save all the calibrate results
+    fstream file_imu_log;
+    file_imu_log.open(m_imu_parameter_log_addr.c_str(), ios::out | ios::app);
+    if (file_imu_log.is_open()) {
+        sprintf(buffer, "time %f gyro_bias %f %f %f\n", m_imu_data.timestamp, imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
+        file_imu_log << buffer;
+        printf("write gyro_bias log success!!\n");
+    }else{
+        printf("write gyro_bias log failed!!\n");
+        return -3;
+    }
     return 1;
 }
-
 
 
 }

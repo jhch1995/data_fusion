@@ -64,6 +64,7 @@ int main(int argc, char *argv[])
             return -1;
         } 
         double gyro_bias[3];
+        StructImuParameter imu_parameter_pre, imu_parameter_new;
         data_fusion.CalibrateGyroBias(gyro_bias);        
         //read_imu_calibation_parameter(&imu_parameter_pre); 
         memcpy(imu_parameter_new.gyro_bias, gyro_bias, sizeof(gyro_bias));
@@ -78,7 +79,7 @@ int main(int argc, char *argv[])
     #if defined(DATA_FROM_LOG)
     {
         // 读入log
-        ifstream infile_log("data/doing/log.txt");       // 指定log的路径
+        ifstream infile_log("data/doing/log.txt");  // 指定log的路径
         string buffer_log;
         string data_flag;
         stringstream ss_log;

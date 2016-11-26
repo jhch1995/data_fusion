@@ -1,12 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
 
-IF(DEBUG)
-    SET(CMAKE_BUILD_TYPE "Debug") 
-    SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
-ELSEIF (RELEASE)
-ENDIF()
-
 IF (WIN32)
 ELSEIF (ANDROID_ABI)
     MESSAGE(STATUS "include: ANDORID platform")
@@ -30,7 +24,8 @@ ELSEIF (UNIX)
     MESSAGE(STATUS "include: UNIX platform")
     ADD_DEFINITIONS(-DUSE_GLOG)
     #ADD_DEFINITIONS(-DLOG_STD_COUT)
-    ADD_DEFINITIONS(-DDATA_FROM_LOG)
+#    ADD_DEFINITIONS(-DDATA_FROM_LOG)
+    MESSAGE(STATUS "DATA_FROM_LOG=${DATA_FROM_LOG}")
     INCLUDE_DIRECTORIES(
         #"${PROJECT_ROOT_PATH}"
         "${PROJECT_SOURCE_DIR}/src/data_fusion/"
@@ -75,7 +70,7 @@ ELSEIF (UNIX)
     MESSAGE(STATUS "LINK: UNIX")
     find_package(OpenCV REQUIRED)
     ADD_EXECUTABLE(lane_tracking_test "./lane_tracking_test_main.cpp")
-    TARGET_LINK_LIBRARIES(lane_tracking_test imu halio
+    TARGET_LINK_LIBRARIES(lane_tracking_test imu  data_fusion halio
                           concurrency relative_locate time glog gflags pthread
                           opencv_imgcodecs opencv_core opencv_highgui )
 
@@ -90,7 +85,7 @@ ELSEIF (UNIX)
                           opencv_imgcodecs opencv_core opencv_highgui )         
                           
     ADD_EXECUTABLE(imu_calibrate_online "./imu_calibrate_online.cpp")
-    TARGET_LINK_LIBRARIES(imu_calibrate_online imu halio
+    TARGET_LINK_LIBRARIES(imu_calibrate_online imu data_fusion halio
                           gflags glog  pthread 
                           opencv_imgcodecs opencv_core opencv_highgui )                   
 ENDIF()

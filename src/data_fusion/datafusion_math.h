@@ -14,7 +14,7 @@
 #define VLOG_DEBUG 4
 #if defined(LOG_STD_COUT)
     #include <iostream>
-    #define VLOG(serverity) std::cout
+//    #define VLOG(serverity) std::cout
 #endif
 
 // gflog

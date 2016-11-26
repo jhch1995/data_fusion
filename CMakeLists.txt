@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 2.8.2)
 PROJECT(DATA_FUSION) # PROJECT_ROOT_PATH
 cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
-SET(DEBUG 1)
 
 IF (ANDROID_ABI)
     SET(CMAKE_CXX_FLAGS_RELEASE "-Wall -Wno-unused-result -Wno-unused-but-set-variable -Wno-unused-variable -O3 -std=gnu++0x")
@@ -11,7 +10,6 @@ ELSEIF(UNIX)
     SET(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wno-unused-result -Wno-unused-but-set-variable -Wno-unused-variable -g -std=gnu++0x")
 ENDIF ()
 
-
 SET(PROJECT_ROOT_PATH "${CMAKE_SOURCE_DIR}")
 MESSAGE(STATUS ${PROJECT_ROOT_PATH})
 SET(EXECUTABLE_OUTPUT_PATH "${PROJECT_BINARY_DIR}/bin")
@@ -19,14 +17,22 @@ SET(LIBRARY_OUTPUT_PATH "${PROJECT_BINARY_DIR}/lib/")
 
 ######################### configuration ###########################
 OPTION(USE_GSENSOR_LOG_SWITCH "switch for using chip-gsensor-data instantly OR from gsensor-log" OFF)
-
 IF (USE_GSENSOR_LOG_SWITCH)
     MESSAGE(STATUS "use gsensor data from log")
     ADD_DEFINITIONS(-DDATA_FROM_LOG) # read data from log    
 ELSE()
     MESSAGE(STATUS "use gsensor data from chip")
 ENDIF()
-ADD_DEFINITIONS(-DDATA_FROM_LOG)
+
+OPTION(COMPILE_DEBUG_SWITCH "switch for copmile debug OR release" OFF)
+IF (COMPILE_DEBUG_SWITCH)
+    MESSAGE(STATUS " copmile debug")
+    SET(CMAKE_BUILD_TYPE "Debug") 
+    SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
+ELSE()
+
+ENDIF()
+
 #root
 IF ("${CMAKE_SIZEOF_VOID_P}" EQUAL "4")
     MESSAGE(STATUS "root: x32 platform")
@@ -45,8 +51,8 @@ ELSEIF (ANDROID_ABI)
 ELSEIF (UNIX)
     MESSAGE(STATUS "DEFINE: UNIX platform")
     SET(OpenCV_DIR "/opt/opencv/default/share/OpenCV")
-    FIND_PACKAGE(OpenCV REQUIRED)
-    ADD_DEFINITIONS(-DUSE_GLOG)    
+    FIND_PACKAGE(OpenCV REQUIRED)   
+    ADD_DEFINITIONS(-DUSE_GLOG)
 ENDIF ()
 
 IF (WIN32)

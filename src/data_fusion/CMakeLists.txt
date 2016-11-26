@@ -1,8 +1,5 @@
-IF(DEBUG)
-    SET(CMAKE_BUILD_TYPE "Debug") 
-    SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
-ELSEIF (RELEASE)
-ENDIF()
+cmake_minimum_required(VERSION 3.0)
+cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
 
 AUX_SOURCE_DIRECTORY(. SRC_LIST)
 ADD_LIBRARY(data_fusion STATIC ${SRC_LIST})

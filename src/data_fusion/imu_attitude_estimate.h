@@ -2,13 +2,13 @@
 #define IMU_ATTITUDE_ESTIMATE_H
 
 #include <fstream>
-#include <string>
+#include <string.h>
 #include <sstream>
 #include <iostream>
-
 #include <vector>
 #include <math.h>
 #include <stdio.h>
+
 #include "gflags/gflags.h"
 #include "common/base/log_level.h"
 #include "datafusion_math.h"

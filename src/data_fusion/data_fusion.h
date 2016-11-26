@@ -18,6 +18,7 @@
 #include "common/concurrency/rwlock.h"
 #include "common/hal/android_gsensor.h"
 #include "common/hal/halio.h"
+#include "common/time/time_utils.h"
 
 #include "imu_attitude_estimate.h"
 #include "can_vehicle_estimate.h"
@@ -142,17 +143,17 @@ public:
     float Raw2Degree(short raw);
 
     // 校准陀螺仪零偏
-    int CalibrateGyroBias(   double new_gyro_bias[3] );
+    int CalibrateGyroBias( double new_gyro_bias[3] );
 
     int DoCalibrateGyroBiasOnline( );
 
     int CalibrateGyroBiasOnline(double gyro_bias[3]);
 
     // 读取imu参数
-    int read_imu_calibation_parameter( StructImuParameter *imu_parameter);
+    int read_imu_calibration_parameter( StructImuParameter *imu_parameter);
 
     // 写入imu校准结果
-    int write_imu_calibation_parameter(const StructImuParameter &imu_parameter);
+    int write_imu_calibration_parameter(const StructImuParameter &imu_parameter);
 
     // 外部调用接口: 预测特征点的坐标
     int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,
@@ -217,6 +218,7 @@ private:
     int m_sample_counter; // 采样计数
 
     string m_imu_parameter_addr; // imu参数存放地址
+    string m_imu_parameter_log_addr; // 记录每次上电后校准的imu参数结果
 
     // 数据读写锁
     RWLock radius_rw_lock;
