@@ -43,8 +43,7 @@ void ImuAttitudeEstimate::Initialize( )
 //    m_A1[2][1] = 0.0064;
 //    m_A1[2][2] = 0.9859;
 
-    //ReadGyroBias();
-
+    // 初始化为０,　目前会从配置文件中读取，并每次上电在这个基础上进一步校正
     m_gyro_drift[0] = 0;
     m_gyro_drift[1] = 0;
     m_gyro_drift[2] = 0;
@@ -64,9 +63,9 @@ void ImuAttitudeEstimate::Initialize( )
 //    m_gyro_drift[1] = -0.039585;
 //    m_gyro_drift[2] = 0.017939;
     // new
-    m_gyro_drift[0] = -0.0431746;
-    m_gyro_drift[1] = -0.0394169;
-    m_gyro_drift[2] = 0.013547269;
+//    m_gyro_drift[0] = -0.0431746;
+//    m_gyro_drift[1] = -0.0394169;
+//    m_gyro_drift[2] = 0.013547269;
 
     // Y-1
 //    m_gyro_drift[0] = 0.0155;

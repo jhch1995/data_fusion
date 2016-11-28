@@ -21,7 +21,7 @@
 
 #include "data_fusion.h"
 #include "datafusion_math.h"
-//#include "imu_module.h"
+#include "imu_module.h"
    
 using namespace std;
 using namespace imu;
@@ -101,11 +101,8 @@ void do_predict_feature(DataFusion &data_fusion );
 TimeUtils f_time_counter;
 
 // gflog
-DEFINE_double(gyro_bias_x, 0.00897, "imu gyro bias x ");
-DEFINE_double(gyro_bias_y, -0.0322, "imu gyro bias y ");
-DEFINE_double(gyro_bias_z, -0.0214, "imu gyro bias z ");
 DEFINE_double(d_test, -1, "imu gyro bias z ");
-DEFINE_string(fileflag, ".\imu.flag", "imu gyro bias z ");
+DEFINE_string(fileflag, "./imu.flag", "imu gyro bias z ");
 
 int main(int argc, char *argv[])
 { 
@@ -264,14 +261,16 @@ int main(int argc, char *argv[])
 
                     // 画车道线
                     mark_IPM_lane(ipm_image, lane_coeffs, ipm_para, 0.9);// 在IPM中标注当前lane 白色
-//                    mark_IPM_lane(ipm_image, lane_coeffs_pre, ipm_para, 0.45);// 在IPM中标注上一帧lane 灰白
-//                    std::cout<<"lane_coeffs_pre:"<<lane_coeffs_pre<<endl;
+                    mark_IPM_lane(ipm_image, lane_coeffs_pre, ipm_para, 0.45);// 在IPM中标注上一帧lane 灰白
                     mark_IPM_lane(ipm_image, lane_coeffs_predict, ipm_para, 0.15);// 在IPM中标注预测lane 黑色
-//                    std::cout<<"lane_coeffs_predict:"<<lane_coeffs_predict<<endl;
                     cv::imshow("ipm", ipm_image);
-                    if(cv::waitKey(10)) // 值在50-200左右IPM图,有时会显示黑色
-                    {}                        
 
+                    //按键事件，空格暂停，其他跳出循环
+                    int temp = cvWaitKey(100);
+                    if (temp == 32)
+                        while (cvWaitKey() == -1);
+                    else if (temp >= 0)
+                        break;
                 }
             }                
         }     

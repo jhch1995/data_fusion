@@ -13,6 +13,7 @@
 
 #include "data_fusion.h"
 #include "datafusion_math.h"
+#include "imu_module.h"
 
 using namespace imu;
 
@@ -39,41 +40,34 @@ struct StructImuData
 
 int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter);
 int read_imu_calibation_parameter( StructImuParameter *imu_parameter);
-DEFINE_string(fileflag, ".\imu1.flag", "imu gyro bias z ");
+//DEFINE_string(fileflag, "./imu1.flag", "imu gyro bias z ");
 int main(int argc, char *argv[])
 {
-    //解析
-    printf(" gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);
-    printf("log_base_addr cur: %s\n", FLAGS_fileflag.c_str());
+    // 初始化
     google::ParseCommandLineFlags(&argc, &argv, true);
-    printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);
-    // 进行数据融合的类
-    DataFusion data_fusion;
-    // 校正
-    #if defined(DATA_FROM_LOG)
-    {
-        data_fusion.StartDataFusionTask( );
-    }
-    #else
-    {
-        //读取车速测试
-        HalIO &halio = HalIO::Instance();
-        bool res = halio.Init(NULL, MOBILEEYE);
-        if (!res) {
-            std::cerr << "HALIO init fail" << std::endl;
-            return -1;
-        } 
-        double gyro_bias[3];
-        StructImuParameter imu_parameter_pre, imu_parameter_new;
-        data_fusion.CalibrateGyroBias(gyro_bias);        
-        //read_imu_calibation_parameter(&imu_parameter_pre); 
-        memcpy(imu_parameter_new.gyro_bias, gyro_bias, sizeof(gyro_bias));
-        wite_imu_calibation_parameter(imu_parameter_new);
+    google::InitGoogleLogging(argv[0]);
+//    FLAGS_log_dir = "./log/";
+//    #if defined(USE_GLOG)
+//        FLAGS_v = VLOG_DEBUG; // VLOG_DEBUG;
+//    #endif
 
+    // 进行数据融合的类
+//    DataFusion data_fusion;
+
+    #if defined(DATA_FROM_LOG)
+//        data_fusion.StartDataFusionTask( );
+        ImuModule::Instance().StartDataFusionTask();
+    #else
+        //读取车速测试
+//        HalIO &halio = HalIO::Instance();
+//        bool res = halio.Init(NULL, MOBILEEYE);
+//        if (!res) {
+//            std::cerr << "HALIO init fail" << std::endl;
+//            return -1;
+//        }
         // 测试gflags读取配置并修改   
-        google::ParseCommandLineFlags(&argc, &argv, true);
-        printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);
-    }
+//        data_fusion.StartDataFusionTask( );
+        ImuModule::Instance().StartDataFusionTask();
     #endif
 
     #if defined(DATA_FROM_LOG)
@@ -104,7 +98,8 @@ int main(int argc, char *argv[])
 
                 // 执行查询转弯半径
                 int64_t image_timestamp_cur_int = (int64_t)(image_timestamp*1000);
-                int r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &R_cur);
+                int r_1  = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int*1000, &R_cur);
+//                int r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &R_cur);
                 if(r_1 <= 0){
                     printf("main timestamp dismatch, match state= %d, so sleep\n", r_1);
                     sleep(1);
@@ -126,8 +121,8 @@ int main(int argc, char *argv[])
         while(1){
             t_1 = f_time_counter.Microseconds();
             usleep(50000); // 50ms
-            r_state = data_fusion.GetTurnRadius( t_1, &R_cur);
-            printf("state: r_state,  R = %f\n", R_cur);
+            r_state = ImuModule::Instance().GetTurnRadius( t_1*1000, &R_cur);
+//            r_state = data_fusion.GetTurnRadius( t_1, &R_cur);
         }
     }
     #endif

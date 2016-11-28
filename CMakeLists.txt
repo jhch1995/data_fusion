@@ -30,7 +30,12 @@ IF (COMPILE_DEBUG_SWITCH)
     SET(CMAKE_BUILD_TYPE "Debug") 
     SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
 ELSE()
+ENDIF()
 
+OPTION(SAVE_ALL_IMU_CALIBRATE_RESULTS "switch for save all the imu calibrate results OR not" OFF)
+IF (SAVE_ALL_IMU_CALIBRATE_RESULTS)
+    MESSAGE(STATUS "save imu calibrate results")
+    ADD_DEFINITIONS(-DSAVE_ALL_IMU_CALIBRATE_RESULTS) # when the borard power on, imu will do calibrate, save all the results
 ENDIF()
 
 #root

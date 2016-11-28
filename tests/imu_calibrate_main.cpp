@@ -37,11 +37,6 @@ struct StructImuData
 #pragma pack()
 
 // gflog
-DEFINE_double(gyro_bias_x, 0.00897, "imu gyro bias x ");
-DEFINE_double(gyro_bias_y, -0.0322, "imu gyro bias y ");
-DEFINE_double(gyro_bias_z, -0.0214, "imu gyro bias z ");
-DEFINE_string(imu_parameter_addr, "./imu.flag", "imu parameter address ");
-
 
 int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter);
 

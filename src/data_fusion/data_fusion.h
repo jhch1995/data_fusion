@@ -107,10 +107,10 @@ public:
     int ReadSpeedOnline( );
 
     // 配置是否打印IMU数据
-    void PrintImuData(const int is_print_imu);
+    void PrintImuData(const bool is_print_imu);
 
      // 配置是否打印speed数据
-    void PrintSpeedData(const int is_print_speed);
+    void PrintSpeedData(const bool is_print_speed);
 
     // 更新当前读到数据的时间戳
     void UpdateCurrentDataTimestamp( double data_timestample);
@@ -140,7 +140,7 @@ public:
 
     int Polyfit(const cv::Mat& xy_feature, int order , std::vector<float>* lane_coeffs);
 
-    float Raw2Degree(short raw);
+    double Raw2Degree(short raw);
 
     // 校准陀螺仪零偏
     int CalibrateGyroBias( double new_gyro_bias[3] );
@@ -184,7 +184,7 @@ private:
     stringstream ss_tmp;
     ifstream infile_log;   
 
-    // read data
+    // read imu data
     bool m_init_state; // 初始化是否正常
     bool m_is_first_read_gsensor;
     bool m_data_gsensor_update; // 分别对应的数据是否已经更新
@@ -197,7 +197,7 @@ private:
     StructCanSpeedData m_can_speed_data;
     std::vector<StructCanSpeedData> m_vector_can_speed_data;
 
-    int m_is_print_imu_data; // 是否打印IMU数据
+    bool m_is_print_imu_data; // 是否打印IMU数据
     int m_is_print_speed_data;// 是否打印speed数据
 
     // imu在线校准
@@ -205,7 +205,6 @@ private:
     double m_zero_speed_time_pre; // 上一个speed为0时刻
     bool m_is_first_zero_speed; // 是否是最近时段第一次速度为0
     bool m_is_gyro_online_calibrate_ok; // 在线校准gyro是否OK
-
     bool m_is_need_reset_calibrate; // 是否需要重置校准
     bool m_is_first_calibrate;
     double m_gyro_sum[3], m_gyro_avg[3], m_gyro_diff[3], m_accel_diff[3], m_last_average[3], m_best_avg[3], m_accel_start[3];
@@ -236,6 +235,7 @@ private:
     // 外部调用的时间
     double m_call_predict_timestamp; // 当前外部图像处理模块处理的图片生成的时间戳
     double m_call_radius_timestamp; // 当前外部调用转弯半径计算的时间戳
+    struct timeval time_run_fusion_pre; // for test: 计算run fusion的周期
 
     /// vehicle state   imu+speed运动信息解算
     CAN_VehicleEstimate m_can_vehicle_estimate;
@@ -265,6 +265,7 @@ private:
     std::vector<StructTurnRadius> m_vector_turn_radius;
     bool m_is_R_ok; //南京那边可能会有IMU数据异常大的问题
 };
+
 }
 
 #endif  // DATA_FUSION_H

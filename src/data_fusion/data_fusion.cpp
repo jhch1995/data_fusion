@@ -28,9 +28,9 @@ void DataFusion::Init( )
     m_isFirstTime_att = 1; // 是否是第一次进入
     m_pre_imu_timestamp = 0.0f; // IMU数据上次得到的时刻
     m_is_first_speed_data = 1; //  1: 第一次获取到speed数据 0:不是第一次
-    m_is_print_imu_data = 0; // 是否打印IMU数据
-    m_is_print_speed_data = 0;
-    m_init_state = 1; // imu默认是初始化成功的
+    m_is_print_imu_data = false; // 是否打印IMU数据
+    m_is_print_speed_data = false;
+    m_init_state = true; // imu默认是初始化成功的
 
     // 在线imu校正
     m_zero_speed_time_counter = 0.0;
@@ -39,17 +39,9 @@ void DataFusion::Init( )
     m_is_gyro_online_calibrate_ok = false;
     m_is_need_reset_calibrate = true;
     m_is_first_calibrate = true;
-    #if defined(DATA_FROM_LOG)
-    {
-        m_imu_parameter_addr = "./imu.flag";
-        m_imu_parameter_log_addr = "./imu_paramer_log.flag";
-    }
-    #else
-    {
-        m_imu_parameter_addr = "/storage/sdcard0/imu/imu.flag";
-        m_imu_parameter_log_addr = "/storage/sdcard0/imu/imu_paramer_log.flag";
-    }
-    #endif
+
+    m_imu_parameter_addr = FLAGS_imu_init_addr;
+    m_imu_parameter_log_addr = FLAGS_imu_parameter_log_addr;
 
     memset(&m_gyro_sum, 0, sizeof(m_gyro_sum));
     memset(&m_gyro_avg, 0, sizeof(m_gyro_avg));
@@ -59,6 +51,8 @@ void DataFusion::Init( )
     memset(&m_best_avg, 0, sizeof(m_best_avg));
     memset(&m_accel_start, 0, sizeof(m_accel_start));
     memset(&m_new_gyro_offset, 0, sizeof(m_new_gyro_offset));
+    memset(&time_run_fusion_pre, 0, sizeof(time_run_fusion_pre));
+
     m_best_gyro_diff = 0;
     m_gyro_diff_norm = 0;
     m_acc_diff_norm = 0;
@@ -101,17 +95,14 @@ void DataFusion::Init( )
 
     #if defined(DATA_FROM_LOG)
     {
-        m_init_state = true; // 读取log的时候认为是imu初始化是OK的
+        m_init_state = true; // 读取log的时候,认为imu初始化是OK的
         // read data from log
-        infile_log.open("data/doing/log.txt");       // ofstream
+        infile_log.open(FLAGS_log_data_addr); // ofstream
         LOG(ERROR) << "try open \"data/doing/log.txt\"\n";
-        if(!infile_log){
+        if(!infile_log)
             LOG(ERROR) << "open \"data/doing/log.txt\" ERROR!!\n";
-            printf("open \"data/doing/log.txt\" ERROR!!\n");
-        }else{
-            VLOG(VLOG_WARNING) << "open \"data/doing/log.txt\" OK!\n";
-            printf("open \"data/doing/log.txt\" OK!\n");
-        }
+        else
+            LOG(ERROR) << "open \"data/doing/log.txt\" OK!\n";
 
         // 读取imu参数
         StructImuParameter imu_parameter;
@@ -132,6 +123,12 @@ void DataFusion::Init( )
            printf("init_gsensor ERROR!!!\n");
            LOG(ERROR) << "DataFusion::Init--init_gsensor ERROR!!!";
         }
+        // 读取imu参数
+        StructImuParameter imu_parameter;
+        int read_sate = read_imu_calibration_parameter( &imu_parameter);
+        if(read_sate){
+            m_imu_attitude_estimate.SetGyroBias(imu_parameter.gyro_bias);
+        }
     }
     #endif
 }
@@ -148,11 +145,17 @@ void DataFusion::StartDataFusionTask()
 // 线程循环执行的函数
 void DataFusion::RunFusion( )
 {
-    struct timeval time_counter_pre;
-    int64_t run_fusion_period_us = 1e6/(2*m_imu_sample_hz);// 数据生成的频率是m_imu_sample_hz， 读取数据的频率最好时2×m_imu_sample_hz，保证数据的实时性
-    if(m_init_state){
+    struct timeval time_counter_start;
+    int64_t run_fusion_period_us = 1e6/m_imu_sample_hz;// 数据生成的频率是m_imu_sample_hz， 读取数据的频率最好时2×m_imu_sample_hz，保证数据的实时性
+    if(m_init_state == 1){
         while (m_is_running) {
-            gettimeofday(&time_counter_pre, NULL); // 用于控制频率
+            gettimeofday(&time_counter_start, NULL); // 用于控制频率
+
+            // FOR test: 打印系统运行时间
+//            int dt_counter = (time_counter_start.tv_sec - time_run_fusion_pre.tv_sec)*1000000 + (time_counter_start.tv_usec - time_run_fusion_pre.tv_usec);
+//            printf("run fuSion time = %d(us)\n", dt_counter);
+//            memcpy(&time_run_fusion_pre, &time_counter_start, sizeof(time_counter_start));
+
             int read_state = ReadData(); // 数据保存在  m_vector_imu_data; read_state>0，代表数据正常读取
             if(read_state > 0){
                 int vector_imu_length = m_vector_imu_data.size();
@@ -170,27 +173,27 @@ void DataFusion::RunFusion( )
                     m_vector_imu_data.clear(); // 清空缓存的buffer
                 }
             }
-            FusionScheduler(time_counter_pre,  run_fusion_period_us); // 运行频率控制
+            FusionScheduler(time_counter_start,  run_fusion_period_us); // 运行频率控制
         }
     }else{
         LOG(ERROR)<<"DF:init imu failed!!!"<<endl;
-        printf("DF:imu init failed!!!!\n");
     }
 }
 
 // 线程循环周期控制
 // 因为在PC端，日志可能会很大, 可以考虑不进行刷新频率控制；
 // 但是在板子上不存在这个问题，所以进行刷新频率控制，减少无意义资源占用
-void DataFusion::FusionScheduler(const timeval time_counter_pre,  const int64_t period_us)
+void DataFusion::FusionScheduler(const timeval time_counter_start,  const int64_t period_us)
 {
     #if !defined(DATA_FROM_LOG)
     {
         int64_t dt_counter;
         struct timeval time_counter_cur;
         gettimeofday(&time_counter_cur, NULL);
-        dt_counter = (time_counter_cur.tv_sec - time_counter_pre.tv_sec)*1000000 + (time_counter_cur.tv_usec - time_counter_pre.tv_usec);
+        dt_counter = (time_counter_cur.tv_sec - time_counter_start.tv_sec)*1000000 + (time_counter_cur.tv_usec - time_counter_start.tv_usec);
         if(dt_counter < period_us){   // 10ms
-            int64_t sleep_us = period_us - dt_counter;
+            int sleep_us = period_us - dt_counter;
+//            printf("sleep time = %d(us)\n", sleep_us);
             usleep(sleep_us);
         }
     }
@@ -310,7 +313,6 @@ int DataFusion::ReadDataFromLog( )
 }
 
 
-
 // 在线读取imu数据
 int DataFusion::ReadImuOnline( )
 {
@@ -419,7 +421,6 @@ int DataFusion::ReadSpeedOnline( )
         snprintf(buf1, sizeof(buf1), "speed %f %f", m_can_speed_data.timestamp, speed_can);
         printf("# %s\n",  buf1);
     }
-
     return 1;
 }
 
@@ -534,8 +535,8 @@ void DataFusion::DeleteOldRadiusData( )
             break;
     }
 
+    // 检测出比当前m_call_predict_timestamp早data_save_length秒前的数据，并删除
     if(R_delete_conter > 0)
-        // 检测出比当前m_call_predict_timestamp早data_save_length秒前的数据，并删除
         m_vector_turn_radius.erase(m_vector_turn_radius.begin(), m_vector_turn_radius.begin()+R_delete_conter);
 }
 
@@ -564,7 +565,6 @@ void DataFusion::EstimateAtt()
         VLOG(VLOG_WARNING)<<"DF:EstimateAtt--"<<"angle_z = "<<m_struct_att.angle_z<<endl;
     }
 }
-
 
 void DataFusion::EstimateVehicelState()
 {
@@ -703,6 +703,7 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
 
 // 给外部调用的接口:特征点预测
 // 1: 数据正常
+// 0: 没有找到合适数据
 // -1:int_timestamp_search < all_data_time 落后
 // -2:int_timestamp_search > all_data_time 超前
 int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur,
@@ -738,7 +739,6 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
         return predict_state;
     }
     return 0;
-
 }
 
 
@@ -757,25 +757,20 @@ int DataFusion::FeaturePredict( const std::vector<cv::Point2f>& vector_feature_p
     d_pos_new_c[0] = cosf(angle_z_pre)*d_pos_tmp[0] + sinf(angle_z_pre)*d_pos_tmp[1];
     d_pos_new_c[1] = -sinf(angle_z_pre)*d_pos_tmp[0] + cos(angle_z_pre)*d_pos_tmp[1];
 
+    double dyaw = att_cur[2] - att_pre[2];
+    double dangle_z = m_angle_z_cur - m_angle_z_pre; //  dangle_z比dyaw更准
 
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"vehicle_pos_pre: "<<vehicle_pos_pre[0]<<", "<<vehicle_pos_pre[1]<<endl;
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"vehicle_pos_cur: "<<vehicle_pos_cur[0]<<", "<<vehicle_pos_cur[1]<<endl;
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"d_pos: "<<d_pos_new_c[0]<<" "<<d_pos_new_c[1]<<endl;
-
-    double dyaw = att_cur[2] - att_pre[2];
-    // test
-    double dangle_z = m_angle_z_cur - m_angle_z_pre;
-
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"att_pre: "<<att_pre[0]*180/M_PI<<", "<<att_pre[1]*180/M_PI<<", "<<att_pre[2]*180/M_PI<<endl;
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"att_cur: "<<att_cur[0]*180/M_PI<<", "<<att_cur[1]*180/M_PI<<", "<<att_cur[2]*180/M_PI<<endl;
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"dyaw: "<<dyaw*180/M_PI<<endl;
     VLOG(VLOG_DEBUG)<<"DF:FeaturePredict--"<<"dangle_z: "<<dangle_z*180/M_PI<<endl;
 
-    dyaw = dangle_z;
-
     double Rn2c_kT[2][2];
-    Rn2c_kT[0][0] = cosf(dyaw);
-    Rn2c_kT[0][1] = sinf(dyaw);
+    Rn2c_kT[0][0] = cosf(dangle_z);
+    Rn2c_kT[0][1] = sinf(dangle_z);
     Rn2c_kT[1][0] = -Rn2c_kT[0][1];
     Rn2c_kT[1][1] = Rn2c_kT[0][0];
 
@@ -783,8 +778,7 @@ int DataFusion::FeaturePredict( const std::vector<cv::Point2f>& vector_feature_p
     double feature_points_nums = vector_feature_pre.size();
     cv::Point2f XY_pre, XY_predict;
     vector_feature_predict->clear(); // 清空数据
-    for(int points_index = 0; points_index<feature_points_nums; points_index++)
-    {
+    for(int points_index = 0; points_index<feature_points_nums; points_index++) {
         XY_pre.x = (vector_feature_pre.begin()+points_index)->x;
         XY_pre.y = (vector_feature_pre.begin()+points_index)->y;
 
@@ -792,13 +786,10 @@ int DataFusion::FeaturePredict( const std::vector<cv::Point2f>& vector_feature_p
         double dy = XY_pre.y - d_pos_new_c[1];
         XY_predict.x = Rn2c_kT[0][0]*dx + Rn2c_kT[0][1]*dy;
         XY_predict.y = Rn2c_kT[1][0]*dx + Rn2c_kT[1][1]*dy;
-
         vector_feature_predict->push_back(XY_predict);
     }
     return 1;
 }
-
-
 
 // 计算汽车的转弯半径
 void DataFusion::CalculateVehicleTurnRadius()
@@ -827,16 +818,6 @@ void DataFusion::CalculateVehicleTurnRadius()
             R = can_speed_data.speed/gyro_filter_R[2];
         }else // 太小的速度和角速度
             R = 0;
-        
-//        if( fabs(R)>20){
-//            m_struct_turn_radius.is_imu_value_ok= true;
-//        }else if(R == 0){
-//            m_struct_turn_radius.is_imu_value_ok= true;
-//        }else{
-//            printf("1-imu error R=%f\n ", R);
-//            R = 0;
-//            m_struct_turn_radius.is_imu_value_ok= false;
-//        }
     }else{
         m_struct_turn_radius.is_imu_value_ok = false;
         R = 0;
@@ -847,7 +828,6 @@ void DataFusion::CalculateVehicleTurnRadius()
     m_struct_turn_radius.R = R;
     m_vector_turn_radius.push_back(m_struct_turn_radius);
 }
-
 
 // 给外部调用的接口:
 // 1: 数据正常
@@ -966,19 +946,12 @@ int DataFusion::Polyfit(const cv::Mat& xy_feature, int order, std::vector<float>
         return 1;
 }
 
-
-float DataFusion::Raw2Degree(short raw)
-{
-    return (float (raw))/340 + 36.53;
-}
-
-
-void DataFusion::PrintImuData(const int is_print_imu)
+void DataFusion::PrintImuData(const bool is_print_imu)
 {
     m_is_print_imu_data = is_print_imu;
 }
 
-void DataFusion::PrintSpeedData(const int is_print_speed)
+void DataFusion::PrintSpeedData(const bool is_print_speed)
 {
     m_is_print_speed_data = is_print_speed;
 }
@@ -1008,14 +981,16 @@ int DataFusion::DoCalibrateGyroBiasOnline( )
                         m_imu_attitude_estimate.SetGyroBias(new_imu_parameter.gyro_bias);
                         // 保存imu校准结果
                         int write_state = write_imu_calibration_parameter( new_imu_parameter);
-                        if(write_state){
+                        if(write_state == 1){
                             m_is_gyro_online_calibrate_ok = true;
-                            printf("write imu calibation parameter sucess!!\n");
+                            LOG(ERROR)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter sucess!!"<<endl;
                             return 1;
                         }else{
-                            printf("write imu calibation parameter failed , state = %d !!\n", write_state);
+                            LOG(ERROR)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter failed , state="<<write_state<<"!!"<<endl;
                             return write_state;
                         }
+                    }else{
+                        LOG(ERROR)<<"DF:DoCalibrateGyroBiasOnline--"<<"doing imu calibrate"<<endl;
                     }
                 }else{
                     m_zero_speed_time_counter += (m_can_speed_data.timestamp - m_zero_speed_time_pre);// 持续速度为0时间计数
@@ -1082,19 +1057,18 @@ int DataFusion::CalibrateGyroBiasOnline( double gyro_bias[3] )
         for(int k=0; k<3; k++)
             m_accel_diff[k] = imu_data_t.acc[k] - m_accel_start[k];
         m_acc_diff_norm = sqrtf(m_accel_diff[0]*m_accel_diff[0] + m_accel_diff[1]*m_accel_diff[1] + m_accel_diff[2]*m_accel_diff[2]);
-        printf("acc_diff_norm = %f\n", m_acc_diff_norm);
+        VLOG(VLOG_WARNING)<<"DF:CalibrateGyroBiasOnline--"<<"acc_diff_norm = "<< m_acc_diff_norm<<endl;
 
         if (m_acc_diff_norm > 0.2) {
-            printf("acc_diff_norm = %f > 0.2f, please keep the device stable!!!!\n", m_acc_diff_norm);
+            VLOG(VLOG_WARNING)<<"DF:CalibrateGyroBiasOnline--"<<"acc_diff_norm = "<< m_acc_diff_norm<<" > 0.2f, please keep the device stable!!!!"<<endl;
         }else{
             for(int k=0; k<3; k++){
                 m_gyro_avg[k] = m_gyro_sum[k]/m_gyro_sample_num;
                 m_gyro_diff[k] = m_last_average[k] - m_gyro_avg[k];
             }
             m_gyro_diff_norm = sqrtf(m_gyro_diff[0]*m_gyro_diff[0] + m_gyro_diff[1]*m_gyro_diff[1] + m_gyro_diff[2]*m_gyro_diff[2]);
-
-            printf("gyro_avg = %f %f %f\n", m_gyro_avg[0], m_gyro_avg[1], m_gyro_avg[2]);
-            printf("gyro_diff_norm = %f\n", m_gyro_diff_norm);
+            VLOG(VLOG_INFO)<<"DF:CalibrateGyroBiasOnline--"<<"gyro_avg = "<<m_gyro_avg[0]<<", "<<m_gyro_avg[1]<<", "<<m_gyro_avg[2]<<endl;
+            VLOG(VLOG_INFO)<<"DF:CalibrateGyroBiasOnline--"<<"gyro_diff_norm = "<<m_gyro_diff_norm<<endl;
 
             if (m_is_first_calibrate){
                 m_best_gyro_diff = m_gyro_diff_norm;
@@ -1108,7 +1082,7 @@ int DataFusion::CalibrateGyroBiasOnline( double gyro_bias[3] )
                 double new_gyro_offset_norm = sqrtf(m_new_gyro_offset[0]*m_new_gyro_offset[0] + m_new_gyro_offset[1]*m_new_gyro_offset[1] + m_new_gyro_offset[2]*m_new_gyro_offset[2]);
                 if (!m_converged || last_average_norm < new_gyro_offset_norm)
                     memcpy(m_new_gyro_offset, m_last_average, sizeof(m_last_average));
-                printf("gyro calibate converg times: %d, bias= %f %f %f\n", m_num_converged, m_new_gyro_offset[0], m_new_gyro_offset[1], m_new_gyro_offset[2]);
+                VLOG(VLOG_INFO)<<"DF:CalibrateGyroBiasOnline--"<<"gyro calibate converg times= "<<m_num_converged<<"bias= "<<m_new_gyro_offset[0]<<", "<<m_new_gyro_offset[1]<<", "<<m_gyro_avg[2]<<endl;
 
                 if(m_num_converged++ >= 3)// 收敛的累计
                     m_converged = true;
@@ -1124,14 +1098,16 @@ int DataFusion::CalibrateGyroBiasOnline( double gyro_bias[3] )
 
     if (m_converged) {
         double bias_drift_norm = sqrtf(m_new_gyro_offset[0]*m_new_gyro_offset[0] + m_new_gyro_offset[1]*m_new_gyro_offset[1] + m_new_gyro_offset[2]*m_new_gyro_offset[2]);
-        printf("gyro calibate success, bias drift=%f, bias= %f %f %f\n",bias_drift_norm, m_new_gyro_offset[0], m_new_gyro_offset[1], m_new_gyro_offset[2]);
+
         // 判断校正结果是否时异常值 0.0８: bias>0.0５
         if(bias_drift_norm > 0.08){
             m_is_need_reset_calibrate = true;
-            printf("gyro calibate drift too big = %f!!!!\n", bias_drift_norm);
+            LOG(ERROR)<<"DF:CalibrateGyroBiasOnline--"<<"gyro calibate drift too big ="<<bias_drift_norm<<"!!!!"<<endl;
             return -1;
         }else{
             memcpy(gyro_bias, m_new_gyro_offset, sizeof(m_new_gyro_offset));
+            VLOG(VLOG_INFO)<<"DF:CalibrateGyroBiasOnline--"<<"gyro calibate success, bias drift="<<bias_drift_norm<<", drift= "
+                    <<m_new_gyro_offset[0]<<", "<<m_new_gyro_offset[1]<<", "<<m_gyro_avg[2]<<endl;
             return 1;
         }
     }else{
@@ -1141,14 +1117,13 @@ int DataFusion::CalibrateGyroBiasOnline( double gyro_bias[3] )
 }
 
 
-// the strategy is to average 50 points over 0.5 seconds, then do it
-// again and see if the 2nd average is within a small margin of the first
+// imu gyro calibrate
 int DataFusion::CalibrateGyroBias( double gyro_bias[3] )
 {
     double gyro_sum[3], gyro_avg[3], gyro_diff[3], accel_diff[3], last_average[3], best_avg[3], accel_start[3];
     double gyro_diff_norm, acc_diff_norm;
     double pre_gyro_offset[3], new_gyro_offset[3], best_gyro_diff;
-    int num_converged=0;
+    int num_converged = 0;
     bool converged = false;
     StructImuData imu_data_t;
     int gyro_sample_num = 50; // the gyro sample numbers each cycle
@@ -1268,9 +1243,10 @@ int DataFusion:: read_imu_calibration_parameter( StructImuParameter *imu_paramet
         ss_log.str(buffer_log);
         ss_log>>data_flag>>gyro_bias[0]>>gyro_bias[1]>>gyro_bias[2];
         memcpy(imu_parameter->gyro_bias, gyro_bias, sizeof(gyro_bias));
-        printf("read imu parameter %s, %f %f %f\n", data_flag.c_str(), imu_parameter->gyro_bias[0], imu_parameter->gyro_bias[1], imu_parameter->gyro_bias[2]);
+        LOG(ERROR)<<"DF:read_imu_calibration_parameter--"<<"read imu parameter = "<<data_flag.c_str()<<", "<<imu_parameter->gyro_bias[0]<<", "
+                <<imu_parameter->gyro_bias[1]<<", "<<imu_parameter->gyro_bias[2]<<endl;
     }else{
-        printf("open file error!!!\n");
+        LOG(ERROR)<<"DF:read_imu_calibration_parameter--"<<"open read imu parameter file error!!!"<<endl;
         return -1;
     }
     file_imu.close();
@@ -1291,7 +1267,7 @@ int DataFusion::write_imu_calibration_parameter(const StructImuParameter &imu_pa
     file_imu.open(m_imu_parameter_addr.c_str(), std::ifstream::out | std::ifstream::trunc );
     if (!file_imu.is_open() || file_imu.fail()){
         file_imu.close();
-        printf("Error : failed to erase file content !");
+        LOG(ERROR)<<"DF:CalibrateGyroBiasOnline--"<<"Error : failed to erase file content"<<endl;
         return -1;
     }
     file_imu.close();
@@ -1300,25 +1276,36 @@ int DataFusion::write_imu_calibration_parameter(const StructImuParameter &imu_pa
     if (file_imu.is_open()) {
         sprintf(buffer, "gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
         file_imu << buffer;
-        printf("write new gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0], imu_parameter.gyro_bias[1], imu_parameter.gyro_bias[2] );
+        LOG(ERROR)<<"DF:write_imu_calibration_parameter--"<<"write new gyro_bias = "<<imu_parameter.gyro_bias[0]<<", "
+                        <<imu_parameter.gyro_bias[1]<<", "<<imu_parameter.gyro_bias[2]<<endl;
     }else{
-        printf("write new gyro_bias failed!!\n");
+        LOG(ERROR)<<"write new gyro_bias failed!!"<<endl;
         return -2;
     }
     file_imu.close();
 
     // save all the calibrate results
-    fstream file_imu_log;
-    file_imu_log.open(m_imu_parameter_log_addr.c_str(), ios::out | ios::app);
-    if (file_imu_log.is_open()) {
-        sprintf(buffer, "time %f gyro_bias %f %f %f\n", m_imu_data.timestamp, imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
-        file_imu_log << buffer;
-        printf("write gyro_bias log success!!\n");
-    }else{
-        printf("write gyro_bias log failed!!\n");
-        return -3;
+    #if defined(SAVE_ALL_IMU_CALIBRATE_RESULTS)
+    {
+        fstream file_imu_log;
+        file_imu_log.open(m_imu_parameter_log_addr.c_str(), ios::out | ios::app);
+        if (file_imu_log.is_open()) {
+            sprintf(buffer, "time %f gyro_bias %f %f %f\n", m_imu_data.timestamp, imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
+            file_imu_log << buffer;
+            LOG(VLOG_INFO)<<"DF:write_imu_calibration_parameter--"<<"write gyro_bias log success!!\n"<<endl;
+        }else{
+            LOG(ERROR)<<"write gyro_bias log failed!!"<<endl;
+            return -3;
+        }
     }
+    #endif
+
     return 1;
+}
+
+double DataFusion::Raw2Degree(short raw)
+{
+    return (double (raw))/340 + 36.53;
 }
 
 

@@ -1,8 +1,16 @@
 #include "datafusion_math.h"
+DEFINE_double(gyro_bias_x, 0, "imu gyro bias x ");
+DEFINE_double(gyro_bias_y, 0, "imu gyro bias y ");
+DEFINE_double(gyro_bias_z, 0, "imu gyro bias z ");
 
-DEFINE_double(gyro_bias_x, 0.00897, "imu gyro bias x ");
-DEFINE_double(gyro_bias_y, -0.0322, "imu gyro bias y ");
-DEFINE_double(gyro_bias_z, -0.0214, "imu gyro bias z ");
-//DEFINE_string(fileflag, ".\imu2.flag", "imu gyro bias z ");
-//FLAGS_fileflag = ".\imu2.flag";
+#if defined DATA_FROM_LOG
+    DEFINE_string(imu_init_addr, "./imu.ini", "imu calibrate result base address");
+    DEFINE_string(imu_parameter_log_addr, "./imu_paramer_log.txt", "save all the imu calibrate results");
+    DEFINE_string(log_data_addr, "data/doing/log.txt", "the log data address (which save imu, speed and son on");
+#else
+    DEFINE_string(imu_init_addr, "/storage/sdcard0/imu.ini", "imu calibrate result base address");
+    DEFINE_string(imu_parameter_log_addr, "/storage/sdcard0/imu_paramer_log.txt", "save all the imu calibrate results");
+
+#endif
+
 
