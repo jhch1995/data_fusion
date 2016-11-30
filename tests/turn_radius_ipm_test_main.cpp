@@ -6,7 +6,7 @@
 #include <vector>
 #include <queue>
 #include <dirent.h>
-#include <time.h>   
+#include <time.h>
 
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
@@ -50,7 +50,7 @@ string str_image_frame_add = "data/doing/frame/image/";
 
 ifstream infile_log("data/doing/log.txt");       // 指定log的路径
 string buffer_log;
-string data_flag;    
+string data_flag;
 stringstream ss_log;
 stringstream ss_tmp;
 
@@ -78,14 +78,14 @@ double g_R_cur;
 double image_timestamp;
 
 int main(int argc, char *argv[])
-{      
+{
     //解析
     google::ParseCommandLineFlags(&argc, &argv, true);
 
     // 初始化
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";
-    
+
     CameraPara camera_para;
     camera_para.fu = FLAGS_fu;
     camera_para.fv = FLAGS_fv;
@@ -96,7 +96,8 @@ int main(int argc, char *argv[])
     camera_para.yaw = -FLAGS_yaw * CV_PI / 180;
     camera_para.image_width = FLAGS_image_width;
     camera_para.image_height = FLAGS_image_height;
-    BirdPerspectiveMapping bp_mapping(camera_para);
+    BirdPerspectiveMapping bp_mapping;
+    bp_mapping.Initialize(camera_para);
 
     IPMPara ipm_para;
     ipm_para.x_limits[0] = FLAGS_x_start_offset;
@@ -111,14 +112,14 @@ int main(int argc, char *argv[])
     #if defined(USE_GLOG)
 //        FLAGS_v = VLOG_DEBUG;
         FLAGS_v = 0;
-    #endif  
-    
+    #endif
+
 
 // 初始化融合函数
 //    data_fusion.StartDataFusionTask();
     ImuModule::Instance().StartDataFusionTask();
 
-    string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字    
+    string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字
     string frame_file_addr = str_image_frame_add + frame_file_name;// 获取图片的max,min index
     int max_frame_index, min_frame_index;
     get_max_min_image_index(max_frame_index, min_frame_index, frame_file_addr);
@@ -144,7 +145,7 @@ int main(int argc, char *argv[])
                 string image_name;
                 int log_image_index;
                 ss_log>>camera_raw_timestamp[0]>>camera_raw_timestamp[1]>>camera_flag>>camera_add>>log_image_index;
-                image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6; 
+                image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6;
 
                 // 匹配图片的时间戳
                 int pos1 = camera_add.find_last_of('_');
@@ -153,7 +154,7 @@ int main(int argc, char *argv[])
                 if(log_str_file_name.compare(frame_file_name) == 0 && log_image_index ==  image_index){
                     is_camera_index_mached = 1;
                     VLOG(VLOG_INFO)<<"image_index: "<<image_index;
-                    
+
                     // 读取图片
                     char str_iamge_name_index[20]; // 新数据格式，补全8位
                     sprintf(str_iamge_name_index, "%08d", image_index);
@@ -164,21 +165,21 @@ int main(int argc, char *argv[])
                     LoadImage(&org_image, image_name);
                     cv::Mat ipm_image = cv::Mat::zeros(ipm_para.height+1, ipm_para.width+1, CV_32FC1);
                     image_IPM(ipm_image, org_image, ipm_para);
-                    
+
                     // 执行查询转弯半径
                     do_get_turn_radius();
-                   
+
                     // 画车道线
                     mark_IPM_radius(ipm_para, g_R_cur, 0.9,  ipm_image );
 
                     cv::imshow("ipm", ipm_image);
-                    if(cv::waitKey(30)) 
-                    {}  
+                    if(cv::waitKey(30))
+                    {}
                 }
-            }                
-        }     
+            }
+        }
     }
-    
+
     return 0;
 }
 
@@ -204,7 +205,7 @@ string get_file_name(string file_path)
     const char *filePath = file_path.data();
     if((dp=opendir(filePath))==NULL)
         printf("can't open %s", filePath);
-    
+
     while(((dirp=readdir(dp))!=NULL)){
          if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))
             continue;
@@ -218,7 +219,7 @@ string get_file_name(string file_path)
     }else{
         printf("error: too many files!!! \n");
         return 0;
-    }  
+    }
 }
 
 // 读取图片文件夹中所有文件最小和最大的index
@@ -230,14 +231,14 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
     bool is_first_time = 1;
     const char *filePath = file_path.data();
     if((dp=opendir(filePath))==NULL){
-        printf("can't open %s", filePath); 
+        printf("can't open %s", filePath);
         return 0;
-    }       
+    }
 
     while(((dirp=readdir(dp))!=NULL)){
         if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))
            continue;
-        
+
         file_name_t = dirp->d_name;
         string str_name(file_name_t);
         int number = std::atoi( str_name.c_str());
@@ -254,7 +255,7 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
     }
 
     printf("max:%d, min:%d\n", max_index, min_index);
-    return 1;    
+    return 1;
 }
 
 
@@ -284,7 +285,7 @@ void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  c
 {
     /// 在IPM中标注当前lane
     std::vector<int> x(ipm_para.height+2);
-    std::vector<int> y(ipm_para.height+2);         
+    std::vector<int> y(ipm_para.height+2);
     double y_max_t, x_t;
     int u, v;
 
@@ -292,7 +293,7 @@ void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  c
         y_max_t = ipm_para.y_limits[1];  // IPM 横向是x
     else
          y_max_t = min(ipm_para.y_limits[1], fabs(R));
-    
+
     for (double y_t = ipm_para.y_limits[0]; y_t < y_max_t; y_t+=ipm_para.y_scale) {
         if(R > 0)
             x_t = R - sqrt(R*R - y_t*y_t);
@@ -302,13 +303,13 @@ void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  c
             x_t = 0;
 
         u = (-y_t + ipm_para.y_limits[1])/ipm_para.y_scale;
-        v = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;       
-        
+        v = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
+
 
         if (v < 0 || v > ipm_para.width )
            continue;
         else
-           ipm_image.at<float>(u, v) = val;        
+           ipm_image.at<float>(u, v) = val;
     }
 }
 
@@ -329,15 +330,15 @@ void do_get_turn_radius()
         t_2 = f_time_counter.Microseconds();
 
         int64 predict_cal_dt = (t_2 - t_1) ;
-        VLOG(VLOG_INFO)<<"DF:main- "<<"predict_cal_dt= "<<predict_cal_dt<<endl; 
-        
-        if(main_sleep_counter > 0){            
+        VLOG(VLOG_INFO)<<"DF:main- "<<"predict_cal_dt= "<<predict_cal_dt<<endl;
+
+        if(main_sleep_counter > 0){
             printf("main timestamp diamatch conunter:%d, match state= %d, so sleep\n", main_sleep_counter, r_1);
             sleep(1);
         }
-        main_sleep_counter++;    
-        printf("state: %d, R = %f\n",r_1, g_R_cur);   
-    }       
-    
-       
+        main_sleep_counter++;
+        printf("state: %d, R = %f\n",r_1, g_R_cur);
+    }
+
+
 }

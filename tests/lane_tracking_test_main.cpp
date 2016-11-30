@@ -6,7 +6,7 @@
 #include <vector>
 #include <queue>
 #include <dirent.h>
-#include <time.h>   
+#include <time.h>
 
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
@@ -22,7 +22,7 @@
 #include "data_fusion.h"
 #include "datafusion_math.h"
 #include "imu_module.h"
-   
+
 using namespace std;
 using namespace imu;
 
@@ -48,7 +48,7 @@ DEFINE_string(log_base_addr, "data/doing/", "log lane address");// 加载文件�
 // 读入log
 ifstream infile_log; //("data/doing/log.txt");       // 指定log的路径
 string buffer_log;
-string data_flag;    
+string data_flag;
 stringstream ss_log;
 stringstream ss_tmp;
 
@@ -63,7 +63,7 @@ string buffer_lane;
 stringstream ss_lane;
 
 cv::Mat uv_feature_pts;
-cv::Mat xy_feature; 
+cv::Mat xy_feature;
 cv::Mat xy_feature_pre = cv::Mat::zeros(2, pts_num, CV_32FC1);; // 上一帧的中车道线的特征点
 cv::Mat lane_coeffs = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
 cv::Mat lane_coeffs_pre = cv::Mat::zeros(m_order+1, lane_num, CV_32FC1);
@@ -72,7 +72,7 @@ double image_timestamp;
 double image_timestamp_pre;
 bool is_first_lane_predict = 1;
 
-time_t  time_predict1,  time_predict2;  
+time_t  time_predict1,  time_predict2;
 
 void LoadImage(cv::Mat* image, string image_name);
 
@@ -105,13 +105,13 @@ DEFINE_double(d_test, -1, "imu gyro bias z ");
 DEFINE_string(fileflag, "./imu.flag", "imu gyro bias z ");
 
 int main(int argc, char *argv[])
-{ 
+{
     //解析
     google::ParseCommandLineFlags(&argc, &argv, true);
     printf("log_base_addr cur: %s\n", FLAGS_log_base_addr.c_str());
 
     printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);
-    printf("FLAG: d_test= %f\n", FLAGS_d_test); 
+    printf("FLAG: d_test= %f\n", FLAGS_d_test);
 
         // 初始化
     google::InitGoogleLogging(argv[0]);
@@ -127,7 +127,8 @@ int main(int argc, char *argv[])
     camera_para.yaw = FLAGS_yaw * CV_PI / 180;
     camera_para.image_width = FLAGS_image_width;
     camera_para.image_height = FLAGS_image_height;
-    BirdPerspectiveMapping bp_mapping(camera_para);
+    BirdPerspectiveMapping bp_mapping;
+    bp_mapping.Initialize(camera_para);
 
     IPMPara ipm_para;
     ipm_para.x_limits[0] = FLAGS_x_start_offset;
@@ -141,16 +142,16 @@ int main(int argc, char *argv[])
     // 设置VLOG打印等级
     #if defined(USE_GLOG)
         FLAGS_v = 0; // VLOG_DEBUG;
-    #endif 
+    #endif
 
 // 初始化融合函数
     DataFusion data_fusion;
-    data_fusion.StartDataFusionTask();  
+    data_fusion.StartDataFusionTask();
 //    ImuModule::Instance().StartDataFusionTask();
 
-// 本地利用标注的数据测试   
+// 本地利用标注的数据测试
     string str_image_frame_add = FLAGS_log_base_addr + "frame/";
-    string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字    
+    string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字
     string frame_file_addr = str_image_frame_add + frame_file_name;// 获取图片的max,min index
 
     // log.txt
@@ -175,7 +176,7 @@ int main(int argc, char *argv[])
 
     // 外部lane循环控制
     int image_cal_step = 4;// 每隔多少帧计算一次车道线预测
-    bool is_lane_match_image = 0;    
+    bool is_lane_match_image = 0;
     bool is_camera_index_mached = 0; // 是否已经从log中寻找到当前图像的匹配的时间戳
     for(int image_index = min_frame_index+5; image_index <= max_frame_index; image_index += image_cal_step){
         is_camera_index_mached = 0;
@@ -194,14 +195,14 @@ int main(int argc, char *argv[])
                 string image_name;
                 int log_image_index;
                 ss_log>>camera_raw_timestamp[0]>>camera_raw_timestamp[1]>>camera_flag>>camera_add>>log_image_index;
-                image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6; 
+                image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6;
 
                 // 匹配图片的时间戳
                 int pos1 = camera_add.find_last_of('_');
                 int pos2 = camera_add.find_last_of('.');
                 string log_str_file_name = camera_add.substr(pos1+1, pos2-1-pos1);
 
-                if(log_str_file_name.compare(frame_file_name) == 0 && log_image_index ==  image_index){   
+                if(log_str_file_name.compare(frame_file_name) == 0 && log_image_index ==  image_index){
                     // 文件名和index已经匹配
                     is_camera_index_mached = 1;
 
@@ -237,21 +238,21 @@ int main(int argc, char *argv[])
                     LoadImage(&org_image, image_name);
                     cv::Mat ipm_image = cv::Mat::zeros(ipm_para.height+1, ipm_para.width+1, CV_32FC1);
                     image_IPM(ipm_image, org_image, ipm_para);
-                    
+
                     // 执行预测lane
                     do_predict_feature(data_fusion);
 
                     /// 拟合当前lane
-                    xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);            
-                    uv_feature_pts = cv::Mat::zeros(2, pts_num, CV_32FC1); 
+                    xy_feature = cv::Mat::zeros(2, pts_num, CV_32FC1);
+                    uv_feature_pts = cv::Mat::zeros(2, pts_num, CV_32FC1);
                     for(int k=0; k<lane_num; k++){
                         for(int i1 = 0; i1<pts_num; i1++){
                             uv_feature_pts.at<float>(0, i1) = uv_feature[0][k*pts_num + i1];
                             uv_feature_pts.at<float>(1, i1) = uv_feature[1][k*pts_num + i1];
-                        }        
+                        }
                         // get these points on the ground plane
-                        bp_mapping.TransformImage2Ground(uv_feature_pts, &xy_feature);  
-                       
+                        bp_mapping.TransformImage2Ground(uv_feature_pts, &xy_feature);
+
                         std::vector<float> lane_coeffs_t;
                         polyfit1(&lane_coeffs_t, xy_feature, m_order); // 车道线拟合    Y = AX(X是纵轴);
 
@@ -272,10 +273,10 @@ int main(int argc, char *argv[])
                     else if (temp >= 0)
                         break;
                 }
-            }                
-        }     
+            }
+        }
     }
-    
+
     return 0;
 }
 
@@ -291,7 +292,7 @@ void LoadImage(cv::Mat* image, string image_name)
 }
 
 int polyfit_vector(std::vector<float>* lane_coeffs, std::vector<cv::Point2f>& vector_feature, int order )
-{  
+{
     int feature_points_num = vector_feature.size();
     std::vector<float> x(feature_points_num);
     std::vector<float> y(feature_points_num);
@@ -300,21 +301,21 @@ int polyfit_vector(std::vector<float>* lane_coeffs, std::vector<cv::Point2f>& ve
 
     for (int i = 0; i < feature_points_num; i++){
         x[i] = (vector_feature.begin()+i)->y;
-        y[i] = (vector_feature.begin()+i)->x; 
+        y[i] = (vector_feature.begin()+i)->x;
 
-        for (int j = 0; j <= order; j++) 
+        for (int j = 0; j <= order; j++)
             A.at<float>(i, j) = pow(y[i], j);
-        
+
         b.at<float>(i) = x[i];
     }
-    
+
     cv::Mat coeffs;
     int ret = cv::solve(A, b, coeffs, CV_SVD);
-    if(ret<=0){    
+    if(ret<=0){
         printf("cv:solve error!!!\n");
         return -1;
     }
-    
+
     for(int i=0; i<order+1; i++)
         lane_coeffs->push_back(coeffs.at<float>(i,0));
     return 1;
@@ -322,7 +323,7 @@ int polyfit_vector(std::vector<float>* lane_coeffs, std::vector<cv::Point2f>& ve
 
 
 int polyfit1(std::vector<float>* lane_coeffs, const cv::Mat xy_feature, int order )
-{  
+{
     int feature_points_num = xy_feature.cols;
     std::vector<float> x(feature_points_num);
     std::vector<float> y(feature_points_num);
@@ -331,23 +332,23 @@ int polyfit1(std::vector<float>* lane_coeffs, const cv::Mat xy_feature, int orde
 
         for (int i = 0; i < feature_points_num; i++) {
             x[i] = xy_feature.at<float>(0, i);
-            y[i] = xy_feature.at<float>(1, i); 
-    
-            for (int j = 0; j <= order; j++) 
+            y[i] = xy_feature.at<float>(1, i);
+
+            for (int j = 0; j <= order; j++)
                 A.at<float>(i, j) = pow(y[i], j);
             b.at<float>(i) = x[i];
         }
-        
+
         cv::Mat coeffs;
         int ret = cv::solve(A, b, coeffs, CV_SVD);
-        if(ret<=0){    
+        if(ret<=0){
             printf("cv:solve error!!!\n");
             return -1;
         }
-        
+
         for(int i=0; i<order+1; i++)
             lane_coeffs->push_back(coeffs.at<float>(i,0));
-  
+
         return 1;
 }
 
@@ -362,7 +363,7 @@ string get_file_name(string file_path)
     const char *filePath = file_path.data();
     if((dp=opendir(filePath))==NULL)
         printf("can't open %s", filePath);
-    
+
     while(((dirp=readdir(dp))!=NULL)){
          if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))
             continue;
@@ -376,7 +377,7 @@ string get_file_name(string file_path)
     }else{
         printf("error: too many files!!! \n");
         return 0;
-    }  
+    }
 }
 
 // 读取图片文件夹中所有文件最小和最大的index
@@ -388,14 +389,14 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
     bool is_first_time = 1;
     const char *filePath = file_path.data();
     if((dp=opendir(filePath))==NULL){
-        printf("can't open %s", filePath); 
+        printf("can't open %s", filePath);
         return 0;
-    }       
+    }
 
     while(((dirp=readdir(dp))!=NULL)){
         if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))
            continue;
-        
+
         file_name_t = dirp->d_name;
         string str_name(file_name_t);
         int number = std::atoi( str_name.c_str());
@@ -412,7 +413,7 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
     }
 
     printf("max:%d, min:%d\n", max_index, min_index);
-    return 1;    
+    return 1;
 }
 
 
@@ -443,7 +444,7 @@ void mark_IPM_lane(cv::Mat &ipm_image, const cv::Mat lane_coeffs, const IPMPara 
     /// 在IPM中标注当前lane
     std::vector<int> x(ipm_para.height+2);
     std::vector<int> y(ipm_para.height+2);
-    int i_index = -1;            
+    int i_index = -1;
     for (float i = ipm_para.y_limits[0]; i < ipm_para.y_limits[1]; i+=ipm_para.y_scale) {
        i_index += 1;
        y[i_index] = (-i + ipm_para.y_limits[1])/ipm_para.y_scale;
@@ -453,7 +454,7 @@ void mark_IPM_lane(cv::Mat &ipm_image, const cv::Mat lane_coeffs, const IPMPara 
        if (x[i_index] <= 0 || x[i_index] >= ipm_para.width )
            continue;
        else
-           ipm_image.at<float>(y[i_index], x[i_index]) = lane_color_value;         
+           ipm_image.at<float>(y[i_index], x[i_index]) = lane_color_value;
     }
 }
 
@@ -462,12 +463,12 @@ void mark_IPM_lane(cv::Mat &ipm_image, const cv::Mat lane_coeffs, const IPMPara 
 void do_predict_feature(DataFusion &data_fusion )
 {
     int64 t_1, t_2;
-    
+
     if(is_first_lane_predict){
         is_first_lane_predict = 0;
         image_timestamp_pre = image_timestamp;
     }
-    lane_coeffs.copyTo(lane_coeffs_pre);                
+    lane_coeffs.copyTo(lane_coeffs_pre);
 
     std::vector<cv::Point2f> vector_feature_predict;
     std::vector<cv::Point2f> vector_feature_pre;
@@ -475,7 +476,7 @@ void do_predict_feature(DataFusion &data_fusion )
     double X[5] = {2.0, 5.0, 10.0, 20.0, 35.0};
     cv::Point2f point_xy;
     vector_feature_pre.clear();
-    for(int points_index = 0; points_index<lane_points_nums; points_index++){   
+    for(int points_index = 0; points_index<lane_points_nums; points_index++){
         point_xy.x = X[points_index];
         point_xy.y = lane_coeffs_pre.at<float>(0, 1) + lane_coeffs_pre.at<float>(1, 1)*X[points_index] + lane_coeffs_pre.at<float>(2, 1)*X[points_index]*X[points_index];
         vector_feature_pre.push_back(point_xy);
@@ -494,21 +495,21 @@ void do_predict_feature(DataFusion &data_fusion )
         t_2 = f_time_counter.Microseconds();
 
         int64 predict_cal_dt = (t_2 - t_1) ;
-        VLOG(VLOG_INFO)<<"DF:main- "<<"predict_cal_dt= "<<predict_cal_dt<<endl; 
-        
+        VLOG(VLOG_INFO)<<"DF:main- "<<"predict_cal_dt= "<<predict_cal_dt<<endl;
+
         if(main_sleep_counter > 0)
-        {            
+        {
             printf("main timestamp diamatch conunter:%d, so sleep\n",  main_sleep_counter);
             usleep(100000);
         }
-        main_sleep_counter++;       
-    }                        
-    
+        main_sleep_counter++;
+    }
+
     std::vector<float> lane_coeffs_t;
     polyfit_vector(&lane_coeffs_t, vector_feature_predict, m_order );
     for(int i = 0; i<m_order+1; i++)
         lane_coeffs_predict.at<float>(i, 1) = lane_coeffs_t[i];
-                           
+
     image_timestamp_pre = image_timestamp;
-    
+
 }

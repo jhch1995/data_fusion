@@ -3,7 +3,6 @@
 
 #include "common/base/singleton.h"
 #include "common/base/stdint.h"
-#include "data_fusion/data_fusion.h"
 
 namespace imu {
 

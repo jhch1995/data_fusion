@@ -1,3 +1,4 @@
+#include "data_fusion/data_fusion.h"
 #include "imu_module.h"
 
 namespace imu {
