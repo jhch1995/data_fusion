@@ -182,7 +182,7 @@ private:
     string buffer_log;
     stringstream ss_log;
     stringstream ss_tmp;
-    ifstream infile_log;   
+    ifstream infile_log;
 
     // read imu data
     bool m_init_state; // 初始化是否正常

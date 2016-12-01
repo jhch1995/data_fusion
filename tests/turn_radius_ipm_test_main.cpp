@@ -48,7 +48,7 @@ DEFINE_double(y_res, 0.1, "y resolution");
 // 读入log和图片路径
 string str_image_frame_add = "data/doing/frame/image/";
 
-ifstream infile_log("data/doing/log.txt");       // 指定log的路径
+ifstream infile_log("data/doing/frame/log.txt");       // 指定log的路径
 string buffer_log;
 string data_flag;
 stringstream ss_log;
@@ -71,8 +71,6 @@ void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  c
 void do_get_turn_radius();
 
 
-// 进行数据融合的类
-//DataFusion data_fusion;
 TimeUtils f_time_counter;
 double g_R_cur;
 double image_timestamp;
@@ -173,9 +171,13 @@ int main(int argc, char *argv[])
                     mark_IPM_radius(ipm_para, g_R_cur, 0.9,  ipm_image );
 
                     cv::imshow("ipm", ipm_image);
-                    if(cv::waitKey(30))
-                    {}
-                }
+                    //按键事件，空格暂停，其他跳出循环
+                   int temp = cvWaitKey(100);
+                   if (temp == 32)
+                       while (cvWaitKey() == -1);
+                   else if (temp >= 0)
+                       break;
+}
             }
         }
     }

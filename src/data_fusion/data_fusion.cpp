@@ -97,7 +97,7 @@ void DataFusion::Init( )
     {
         m_init_state = true; // 读取log的时候,认为imu初始化是OK的
         // read data from log
-        infile_log.open(FLAGS_log_data_addr); // ofstream
+        infile_log.open(FLAGS_log_data_addr.c_str()); // ifstream
         LOG(ERROR) << "try open \"data/doing/log.txt\"\n";
         if(!infile_log)
             LOG(ERROR) << "open \"data/doing/log.txt\" ERROR!!\n";
@@ -990,7 +990,7 @@ int DataFusion::DoCalibrateGyroBiasOnline( )
                             return write_state;
                         }
                     }else{
-                        LOG(ERROR)<<"DF:DoCalibrateGyroBiasOnline--"<<"doing imu calibrate"<<endl;
+                        VLOG(VLOG_INFO)<<"DF:DoCalibrateGyroBiasOnline--"<<"doing imu calibrate"<<endl;
                     }
                 }else{
                     m_zero_speed_time_counter += (m_can_speed_data.timestamp - m_zero_speed_time_pre);// 持续速度为0时间计数
