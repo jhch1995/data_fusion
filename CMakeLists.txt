@@ -86,6 +86,7 @@ ELSEIF (ANDROID_ABI)
 ELSEIF (UNIX)
     MESSAGE(STATUS "include: UNIX platform")
     INCLUDE_DIRECTORIES(
+            "${PROJECT_ROOT_PATH}/thirdparty/gtest/linux/include/"
             "${OpenCV_INSTALL_PATH}/include"
             "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/include/"
             "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/include/"
@@ -94,6 +95,7 @@ ELSEIF (UNIX)
             "${PROJECT_ROOT_PATH}"
     )
     LINK_DIRECTORIES(
+            "${PROJECT_ROOT_PATH}/thirdparty/gtest/linux/static/x64/"
             "${OpenCV_INSTALL_PATH}/lib"
             "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/lib/x64/"
             "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/static/x64/"

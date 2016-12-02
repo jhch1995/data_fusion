@@ -98,11 +98,11 @@ void DataFusion::Init( )
         m_init_state = true; // 读取log的时候,认为imu初始化是OK的
         // read data from log
         infile_log.open(FLAGS_log_data_addr); // ofstream
-        LOG(ERROR) << "try open \"data/doing/log.txt\"\n";
+        LOG(ERROR) << "try open " << FLAGS_log_data_addr;
         if(!infile_log)
-            LOG(ERROR) << "open \"data/doing/log.txt\" ERROR!!\n";
+            LOG(ERROR) << "open " << FLAGS_log_data_addr << " ERROR!!";
         else
-            LOG(ERROR) << "open \"data/doing/log.txt\" OK!\n";
+            LOG(ERROR) << "open " << FLAGS_log_data_addr << " OK!";
 
         // 读取imu参数
         StructImuParameter imu_parameter;
@@ -983,14 +983,14 @@ int DataFusion::DoCalibrateGyroBiasOnline( )
                         int write_state = write_imu_calibration_parameter( new_imu_parameter);
                         if(write_state == 1){
                             m_is_gyro_online_calibrate_ok = true;
-                            LOG(ERROR)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter sucess!!"<<endl;
+                            VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter sucess!!"<<endl;
                             return 1;
                         }else{
-                            LOG(ERROR)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter failed , state="<<write_state<<"!!"<<endl;
+                            VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter failed , state="<<write_state<<"!!"<<endl;
                             return write_state;
                         }
                     }else{
-                        LOG(ERROR)<<"DF:DoCalibrateGyroBiasOnline--"<<"doing imu calibrate"<<endl;
+                        VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"doing imu calibrate"<<endl;
                     }
                 }else{
                     m_zero_speed_time_counter += (m_can_speed_data.timestamp - m_zero_speed_time_pre);// 持续速度为0时间计数
