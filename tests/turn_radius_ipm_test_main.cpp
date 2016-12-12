@@ -18,7 +18,7 @@
 #include "common/relative_locate/bird_perspective_mapping.h"
 #include "common/time/time_utils.h"
 
-//#include "data_fusion.h"
+#include "data_fusion.h"
 #include "datafusion_math.h"
 #include "imu_module.h"
 
@@ -70,7 +70,6 @@ void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  c
 
 void do_get_turn_radius();
 
-
 TimeUtils f_time_counter;
 double g_R_cur;
 double image_timestamp;
@@ -114,6 +113,7 @@ int main(int argc, char *argv[])
 
 
 // 初始化融合函数
+//    DataFusion data_fusion;
 //    data_fusion.StartDataFusionTask();
     ImuModule::Instance().StartDataFusionTask();
 
@@ -327,7 +327,7 @@ void do_get_turn_radius()
     while(r_1<0){
         // 测试运行时间
         t_1 = f_time_counter.Microseconds();
-        //r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &g_R_cur);
+//        r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &g_R_cur);
         r_1 = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int*1000, &g_R_cur);
         t_2 = f_time_counter.Microseconds();
 
@@ -335,8 +335,8 @@ void do_get_turn_radius()
         VLOG(VLOG_INFO)<<"DF:main- "<<"predict_cal_dt= "<<predict_cal_dt<<endl;
 
         if(main_sleep_counter > 0){
-            printf("main timestamp diamatch conunter:%d, match state= %d, so sleep\n", main_sleep_counter, r_1);
-            sleep(1);
+            printf("main timestamp dismatch conunter:%d, match state= %d, so sleep\n", main_sleep_counter, r_1);
+            usleep(20000);
         }
         main_sleep_counter++;
         printf("state: %d, R = %f\n",r_1, g_R_cur);

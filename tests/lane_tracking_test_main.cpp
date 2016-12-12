@@ -102,7 +102,7 @@ TimeUtils f_time_counter;
 
 // gflog
 DEFINE_double(d_test, -1, "imu gyro bias z ");
-DEFINE_string(fileflag, "./imu.flag", "imu gyro bias z ");
+//DEFINE_string(fileflag, "./imu.flag", "imu gyro bias z ");
 
 int main(int argc, char *argv[])
 {

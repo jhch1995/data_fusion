@@ -36,6 +36,7 @@ public:
         double timestamp;
         double att[3];
         double angle_z;
+        double att_gyro[3];
     };
 
     struct StructVehicleState
@@ -124,7 +125,7 @@ public:
     void DeleteOldRadiusData( );
 
     // 根据时间戳查找对应的数据
-    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z );
+    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3] );
 
     // 估计汽车的运动状态数据
     void EstimateVehicelState();
@@ -222,6 +223,7 @@ private:
     // 数据读写锁
     RWLock radius_rw_lock;
     RWLock feature_rw_lock;
+    RWLock get_data_rw_lock; // get_timestamp_data
 
     // 读取数据控制
     double m_cur_fusion_timestamp; // 当前在进行计算的时间点，
@@ -242,6 +244,7 @@ private:
     double m_pre_vehicle_timestamp ;
     StructVehicleState m_struct_vehicle_state;
     std::vector<StructVehicleState> m_vector_vehicle_state;
+//    folly::ProducerConsumerQueue<StructVehicleState> m_queue_vehicle_state(500);
     char m_is_first_speed_data; //  1: 第一次获取到speed数据 0:不是第一次
 
     // att
@@ -255,6 +258,7 @@ private:
     double m_pre_att_timestamp; // att上次得到的时刻
     StructAtt m_struct_att;
     std::vector<StructAtt> m_vector_att;
+//    folly::ProducerConsumerQueue<StructAtt> m_queue_att(500);
     double m_angle_z_cur, m_angle_z_pre;
 
     // 转弯半径 R
@@ -263,7 +267,8 @@ private:
     double m_can_speed_R_filt_hz; //车速的低通
     StructTurnRadius m_struct_turn_radius;
     std::vector<StructTurnRadius> m_vector_turn_radius;
-    bool m_is_R_ok; //南京那边可能会有IMU数据异常大的问题
+//    folly::ProducerConsumerQueue<StructTurnRadius> m_queue_turn_radius(500);
+    bool m_is_R_ok;
 };
 
 }
