@@ -19,7 +19,7 @@ SET(LIBRARY_OUTPUT_PATH "${PROJECT_BINARY_DIR}/lib/")
 OPTION(USE_GSENSOR_LOG_SWITCH "switch for using chip-gsensor-data instantly OR from gsensor-log" OFF)
 IF (USE_GSENSOR_LOG_SWITCH)
     MESSAGE(STATUS "use gsensor data from log")
-    ADD_DEFINITIONS(-DDATA_FROM_LOG) # read data from log    
+    ADD_DEFINITIONS(-DDATA_FROM_LOG) # read data from log
 ELSE()
     MESSAGE(STATUS "use gsensor data from chip")
 ENDIF()
@@ -27,9 +27,10 @@ ENDIF()
 OPTION(COMPILE_DEBUG_SWITCH "switch for copmile debug OR release" OFF)
 IF (COMPILE_DEBUG_SWITCH)
     MESSAGE(STATUS " copmile debug")
-    SET(CMAKE_BUILD_TYPE "Debug") 
+    SET(CMAKE_BUILD_TYPE "Debug")
     SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
 ELSE()
+    MESSAGE(STATUS " copmile release")
 ENDIF()
 
 OPTION(SAVE_ALL_IMU_CALIBRATE_RESULTS "switch for save all the imu calibrate results OR not" OFF)
@@ -56,7 +57,9 @@ ELSEIF (ANDROID_ABI)
 ELSEIF (UNIX)
     MESSAGE(STATUS "DEFINE: UNIX platform")
     SET(OpenCV_DIR "/opt/opencv/default/share/OpenCV")
-    FIND_PACKAGE(OpenCV REQUIRED)   
+#    SET(OpenCV_DIR "/home/yj/bak/packet/opencv/opencv-3.1-install/share/OpenCV")
+#    SET(OpenCV_CONFIG_PATH "/home/yj/bak/packet/opencv/opecv-3.1-install/share/OpenCV")
+    FIND_PACKAGE(OpenCV REQUIRED)
     ADD_DEFINITIONS(-DUSE_GLOG)
 ENDIF ()
 
@@ -97,6 +100,7 @@ ELSEIF (UNIX)
             "${OpenCV_INSTALL_PATH}/lib"
             "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/lib/x64/"
             "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/static/x64/"
+            "${PROJECT_ROOT_PATH}/thirdparty/gtest/linux/static/x64/"
     )
 ENDIF ()
 
@@ -107,9 +111,10 @@ ADD_SUBDIRECTORY(common/string)
 ADD_SUBDIRECTORY(common/relative_locate)
 ADD_SUBDIRECTORY(common/concurrency)
 ADD_SUBDIRECTORY(common/hal)
+ADD_SUBDIRECTORY(common/memory)
 IF (ANDROID_ABI)
     ADD_SUBDIRECTORY(thirdparty/miniglog)
 ENDIF ()
-
+#ADD_SUBDIRECTORY(common/tests)
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(tests)

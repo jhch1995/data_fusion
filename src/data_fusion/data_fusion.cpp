@@ -165,7 +165,7 @@ void DataFusion::RunFusion( )
                     EstimateAtt();
                     EstimateVehicelState();
                     CalculateVehicleTurnRadius();
-                    DoCalibrateGyroBiasOnline( );
+                    DoCalibrateGyroBiasOnline();
 
                     // 更新数据，清除历史数据
                     DeleteOldData();
@@ -558,6 +558,7 @@ void DataFusion::EstimateAtt()
 
         // save att
         m_imu_attitude_estimate.GetAttitudeAngleZ(m_struct_att.att, &(m_struct_att.angle_z));
+        m_imu_attitude_estimate.GetAttitudeGyro(m_struct_att.att_gyro); // 纯gyro积分得到的数据
         m_struct_att.timestamp = cur_att_timestamp;
         m_vector_att.push_back(m_struct_att);
 
@@ -598,38 +599,57 @@ void DataFusion::EstimateVehicelState()
 // 1: 数据正常
 // -1:int_timestamp_search < all_data_time 落后
 // -2:int_timestamp_search > all_data_time 超前
-int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z )
+int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3] )
 {
     // m_vector_att
     bool att_data_search_ok = 0;
     bool vehicle_data_search_ok = 0;
-    int att_data_length = m_vector_att.size();
     double timestamp_cur, timestamp_pre, dt_t_cur, dt_t_pre, dt_t;
     int data_search_state = 0;
 
+    // 防止读写冲突，拷贝数据到本地
+    std::vector<StructAtt> vector_att;
+    std::vector<StructVehicleState> vector_vehicle_state;
+    get_data_rw_lock.ReaderLock();
+    vector_att.assign(m_vector_att.begin(), m_vector_att.end());
+    vector_vehicle_state.assign(m_vector_vehicle_state.begin(), m_vector_vehicle_state.end()) ;
+    get_data_rw_lock.Unlock();
+
+    int att_data_length = vector_att.size();
     if(att_data_length >= 2){
         for(int i = 1; i<att_data_length; i++){
-            timestamp_cur = (m_vector_att.end()-i)->timestamp;
-            timestamp_pre = (m_vector_att.end()-i-1)->timestamp;
+            timestamp_cur = (vector_att.end()-i)->timestamp;
+            timestamp_pre = (vector_att.end()-i-1)->timestamp;
             dt_t = timestamp_cur - timestamp_pre;
             dt_t_cur = timestamp_cur - timestamp_search;
             dt_t_pre = timestamp_pre - timestamp_search;
 
             if(dt_t_pre<=0 && dt_t_cur>=0 && dt_t>=0){
                 // 方法: 线性差插值
+                // att
                 double att_pre[3], att_cur[3], d_att[3];
                 for(int k = 0; k<3; k++){
-                    att_pre[k] = (m_vector_att.end()-i-1)->att[k];
-                    att_cur[k] = (m_vector_att.end()-i)->att[k];
+                    att_pre[k] = (vector_att.end()-i-1)->att[k];
+                    att_cur[k] = (vector_att.end()-i)->att[k];
                     d_att[k] = att_cur[k] - att_pre[k];
                     att[k] = att_pre[k] + (fabs(dt_t_pre)/fabs(dt_t))*d_att[k];// 线性插值
                 }
 
+                // angle_z
                 double angle_z_pre, angle_z_cur, d_angle_z;
-                angle_z_pre = (m_vector_att.end()-i-1)->angle_z;
-                angle_z_cur = (m_vector_att.end()-i)->angle_z;
+                angle_z_pre = (vector_att.end()-i-1)->angle_z;
+                angle_z_cur = (vector_att.end()-i)->angle_z;
                 d_angle_z = angle_z_cur - angle_z_pre;
                 *angle_z = angle_z_pre + (fabs(dt_t_pre)/fabs(dt_t))*d_angle_z;// 线性插值
+
+                // att_gyro
+                double att_gyro_pre[3], att_gyro_cur[3], d_att_gyro[3];
+                for(int k = 0; k<3; k++){
+                    att_gyro_pre[k] = (vector_att.end()-i-1)->att_gyro[k];
+                    att_gyro_cur[k] = (vector_att.end()-i)->att_gyro[k];
+                    d_att_gyro[k] = att_gyro_cur[k] - att_gyro_pre[k];
+                    att_gyro[k] = att_gyro_pre[k] + (fabs(dt_t_pre)/fabs(dt_t))*d_att_gyro[k];// 线性插值
+                }
 
                 att_data_search_ok = 1;
                 break;
@@ -646,8 +666,8 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
                 data_search_state = -2; // vector_R中数据都早于timestamp_search
             }
 
-            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, nearest_time= "<<std::fixed<<(m_vector_att.end()-1)->timestamp<<", farthest_time= "
-                           <<std::fixed<<m_vector_att.begin()->timestamp<<endl;
+            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att, nearest_time= "<<std::fixed<<(vector_att.end()-1)->timestamp<<", farthest_time= "
+                           <<std::fixed<<vector_att.begin()->timestamp<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"att_length= "<<att_data_length<<", att:(ms) "<<"dt_t_cur= "
                            <<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl;
         }
@@ -655,12 +675,12 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
         VLOG(VLOG_WARNING)<<"DF:GetTimestampData--"<<"!!!WARNING:att data too less att_length= "<<att_data_length<<endl;
     }
 
-    // m_vector_vehicle_state
-    int vehicle_data_length = m_vector_vehicle_state.size();
+    // vector_vehicle_state
+    int vehicle_data_length = vector_vehicle_state.size();
     if(vehicle_data_length>=2){
         for(int i = 1; i<vehicle_data_length; i++){
-            timestamp_cur = (m_vector_vehicle_state.end()-i)->timestamp;
-            timestamp_pre = (m_vector_vehicle_state.end()-i-1)->timestamp;
+            timestamp_cur = (vector_vehicle_state.end()-i)->timestamp;
+            timestamp_pre = (vector_vehicle_state.end()-i-1)->timestamp;
             dt_t = timestamp_cur - timestamp_pre;
             dt_t_cur = timestamp_cur - timestamp_search;
             dt_t_pre = timestamp_pre - timestamp_search;
@@ -668,8 +688,8 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
                  // 方法: 线性差插值
                 double pos_pre[2], pos_cur[2], d_pos[2] ;
                 for(int k=0; k<2; k++){
-                    pos_pre[k] = (m_vector_vehicle_state.end()-i-1)->pos[k];
-                    pos_cur[k] = (m_vector_vehicle_state.end()-i)->pos[k];
+                    pos_pre[k] = (vector_vehicle_state.end()-i-1)->pos[k];
+                    pos_cur[k] = (vector_vehicle_state.end()-i)->pos[k];
                     d_pos[k] = pos_cur[k] - pos_pre[k];
                     vehicle_pos[k] = pos_pre[k] + (fabs(dt_t_pre)/fabs(dt_t))*d_pos[k];     // 线性插值
                 }
@@ -684,8 +704,8 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
                 VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the vehicle_data time is fall behid the timestamp_search!!!\n"<<endl;
             else if(dt_t_pre>0 && dt_t_cur>0)
                 VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"all the vehicle_data time is ahead of the timestamp_search!!!\n"<<endl;
-            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_state, nearest_time= "<<(m_vector_vehicle_state.end()-1)->timestamp
-                           <<", farthest_time= "<<m_vector_vehicle_state.begin()->timestamp<<endl;
+            VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_state, nearest_time= "<<(vector_vehicle_state.end()-1)->timestamp
+                           <<", farthest_time= "<<vector_vehicle_state.begin()->timestamp<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTimestampData--"<<"vehicle_length= "<<vehicle_data_length<<", pos:(ms) "
                            <<"dt_t_cur= "<<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl;
         }
@@ -714,14 +734,15 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
     double image_timestamp_cur_t = image_timestamp_cur/1000.0;
     double image_timestamp_pre_t = image_timestamp_pre/1000.0;
     int predict_state = 0;
+    double att_gyro_pre[3], att_gyro_cur[3];
 
     feature_rw_lock.WriterLock();
     m_call_predict_timestamp = image_timestamp_cur/1000.0; // 更新时间戳
     feature_rw_lock.Unlock();
 
     // 寻找跟需求的 timestamp对应的att,vehicle数据
-    data_search_state_pre = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre);
-    data_search_state_cur = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur, &m_angle_z_cur);
+    data_search_state_pre = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre, att_gyro_pre);
+    data_search_state_cur = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur, &m_angle_z_cur, att_gyro_cur);
 
     VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: pre(s) = "<<std::fixed<<image_timestamp_pre_t<<", cur(s): "<<std::fixed<<image_timestamp_cur_t<<endl;
     VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: dt(ms) = "<<image_timestamp_cur - image_timestamp_pre<<endl;
@@ -839,22 +860,24 @@ void DataFusion::CalculateVehicleTurnRadius()
 int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
 {
     bool R_search_ok = 0;
-    int R_data_length = m_vector_turn_radius.size();
     double time_cur, time_pre, dt_t_cur, dt_t_pre, dt_t;
     double R_t = 0;
     double timestamp_search = int_timestamp_search/1000.0;
     int R_search_state = 0;
     bool is_imu_value_ok = true; // 判断imu的值是否正常:默认正常，只有有R的结果并发现imu值异常才会显示不读值
 
+    // 防止读写冲突，拷贝数据到本地
+    std::vector<StructTurnRadius> vector_turn_radius;
     radius_rw_lock.WriterLock();
-    //m_call_radius_timestamp = timestamp_search;// 更新时间戳
+    vector_turn_radius.assign(m_vector_turn_radius.begin(), m_vector_turn_radius.end());
     m_call_predict_timestamp  = timestamp_search;// 更新时间戳
     radius_rw_lock.Unlock();
 
+    int R_data_length = vector_turn_radius.size();
     if(R_data_length >= 2){
         for(int i = 1; i<R_data_length; i++){
-           time_cur = (m_vector_turn_radius.end()-i)->timestamp;
-           time_pre = (m_vector_turn_radius.end()-i-1)->timestamp;
+           time_cur = (vector_turn_radius.end()-i)->timestamp;
+           time_pre = (vector_turn_radius.end()-i-1)->timestamp;
            dt_t = time_cur - time_pre;
            dt_t_cur = time_cur - timestamp_search;
            dt_t_pre = time_pre - timestamp_search;
@@ -862,13 +885,13 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
            if(dt_t_pre<=0 && dt_t_cur>=0 && dt_t>=0){
                // 方法: 线性差插值
                double R_pre, R_cur, d_R;
-               R_pre = (m_vector_turn_radius.end()-i-1)->R;
-               R_cur = (m_vector_turn_radius.end()-i)->R;
+               R_pre = (vector_turn_radius.end()-i-1)->R;
+               R_cur = (vector_turn_radius.end()-i)->R;
                d_R = R_cur - R_pre;
                R_t = R_pre + (fabs(dt_t_pre)/fabs(dt_t))*d_R;// 线性插值
                R_search_ok = 1;
 
-               is_imu_value_ok = (m_vector_turn_radius.end()-i)->is_imu_value_ok && (m_vector_turn_radius.end()-i-1)->is_imu_value_ok;
+               is_imu_value_ok = (vector_turn_radius.end()-i)->is_imu_value_ok && (vector_turn_radius.end()-i-1)->is_imu_value_ok;
                break;
            }
         }
@@ -884,8 +907,8 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
             }
 
             VLOG(VLOG_WARNING)<<"DF:GetTurnRadius--"<<"R timestamp_search = "<<std::fixed<<timestamp_search<<", R data_length = "<<R_data_length<<endl;
-            VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"vector_turn_radius_time= ["<<std::fixed<<m_vector_turn_radius.begin()->timestamp<<", "
-                           <<std::fixed<<(m_vector_turn_radius.end()-1)->timestamp<<"]"<<endl;
+            VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"vector_turn_radius_time= ["<<std::fixed<<vector_turn_radius.begin()->timestamp<<", "
+                           <<std::fixed<<(vector_turn_radius.end()-1)->timestamp<<"]"<<endl;
             VLOG(VLOG_INFO)<<"DF:GetTurnRadius--"<<"att_length= "<<R_data_length<<", att:(ms) "<<"dt_t_cur= "
                            <<dt_t_cur*1000<<", dt_t_pre= "<<dt_t_pre*1000<<endl;
         }
@@ -1310,4 +1333,3 @@ double DataFusion::Raw2Degree(short raw)
 
 
 }
-
