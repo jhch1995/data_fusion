@@ -1,6 +1,7 @@
 #ifndef IMU_MODULE_H_
 #define IMU_MODULE_H_
 
+#include <vector>
 #include "common/base/singleton.h"
 #include "common/base/stdint.h"
 
@@ -17,7 +18,7 @@ public:
     void StartDataFusionTask();
 
     // timestamp_search in microseconds
-    int GetTurnRadius(const int64 &timestamp_search, double *R);
+    int GetTurnRadius(const int64_t &timestamp_search, double *R);
 
     int GetPredictFeature(const std::vector<cv::Point2f>& vector_feature_pre ,
             int64_t image_timestamp_pre,
