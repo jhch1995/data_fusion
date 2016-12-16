@@ -751,11 +751,11 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
         FeaturePredict( vector_feature_pre , vehicle_pos_pre, att_pre, m_angle_z_pre, vehicle_pos_cur, att_cur, m_angle_z_pre, vector_feature_predict);
         return 1;
     }else if(data_search_state_pre == -1 || data_search_state_cur == -1){
-        LOG(ERROR)<<"DF:GetPredictFeature--"<<"state_pre = "<<data_search_state_pre<<"state_cur = "<<data_search_state_cur<<endl;
+        VLOG(SUBMODULE_LOG)<<"DF:GetPredictFeature--"<<"state_pre = "<<data_search_state_pre<<"state_cur = "<<data_search_state_cur<<endl;
         predict_state = -1;
         return predict_state;
     }else if(data_search_state_pre == -2 || data_search_state_cur == -2){
-        LOG(ERROR)<<"DF:GetPredictFeature--"<<"state_pre = "<<data_search_state_pre<<"state_cur = "<<data_search_state_cur<<endl;
+        VLOG(SUBMODULE_LOG)<<"DF:GetPredictFeature--"<<"state_pre = "<<data_search_state_pre<<"state_cur = "<<data_search_state_cur<<endl;
         predict_state = -2;
         return predict_state;
     }
