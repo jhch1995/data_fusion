@@ -16,7 +16,7 @@ void ImuModule::StartDataFusionTask() {
     m_data_fusion->StartDataFusionTask();
 }
 
-int ImuModule::GetTurnRadius(const int64 &timestamp_search, double *R) {
+int ImuModule::GetTurnRadius(const int64_t &timestamp_search, double *R) {
     return m_data_fusion->GetTurnRadius(timestamp_search / 1000, R);
 }
 
