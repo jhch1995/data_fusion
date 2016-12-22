@@ -98,11 +98,11 @@ void DataFusion::Init( )
         m_init_state = true; // 读取log的时候,认为imu初始化是OK的
         // read data from log
         infile_log.open(FLAGS_log_data_addr.c_str()); // ifstream
-        LOG(ERROR) << "try open \"data/doing/log.txt\"\n";
+        LOG(ERROR) << "try open \"log.txt\"\n";
         if(!infile_log)
-            LOG(ERROR) << "open \"data/doing/log.txt\" ERROR!!\n";
+            LOG(ERROR) << "open \"log.txt\" ERROR!!\n";
         else
-            LOG(ERROR) << "open \"data/doing/log.txt\" OK!\n";
+            LOG(ERROR) << "open \"log.txt\" OK!\n";
 
         // 读取imu参数
         StructImuParameter imu_parameter;
@@ -555,6 +555,8 @@ void DataFusion::EstimateAtt()
         dt_att = 1/m_imu_sample_hz;
         m_imu_attitude_estimate.UpdataAttitude(imu_data.acc, imu_data.gyro, dt_att);
         m_pre_att_timestamp = cur_att_timestamp;
+//        std::cout<<"acc_data = "<<imu_data.acc[0]<<", "<<imu_data.acc[1]<<", "<<imu_data.acc[2]<<endl;
+//        std::cout<<"gyro_data = "<<imu_data.gyro[0]<<", "<<imu_data.gyro[1]<<", "<<imu_data.gyro[2]<<endl;
 
         // save att
         m_imu_attitude_estimate.GetAttitudeAngleZ(m_struct_att.att, &(m_struct_att.angle_z));
@@ -1330,6 +1332,12 @@ double DataFusion::Raw2Degree(short raw)
 {
     return (double (raw))/340 + 36.53;
 }
+
+void DataFusion::SetAccCalibationParam(double A0[3], double A1[3][3])
+{
+    m_imu_attitude_estimate.SetAccCalibationParam(A0, A1);
+}
+
 
 
 }

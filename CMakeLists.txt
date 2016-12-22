@@ -39,6 +39,12 @@ IF (SAVE_ALL_IMU_CALIBRATE_RESULTS)
     ADD_DEFINITIONS(-DSAVE_ALL_IMU_CALIBRATE_RESULTS) # when the borard power on, imu will do calibrate, save all the results
 ENDIF()
 
+OPTION(LOG_TO_STD_OUT "print all the log data" OFF)
+IF (LOG_TO_STD_OUT)
+    MESSAGE(STATUS "print all the log data")
+    ADD_DEFINITIONS(-DLOG_STD_COUT) # when the borard power on, imu will do calibrate, save all the results
+ENDIF()
+
 #root
 IF ("${CMAKE_SIZEOF_VOID_P}" EQUAL "4")
     MESSAGE(STATUS "root: x32 platform")

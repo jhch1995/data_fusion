@@ -108,10 +108,10 @@ int main(int argc, char *argv[])
 {
     //解析
     google::ParseCommandLineFlags(&argc, &argv, true);
-    printf("log_base_addr cur: %s\n", FLAGS_log_base_addr.c_str());
-
-    printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);
-    printf("FLAG: d_test= %f\n", FLAGS_d_test);
+//    printf("log_data_addr cur: %s\n", FLAGS_log_data_addr.c_str());
+//
+//    printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);
+//    printf("FLAG: d_test= %f\n", FLAGS_d_test);
 
         // 初始化
     google::InitGoogleLogging(argv[0]);

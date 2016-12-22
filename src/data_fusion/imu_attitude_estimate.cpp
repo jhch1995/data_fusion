@@ -9,9 +9,9 @@ ImuAttitudeEstimate::ImuAttitudeEstimate()
 
 void ImuAttitudeEstimate::Initialize( )
 {
-    m_factor_acc_gyro[0] = 0.01; // 加速度计修正的姿态的系数
-    m_factor_acc_gyro[1] = 0.01;
-    m_factor_acc_gyro[2] = 0.01;
+    m_factor_acc_gyro[0] = 0.05; // 加速度计修正的姿态的系数
+    m_factor_acc_gyro[1] = 0.05;
+    m_factor_acc_gyro[2] = 0.05;
     memset(&m_att, 0, sizeof(m_att));
     memset(&m_gyro_angle, 0, sizeof(m_gyro_angle));
     m_angle_z = 0.0;

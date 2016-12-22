@@ -44,7 +44,6 @@ DEFINE_double(y_res, 0.1, "y resolution");
 
 //DEFINE_string(flagfile, "./data/doing/frame/detect.flag", " parameter address ");
 
-
 // 读入log和图片路径
 string str_image_frame_add = "data/doing/frame/image/";
 
@@ -73,6 +72,7 @@ void do_get_turn_radius();
 TimeUtils f_time_counter;
 double g_R_cur;
 double image_timestamp;
+double vehicle_L = 2.637;
 
 int main(int argc, char *argv[])
 {
@@ -339,7 +339,17 @@ void do_get_turn_radius()
             usleep(20000);
         }
         main_sleep_counter++;
-        printf("state: %d, R = %f\n",r_1, g_R_cur);
+        // 计算车轮角度
+        double sin_angle, tan_angle;
+        if(g_R_cur != 0){
+            double tmp1 = vehicle_L/g_R_cur;
+            sin_angle = asin(tmp1);
+            tan_angle = atan(tmp1);
+        }else{
+            sin_angle = 0;
+            tan_angle = 0;
+        }
+        printf("state: %d, R = %f, sin_angle=%.2f, tan_angle=%.2f\n",r_1, g_R_cur, sin_angle*R2D, tan_angle*R2D);
     }
 
 

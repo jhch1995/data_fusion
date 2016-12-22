@@ -156,6 +156,9 @@ public:
     // 写入imu校准结果
     int write_imu_calibration_parameter(const StructImuParameter &imu_parameter);
 
+    // 设置acc的校正参数
+    void SetAccCalibationParam(double A0[3], double A1[3][3]);
+
     // 外部调用接口: 预测特征点的坐标
     int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,
             int64_t image_timestamp_pre,
