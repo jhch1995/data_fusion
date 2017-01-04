@@ -308,6 +308,19 @@ int DataFusion::ReadDataFromLog( )
         m_can_speed_data.speed = speed_can;
         UpdateCurrentDataTimestamp(speed_timestamp);
         m_data_speed_update = 1;
+    }else if(data_flag == "speed"){
+        string str_t[10],str_speed;
+        double raw_timestamp[2];
+        double speed_can, speed_timestamp;
+        ss_log>>raw_timestamp[0]>>raw_timestamp[1]>>str_t[0]>>speed_can;
+
+        speed_timestamp = raw_timestamp[0] + raw_timestamp[1]*1e-6;
+        speed_can = speed_can/3.6;// km/h-->m/s
+        // 更新数据
+        m_can_speed_data.timestamp = speed_timestamp;
+        m_can_speed_data.speed = speed_can;
+        UpdateCurrentDataTimestamp(speed_timestamp);
+        m_data_speed_update = 1;
     }
     return 1;
 }
