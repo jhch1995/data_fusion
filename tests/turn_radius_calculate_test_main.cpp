@@ -46,8 +46,8 @@ int main(int argc, char *argv[])
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";
     #if defined(USE_GLOG)
-        FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
-        //FLAGS_v = 0;
+        //FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
+        //LAGS_v = 0;
     #endif
 
     // 进行数据融合的类
