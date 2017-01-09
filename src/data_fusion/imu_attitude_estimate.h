@@ -38,6 +38,9 @@ public:
 
     void GetAttitudeAngleZ(double att[3], double *angle_z);
 
+    // euler attitude to Rbn(from n to b)
+    void CalculateAtt2Rotation(const double att[3], double R[3][3]);
+
     // 获取由gyro积分得到的姿态角度
     void GetAttitudeGyro(double att_gyro[3]);
 

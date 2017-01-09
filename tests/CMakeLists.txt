@@ -23,9 +23,7 @@ ELSEIF (ANDROID_ABI)
 ELSEIF (UNIX)
     MESSAGE(STATUS "include: UNIX platform")
     ADD_DEFINITIONS(-DUSE_GLOG)
-    #ADD_DEFINITIONS(-DLOG_STD_COUT)
-#    ADD_DEFINITIONS(-DDATA_FROM_LOG)
-#    MESSAGE(STATUS "DATA_FROM_LOG=${DATA_FROM_LOG}")
+
     INCLUDE_DIRECTORIES(
         #"${PROJECT_ROOT_PATH}"
         "${PROJECT_SOURCE_DIR}/src/data_fusion/"
@@ -68,7 +66,6 @@ ELSEIF(ANDROID_ABI)
     )
 ELSEIF (UNIX)
     MESSAGE(STATUS "LINK: UNIX")
-#    find_package(OpenCV REQUIRED)
     ADD_EXECUTABLE(lane_tracking_test "./lane_tracking_test_main.cpp")
     TARGET_LINK_LIBRARIES(lane_tracking_test imu  data_fusion halio
                           concurrency relative_locate time glog gflags pthread
@@ -88,6 +85,12 @@ ELSEIF (UNIX)
     TARGET_LINK_LIBRARIES(imu_calibrate_online imu data_fusion halio
                           gflags glog  pthread
                           opencv_imgcodecs opencv_core opencv_highgui )
+
+    ADD_EXECUTABLE(turnlamp_detection "./turnlamp_detection_main.cpp")
+    TARGET_LINK_LIBRARIES(turnlamp_detection  data_fusion halio
+                          gflags glog  pthread
+                          opencv_imgcodecs opencv_core opencv_highgui
+                             )
 
 #    ADD_EXECUTABLE(producer_consumer "./proudcer_consumer_test_main.cpp")
 #    TARGET_LINK_LIBRARIES(producer_consumer data_fusion

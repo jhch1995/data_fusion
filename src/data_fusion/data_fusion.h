@@ -37,6 +37,8 @@ public:
         double att[3];
         double angle_z;
         double att_gyro[3];
+        double acc[3];
+        double gyro[3];
     };
 
     struct StructVehicleState
@@ -125,7 +127,7 @@ public:
     void DeleteOldRadiusData( );
 
     // 根据时间戳查找对应的数据
-    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3] );
+    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] );
 
     // 估计汽车的运动状态数据
     void EstimateVehicelState();

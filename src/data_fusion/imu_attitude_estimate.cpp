@@ -37,43 +37,6 @@ void ImuAttitudeEstimate::Initialize( )
     m_gyro_drift[0] = 0;
     m_gyro_drift[1] = 0;
     m_gyro_drift[2] = 0;
-
-//    m_A0[0] = 0.0628;
-//    m_A0[1] = 0.0079;
-//    m_A0[2] = -0.0003;
-//
-//    m_A1[0][0] = 0.9986;
-//    m_A1[0][1] = -0.0027;
-//    m_A1[0][2] = 0.0139;
-//    m_A1[1][0] = 0.0164;
-//    m_A1[1][1] = 0.9993;
-//    m_A1[1][2] = -0.0176;
-//    m_A1[2][0] = -0.0159;
-//    m_A1[2][1] = 0.0064;
-//    m_A1[2][2] = 0.9859;
-    // nj 采集器
-//    m_gyro_drift[0] = 0.00897;
-//    m_gyro_drift[1] = -0.0322;
-//    m_gyro_drift[2] = -0.0214;
-
-//    // nj 测试板子
-//    m_gyro_drift[0] = -0.01822;
-//    m_gyro_drift[1] = -0.01601;
-//    m_gyro_drift[2] = -0.06251;
-
-    // nj 南京新
-//    m_gyro_drift[0] = -0.045082;
-//    m_gyro_drift[1] = -0.039585;
-//    m_gyro_drift[2] = 0.017939;
-    // new
-//    m_gyro_drift[0] = -0.0431746;
-//    m_gyro_drift[1] = -0.0394169;
-//    m_gyro_drift[2] = 0.013547269;
-
-    // Y-1
-//    m_gyro_drift[0] = 0.0155;
-//    m_gyro_drift[1] = -0.0421;
-//    m_gyro_drift[2] = -0.0217;
 }
 
 void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double gyro_data[3], double dt)
@@ -118,8 +81,27 @@ void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double
 //        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"gyro_z_new: "<<gyro_rate[Z_AXIS]*180/M_PI;
 //        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"gyro_z_raw: "<<gyro_data[Z_AXIS]*180/M_PI;
     }
-
 }
+
+// euler attitude to Rbn(from n to b)
+void ImuAttitudeEstimate::CalculateAtt2Rotation(const double att[3], double R[3][3] )
+{
+    double roll, pitch, yaw;
+    roll = att[0];
+    pitch = att[1];
+    yaw = att[2];
+
+    R[0][0] = cosf(pitch)*cosf(yaw);
+    R[0][1] = cosf(pitch)*sinf(yaw);
+    R[0][2] = -sinf(pitch);
+    R[1][0] = cosf(yaw)*sinf(pitch)*sinf(roll) - cosf(roll)*sinf(yaw);
+    R[1][1] = cosf(roll)*cosf(yaw) + sinf(pitch)*sinf(roll)*sinf(yaw);
+    R[1][2] = cosf(pitch)*sinf(roll);
+    R[2][0] = sinf(roll)*sinf(yaw) + cosf(roll)*cosf(yaw)*sinf(pitch);
+    R[2][1] = cosf(roll)*sinf(pitch)*sinf(yaw) - cosf(yaw)*sinf(roll);
+    R[2][2] = cosf(pitch)*cosf(roll);
+ }
+
 
 void ImuAttitudeEstimate::GetAttitude(double att[3])
 {
@@ -294,6 +276,8 @@ void ImuAttitudeEstimate::ReadGyroBias()
     }
     infile_imu_coeff.close();
 }
+
+
 
 }
 

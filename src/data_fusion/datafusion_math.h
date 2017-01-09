@@ -15,6 +15,7 @@
 #if defined(LOG_STD_COUT)
     #include <iostream>
     #define VLOG(serverity) std::cout
+    #define VLOG_IF(verboselevel, condition) std::cout
 #endif
 
 // gflog
