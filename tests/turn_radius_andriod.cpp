@@ -2,6 +2,11 @@
 #include <string>
 #include <math.h>
 #include <unistd.h> // time
+#include <stdio.h>
+#include "common/hal/halio.h"
+#include "common/hal/timeop.h"
+#include "common/concurrency/this_thread.h"
+
 
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
@@ -14,20 +19,34 @@
 #include "datafusion_math.h"
 #include "imu_module.h"
 
+
+void speed_callback(struct timeval *tv, int type, float speed) {
+    
+}
+
+
 using namespace imu;
 int main(int argc, char *argv[])
 {   
-    TimeUtils f_time_counter;
-    int64_t t_1, t_2;
-    int r_state = -1;
-    double R_cur;
-    ImuModule::Instance().StartDataFusionTask();
+    ROD_DATA rod_data[20];
+    HalIO &halio = HalIO::Instance();
+    bool res = halio.Init(NULL, 1);
+    if (!res) {
+        std::cerr << "HALIO init fail" << std::endl;
+        return -1;
+    }    
     
     while(1){
-        t_1 = f_time_counter.Microseconds();
-        usleep(50000); // 50ms
-        r_state = ImuModule::Instance().GetTurnRadius( t_1, &R_cur);
-        printf("state: r_state,  R = %f\n", R_cur);
+        int read_rod_state = HalIO::Instance().read_rod_data(rod_data, 20);
+        if(read_rod_state){
+            for(int i=0; i<read_rod_state; i++){
+                printf("rod data: %ld %ld %d %d %d\n", rod_data[i].tv.tv_sec, rod_data[i].tv.tv_usec, rod_data[i].acc[0], rod_data[i].acc[1], rod_data[i].acc[2]);
+            }
+        }else{
+//            printf("no rod data, read state = %d\n", read_rod_state);
+        }
+     
+        usleep(10000); // 10ms
     }
     return 0;
 }

@@ -50,6 +50,11 @@ public:
 
     int GyrocDataCalibation(const double gyro_data_raw[3], double gyro_data_new[3] );
 
+    // murata
+    int GyrocDataCalibationMurata(const double gyro_data_raw[3], double gyro_data_new[3] );
+
+    int AccDataCalibationMurata(const double acc_data_raw[3], double acc_data_ned[3] );
+
     void ResetState();
 
     void GetGyroBias( double gyro_bias[3] );
@@ -81,6 +86,13 @@ private:
     double m_A1[3][3];
     double m_gyro_range_scale;
     double m_gyro_drift[3]; //  // 陀螺仪零偏，在线估计
+
+    // murata
+    double m_accel_range_scale_murata;
+    double m_A0_murata[3];
+    double m_A1_murata[3][3];
+    double m_gyro_range_scale_murata;
+    double m_gyro_drift_murata[3]; //  // 陀螺仪零偏，在线估计
 };
 
 }

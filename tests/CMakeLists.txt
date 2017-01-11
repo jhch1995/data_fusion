@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 2.8.2)
 cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
 
+######################### configuration ###########################
+OPTION(READ_IMU_DATA_FROM_MURATA "switch for read imu data from murata" OFF)
+IF (READ_IMU_DATA_FROM_MURATA)
+    MESSAGE(STATUS "read imu data from murata")
+    ADD_DEFINITIONS(-DDATA_FROM_MURATA) # read data from murata
+ENDIF()
+
 IF (WIN32)
 ELSEIF (ANDROID_ABI)
     MESSAGE(STATUS "include: ANDORID platform")
@@ -22,12 +29,9 @@ ELSEIF (ANDROID_ABI)
     )
 ELSEIF (UNIX)
     MESSAGE(STATUS "include: UNIX platform")
+
     ADD_DEFINITIONS(-DUSE_GLOG)
-    #ADD_DEFINITIONS(-DLOG_STD_COUT)
-#    ADD_DEFINITIONS(-DDATA_FROM_LOG)
-#    MESSAGE(STATUS "DATA_FROM_LOG=${DATA_FROM_LOG}")
     INCLUDE_DIRECTORIES(
-        #"${PROJECT_ROOT_PATH}"
         "${PROJECT_SOURCE_DIR}/src/data_fusion/"
         "${PROJECT_SOURCE_DIR}/src/"
         "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/include/"

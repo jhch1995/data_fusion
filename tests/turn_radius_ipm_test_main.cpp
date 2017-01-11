@@ -44,16 +44,6 @@ DEFINE_double(y_res, 0.1, "y resolution");
 
 //DEFINE_string(flagfile, "./data/doing/frame/detect.flag", " parameter address ");
 
-
-// 读入log和图片路径
-string str_image_frame_add = "data/doing/frame/image/";
-
-ifstream infile_log("data/doing/frame/log.txt");       // 指定log的路径
-string buffer_log;
-string data_flag;
-stringstream ss_log;
-stringstream ss_tmp;
-
 void LoadImage(cv::Mat* image, string image_name);
 
 // 对图片进行IPM变化
@@ -82,6 +72,14 @@ int main(int argc, char *argv[])
     // 初始化
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";
+
+    // 读入log和图片路径
+    string str_image_frame_add = FLAGS_jpg_data_addr; // jpg
+    ifstream infile_log(FLAGS_log_data_addr.c_str());       // 指定log的路径
+    string buffer_log;
+    string data_flag;
+    stringstream ss_log;
+    stringstream ss_tmp;
 
     CameraPara camera_para;
     camera_para.fu = FLAGS_fu;
@@ -168,7 +166,9 @@ int main(int argc, char *argv[])
                     do_get_turn_radius();
 
                     // 画车道线
-                    mark_IPM_radius(ipm_para, g_R_cur, 0.9,  ipm_image );
+                    mark_IPM_radius(ipm_para, g_R_cur, 0.9, ipm_image);
+                    // 画图像光轴直线
+                    mark_IPM_radius(ipm_para, 0, 0.7, ipm_image);
 
                     cv::imshow("ipm", ipm_image);
                     //按键事件，空格暂停，其他跳出循环
@@ -206,7 +206,7 @@ string get_file_name(string file_path)
     int n=0;
     const char *filePath = file_path.data();
     if((dp=opendir(filePath))==NULL)
-        printf("can't open %s", filePath);
+        printf("can't open %s\n", filePath);
 
     while(((dirp=readdir(dp))!=NULL)){
          if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))

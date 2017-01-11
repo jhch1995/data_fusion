@@ -26,5 +26,7 @@ DECLARE_double(gyro_bias_z);
 DECLARE_string(imu_init_addr); // imu校正参数文件存储地址
 DECLARE_string(imu_parameter_log_addr); // imu每次上电后校准的结果，仅用于分析
 DECLARE_string(log_data_addr); // 读取log.txt数据地址
+DECLARE_string(jpg_data_addr); // 读取jpg数据文件夹
+
 
 #endif  // DATA_FUSION_MATH_H

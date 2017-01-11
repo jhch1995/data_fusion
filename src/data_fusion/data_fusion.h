@@ -198,6 +198,9 @@ private:
     StructCanSpeedData m_can_speed_data;
     std::vector<StructCanSpeedData> m_vector_can_speed_data;
 
+    //murata
+    string m_imu_log_flag; // 读取哪个imu的flag
+
     bool m_is_print_imu_data; // 是否打印IMU数据
     int m_is_print_speed_data;// 是否打印speed数据
 
