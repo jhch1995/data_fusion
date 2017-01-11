@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     {
         //读取车速测试
         HalIO &halio = HalIO::Instance();
-        bool res = halio.Init(NULL, MOBILEEYE);
+        bool res = halio.Init(NULL, 1);
         if (!res) {
             std::cerr << "HALIO init fail" << std::endl;
             return -1;

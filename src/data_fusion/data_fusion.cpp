@@ -131,6 +131,18 @@ void DataFusion::Init( )
         }
     }
     #endif
+
+    // 判断是从murata读数据还是mpu6500
+    #if defined(DATA_FROM_MURATA)
+    {
+        m_imu_log_flag = "Gsensor_m";
+    }
+    #else
+    {
+        m_imu_log_flag = "Gsensor";
+    }
+    #endif
+    
 }
 
 // 开始线程
@@ -246,7 +258,7 @@ int DataFusion::ReadDataFromLog( )
         m_image_frame_info.timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;
         m_image_frame_info.index = log_image_index;
         m_data_image_update = 1;
-    }else if(data_flag == "Gsensor"){
+    }else if(data_flag == m_imu_log_flag){
         double acc_data_raw[3]; // acc原始坐标系下的
         double acc_data_ned[3]; // 大地坐标系
         static double acc_data_filter_pre[3]; // 保存fliter变量
@@ -261,8 +273,19 @@ int DataFusion::ReadDataFromLog( )
         ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>imu_flag>>acc_data_raw[0]>>acc_data_raw[1]>>acc_data_raw[2]
                 >>gyro_data_raw[0]>>gyro_data_raw[1]>>gyro_data_raw[2]>>imu_temperature;
         imu_timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;
-        m_imu_attitude_estimate.AccDataCalibation(acc_data_raw, acc_data_ned);// 原始数据校正
-        m_imu_attitude_estimate.GyrocDataCalibation(gyro_data_raw, gyro_data_ned);
+
+        // 判断是从murata读数据还是mpu6500
+        #if defined(DATA_FROM_MURATA)
+        {
+            m_imu_attitude_estimate.AccDataCalibationMurata(acc_data_raw, acc_data_ned);// 原始数据校正
+            m_imu_attitude_estimate.GyrocDataCalibationMurata(gyro_data_raw, gyro_data_ned);
+        }
+        #else
+        {
+            m_imu_attitude_estimate.AccDataCalibation(acc_data_raw, acc_data_ned);// 原始数据校正
+            m_imu_attitude_estimate.GyrocDataCalibation(gyro_data_raw, gyro_data_ned);
+        }
+        #endif      
 
         if(m_is_first_read_gsensor){
             m_is_first_read_gsensor = 0;

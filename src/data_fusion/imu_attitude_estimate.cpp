@@ -33,10 +33,32 @@ void ImuAttitudeEstimate::Initialize( )
     m_A1[2][1] = 0;
     m_A1[2][2] = 1;
 
-    // 初始化为０,　目前会从配置文件中读取，并每次上电在这个基础上进一步校正
+    // 初始化为0,　目前会从配置文件中读取，并每次上电在这个基础上进一步校正
     m_gyro_drift[0] = 0;
     m_gyro_drift[1] = 0;
     m_gyro_drift[2] = 0;
+    // murata
+    m_accel_range_scale_murata = 1.0/1962;
+
+    m_A0_murata[0] = 0;
+    m_A0_murata[1] = 0;
+    m_A0_murata[2] = 0;
+
+    m_A1_murata[0][0] = 1;
+    m_A1_murata[0][1] = 0;
+    m_A1_murata[0][2] = 0;
+    m_A1_murata[1][0] = 0;
+    m_A1_murata[1][1] = 1;
+    m_A1_murata[1][2] = 0;
+    m_A1_murata[2][0] = 0;
+    m_A1_murata[2][1] = 0;
+    m_A1_murata[2][2] = 1;
+    
+    m_gyro_range_scale_murata = 1.0/50*D2R;
+    m_gyro_drift_murata[0] = 0;
+    m_gyro_drift_murata[1] = 0;
+    m_gyro_drift_murata[2] = 0;
+//    m_gyro_drift[2] = -0.0217;
 }
 
 void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double gyro_data[3], double dt)
@@ -208,6 +230,45 @@ int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], doub
     gyro_data_new[0] = -gyro_data_imu[2] - m_gyro_drift[0];
     gyro_data_new[1] = -gyro_data_imu[1] - m_gyro_drift[1];
     gyro_data_new[2] = -gyro_data_imu[0] - m_gyro_drift[2];
+
+    return 1;
+}
+
+// Murata IMU
+int ImuAttitudeEstimate::AccDataCalibationMurata(const double acc_data_raw[3], double acc_data_ned[3] )
+{
+    double acc_data_t[3];
+    double acc_data_imu[3];
+    for(int i=0; i<3; i++){
+        acc_data_t[i] = acc_data_raw[i]*m_accel_range_scale - m_A0_murata[i];
+        acc_data_imu[i]= (m_A1[i][0]*acc_data_t[0] + m_A1[i][1]*acc_data_t[1] + m_A1[i][2]*acc_data_t[2])*ONE_G;
+    }
+    acc_data_t[0] = acc_data_raw[0]*m_accel_range_scale - m_A0_murata[0];
+    acc_data_t[1] = acc_data_raw[1]*m_accel_range_scale - m_A0[1];
+    acc_data_t[2] = acc_data_raw[2]*m_accel_range_scale - m_A0[2];
+
+    // IMU原始坐标系-->大地坐标系(NED)
+    acc_data_ned[0] = -acc_data_imu[2];
+    acc_data_ned[1] = -acc_data_imu[1];
+    acc_data_ned[2] = acc_data_imu[0];
+
+    return 1;
+}
+
+int ImuAttitudeEstimate::GyrocDataCalibationMurata(const double gyro_data_raw[3], double gyro_data_new[3] )
+{
+    double gyro_data_imu[3], gyro_data_imu_t[3];
+    for(int i=0; i<3; i++)
+        gyro_data_imu[i] = gyro_data_raw[i]*m_gyro_range_scale_murata;
+
+    // IMU原始坐标系-->大地坐标系(NED)
+    gyro_data_imu_t[0] = -gyro_data_imu[2];
+    gyro_data_imu_t[1] = -gyro_data_imu[1];
+    gyro_data_imu_t[2] = gyro_data_imu[0];
+
+    // 去掉drift
+    for(int i=0; i<3; i++)
+         gyro_data_new[i] = -gyro_data_imu_t[i] - m_gyro_drift_murata[i];
 
     return 1;
 }
