@@ -70,6 +70,15 @@ ELSEIF(ANDROID_ABI)
             gflags
             -Wl,--end-group
     )
+
+    ADD_EXECUTABLE(turnlamp_detection "./turnlamp_detection_main.cpp")
+    TARGET_LINK_LIBRARIES(turnlamp_detection  
+                          -Wl,--start-group
+                          data_fusion halio
+                          gflags   
+                          ${ARM_LIBS}
+                         -Wl,--end-group
+                             )
 ELSEIF (UNIX)
     MESSAGE(STATUS "LINK: UNIX")
     ADD_EXECUTABLE(lane_tracking_test "./lane_tracking_test_main.cpp")

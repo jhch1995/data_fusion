@@ -5,12 +5,10 @@ namespace imu {
 TurnlampDetector::TurnlampDetector()
 {
     Init( );
-    //ctor
 }
 
 TurnlampDetector::~TurnlampDetector()
 {
-    //dtor
     #if defined(DATA_FROM_LOG)
         infile_log.close();
     #endif
@@ -21,7 +19,7 @@ TurnlampDetector::~TurnlampDetector()
 void TurnlampDetector::Init( )
 {
     m_is_first_read_fmu = true;
-    m_fmu_sample_hz = 11.0/400.0; // 从飞控板子上读取的数据的采样频率
+    m_fmu_sample_hz = 10.0/400.0; // 从飞控板子上读取的数据的采样频率
 
     memset(&m_fmu_imu_data, 0, sizeof(m_fmu_imu_data));
     memset(&m_fmu_imu_data_pre, 0, sizeof(m_fmu_imu_data_pre));
@@ -47,39 +45,61 @@ void TurnlampDetector::Init( )
     m_turnlamp_state_pre = 0;
     m_turnlamp_state_change_CAN = false;
 
-    // read data from log
-    infile_log.open("./data/doing/log.txt"); // ifstream
-    LOG(ERROR) << "try open " << FLAGS_log_data_addr;
-    if(!infile_log)
-        LOG(ERROR) << "open " << FLAGS_log_data_addr << " ERROR!!";
-    else
-        LOG(ERROR) << "open " << FLAGS_log_data_addr << " OK!";
+    #if defined(DATA_FROM_LOG)
+    {
+        // read data from log
+        infile_log.open("./data/doing/log.txt"); // ifstream
+        LOG(ERROR) << "try open " << FLAGS_log_data_addr;
+        if(!infile_log)
+            LOG(ERROR) << "open " << FLAGS_log_data_addr << " ERROR!!";
+        else
+            LOG(ERROR) << "open " << FLAGS_log_data_addr << " OK!";
+    }
+    #endif
 
 }
 
 // 开始线程
-void TurnlampDetector::StartTurnlampDetectTask()
+void TurnlampDetector::StartTurnlampDetectTaskOnline()
 {
     m_turnlamp_detect_thread.Start();
     m_is_turnlamp_detect_running = true;
-    Closure<void>* cls = NewClosure(this, &TurnlampDetector::RunDetectTurnlamp);
+    Closure<void>* cls = NewClosure(this, &TurnlampDetector::DetectSelfRodShiftOnline);
     m_turnlamp_detect_thread.AddTask(cls);
 }
 
-
-void TurnlampDetector::RunDetectTurnlamp()
+// 读取log日志，进行检测
+void TurnlampDetector::RunDetectTurnlampOffline()
 {
     bool is_read_new_fmu = false;
     while(!is_read_new_fmu){
         int fmu_data_update = ReadFmuDataFromLog();
         if(fmu_data_update){
             VLOG(VLOG_INFO)<<"RunDetectTurnlamp--"<<"new fmu data"<<endl;
-//            LOG_IF(INFO, 0)<<"11111111111111111111--"<<"new fmu data"<<endl;
             m_rod_shift_state = DetectRodShift();
             is_read_new_fmu = true;
         }
     }
 }
+
+
+// 自身检测拨杆是否可能是被拨动了
+void TurnlampDetector::DetectSelfRodShiftOnline()
+{
+    while (m_is_turnlamp_detect_running) {
+        int fmu_data_update = 0;
+         while(!fmu_data_update){
+            fmu_data_update = ReadRodDataOnline(); // 直到读到rod的acc数据
+            usleep(1000);
+        }
+        
+        VLOG(VLOG_INFO)<<"RunDetectTurnlamp--"<<"new fmu data"<<endl;
+        m_rod_shift_state = DetectRodShift();
+
+       usleep(10000);
+    }
+}
+
 
 // 仅利用拨杆上ＩＭＵ检测拨杆是否可能被拨动
 // 1: 可能被拨动
@@ -97,13 +117,9 @@ int TurnlampDetector::DetectRodShift()
         }        
         if(fabs(d_acc[2])>=m_d_acc_threshold[2]){
             VLOG(VLOG_INFO)<<"DetectRodShift--"<<"fmu_d_acc = "<<d_acc[0]<<" "<<d_acc[1]<<" "<<d_acc[2]<<" "<<endl;
-//            VLOG(VLOG_INFO)<<"DetectRodShift--"<<"fmu_d_gyro = "<<d_gyro[0]<<" "<<d_gyro[1]<<" "<<d_gyro[2]<<" "<<endl;
+            printf("Detect Rod Shift: d_acc= %f %f %f\n",d_acc[0], d_acc[1], d_acc[2]);
             return 1;
         }
-//        }else if(m_turnlamp_state_change_CAN){
-//            VLOG(VLOG_INFO)<<"DetectRodShift--"<<"!!!miss fmu_d_acc = "<<d_acc[0]<<" "<<d_acc[1]<<" "<<d_acc[2]<<" "<<endl;
-//            VLOG(VLOG_INFO)<<"DetectRodShift--"<<"!!!miss fmu_d_gyro = "<<d_gyro[0]<<" "<<d_gyro[1]<<" "<<d_gyro[2]<<" "<<endl;
-//        }
     }
     return 0;
 }
@@ -196,6 +212,31 @@ int TurnlampDetector::ReadFmuDataFromLog( )
     else
         return 0;
 }
+
+// 0: 没有读到新数据
+// 1: fmu数据更新
+int TurnlampDetector::ReadRodDataOnline( )
+{
+    double acc_data_raw[3], acc_data_ned[3], acc_data_ned_new[3];
+    double rod_timestamp;
+     
+    ROD_DATA rod_data[20];
+    int read_rod_state = HalIO::Instance().read_rod_data(rod_data, 20);
+    if(read_rod_state){
+        // 比例因子缩放 和 坐标系变换
+        for(int k=0; k<3; k++)
+            acc_data_ned[k] = rod_data[0].acc[k]/100.0;
+
+        Array3Rotation(m_R_fmu2camera, acc_data_ned, acc_data_ned_new);
+        m_fmu_imu_data.timestamp = rod_data[0].tv.tv_sec + rod_data[0].tv.tv_usec*1e-6;
+        memcpy(m_fmu_imu_data.acc, acc_data_ned_new, sizeof(m_fmu_imu_data.acc));
+
+        return 1;        
+    }
+    return 0;
+}
+
+
 
 // 两个IMU相互之间坐标转换矩阵
 void TurnlampDetector::CalculateRotationFmu2Camera(const double acc_fmu[3], const double acc_camera[3])

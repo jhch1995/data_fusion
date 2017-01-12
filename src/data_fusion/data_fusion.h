@@ -27,9 +27,11 @@
 using namespace std;
 namespace imu {
 
-class DataFusion
+class DataFusion : public SingletonBase<DataFusion>
 {
 public:
+    friend class SingletonBase<DataFusion>;
+    
 #pragma pack(1)
     struct StructAtt
     {

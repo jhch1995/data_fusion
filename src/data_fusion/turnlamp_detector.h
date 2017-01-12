@@ -12,6 +12,7 @@
 
 #include "common/concurrency/work_thread.h"
 #include "common/concurrency/rwlock.h"
+#include "common/hal/halio.h"
 
 #include "imu_attitude_estimate.h"
 #include "can_vehicle_estimate.h"
@@ -51,9 +52,15 @@ class TurnlampDetector
         // 0: 没拨动
         int DetectRodShift();
 
-        void StartTurnlampDetectTask();
+        void StartTurnlampDetectTaskOnline();
 
-        void RunDetectTurnlamp();
+        // 自身检测拨杆是否可能是被拨动了
+        void DetectSelfRodShiftOnline();
+
+        // 读取log日志，进行检测
+        void RunDetectTurnlampOffline();
+
+        int ReadRodDataOnline( );
 
         int m_rod_shift_state; // 拨杆可能被拨动的标志位
 

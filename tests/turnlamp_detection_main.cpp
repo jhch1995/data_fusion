@@ -7,6 +7,7 @@
 #include <queue>
 #include <dirent.h>
 #include <time.h>
+#include <signal.h> 
 
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
@@ -21,14 +22,54 @@
 
 using namespace imu;
 
+#define L_LAMP 1
+#define R_LAMP 2
+#define M_LAMP 3
+
+void set_left_turnlamp(int sig)  
+{  
+    printf("\n state = 1 %d\n", sig);    
+}  
+
+void set_right_turnlamp(int sig)  
+{  
+    printf("\n state = -1 %d\n", sig);    
+}  
+
+void set_middle_turnlamp(int sig)  
+{  
+    printf("\n state = 0 %d\n", sig);    
+}  
+
+
+
+#if defined(ANDROID)
+    DEFINE_string(log_dir, "./log/", " ");
+    DEFINE_int32(v, 1, " ");
+#endif
+
 int main(int argc, char *argv[])
 {
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";
+    
     #if defined(USE_GLOG)
-        FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
-//        FLAGS_v = 0;
+        #if defined(ANDROID)
+            FLAGS_v = 0;
+        #else
+            FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
+    //        FLAGS_v = 0;
+        #endif
+
     #endif
+    // init
+    HalIO &halio = HalIO::Instance();
+    bool res = halio.Init(NULL, 1);
+    if (!res) {
+        std::cerr << "HALIO init fail" << std::endl;
+        return -1;
+    }
+    halio.EnableFMU(); // 使能CAN对应的filter
 
     double turnlamp_detect_delay_num = 10; // 当第一次检测到拨杆可能被拨动，然后就持续检测后面的Ｎ个数据，就行比较判断当前拨杆的绝对位置
     double turnlamp_detect_delay_counter = turnlamp_detect_delay_num;
@@ -36,10 +77,18 @@ int main(int argc, char *argv[])
     double average_num_counter = 0.0; // 有效的用于计算均值的acc_diff
 
     // 进行数据融合的类
-    DataFusion data_fusion;
+    DataFusion &data_fusion = DataFusion::Instance();
     data_fusion.StartDataFusionTask();
 
     TurnlampDetector m_turnlamp_detector;
+    #if !defined(DATA_FROM_LOG)
+    {
+        m_turnlamp_detector.StartTurnlampDetectTaskOnline();
+        printf("!!! Start Turnlamp Detect Task Online\n");
+    }
+    #endif
+
+    
     double acc_fmu0[3] = {-2.42, -1.92, -9.25};
     double acc_camera0[3] = {-1, -0.36, -10.05};
     m_turnlamp_detector.CalculateRotationFmu2Camera(acc_fmu0, acc_camera0);
@@ -47,8 +96,19 @@ int main(int argc, char *argv[])
     double diff_acc_average[3] = {0.0, 0.0, 0.0}; // 检测到可能的波动后进行绝对位置判断
     bool if_new_acc_diff_mean = true; // 是否是新的diff_acc_average数据
     double diff_acc[3], diff_gyro[3];
+
+    // 设置PC端控制信号
+//    (void) signal(L_LAMP, set_left_turnlamp);  
+//    (void) signal(R_LAMP, set_right_turnlamp); 
+//    (void) signal(M_LAMP, set_middle_turnlamp); 
+    
     while(1){
-        m_turnlamp_detector.RunDetectTurnlamp();
+        #if defined(DATA_FROM_LOG)
+        {
+            m_turnlamp_detector.RunDetectTurnlampOffline();
+        }
+        #endif
+        
         double R_cur;
         double timestamp_search = m_turnlamp_detector.m_fmu_imu_data.timestamp;
         int64_t image_timestamp_cur_int = (int64_t)(timestamp_search*1000);
@@ -90,10 +150,11 @@ int main(int argc, char *argv[])
             
             VLOG(VLOG_INFO)<<"Main--"<<"average num: "<<average_num_counter<<endl;
             VLOG(VLOG_INFO)<<"Main--"<<"mean Fmu&Camera_diff_acc = "<<diff_acc_average[0]<<", "<<diff_acc_average[1]<<", "<<diff_acc_average[2]<<endl;
+            printf("mean nums = %.0f, diff_acc = %f %f %f\n", average_num_counter, diff_acc_average[0], diff_acc_average[1], diff_acc_average[2]);
             if_new_acc_diff_mean = false; // 一次数据只打印一次
         }
 
-        usleep(5);
+        usleep(1000);
     }
     printf("over!!\n");
 
