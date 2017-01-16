@@ -6,11 +6,13 @@ DEFINE_double(gyro_bias_z, 0, "imu gyro bias z ");
 #if defined DATA_FROM_LOG
     DEFINE_string(imu_init_addr, "./imu.ini", "imu calibrate result base address");
     DEFINE_string(imu_parameter_log_addr, "./imu_paramer_log.txt", "save all the imu calibrate results");
-    DEFINE_string(log_data_addr, "data/doing/log.txt", "the log data address (which save imu, speed and son on)");
-    DEFINE_string(jpg_data_addr, "data/doing/frame/image", "the kpg data address ");
+    DEFINE_string(log_data_addr, "./data/doing/log.txt", "the log data address (which save imu, speed and son on)");
+    DEFINE_string(jpg_data_addr, "./data/doing/frame/image", "the jpg data address ");
+    DEFINE_string(turnlamp_detect_init_addr, "./turnlamp_detect.ini", "turnlamp detect init parameter"); 
 #else
     DEFINE_string(imu_init_addr, "/storage/sdcard0/imu.ini", "imu calibrate result base address");
     DEFINE_string(imu_parameter_log_addr, "/storage/sdcard0/imu_paramer_log.txt", "save all the imu calibrate results");
+    DEFINE_string(turnlamp_detect_init_addr, "/storage/sdcard0/imu/turnlamp_detect.ini", "turnlamp detect init parameter"); 
 
 #endif
 

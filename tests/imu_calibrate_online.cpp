@@ -17,26 +17,26 @@
 
 using namespace imu;
 
-struct StructImuParameter
-{
-   double gyro_bias[3];
+//struct StructImuParameter
+//{
+//   double gyro_bias[3];
 //   double acc_A0[3];
 //   double acc_A0[3][3];
-};
+//};
 
 string g_file_addr = "/storage/sdcard0/imu/imu.flag";  // = "./gflags.flag";
 
-#pragma pack(1)    
-struct StructImuData
-{
-    double timestamp;
-    double acc_raw[3];
-    double gyro_raw[3];
-    double acc[3];
-    double gyro[3];
-    double temp;
-};
-#pragma pack()
+//#pragma pack(1)    
+//struct StructImuData
+//{
+//    double timestamp;
+//    double acc_raw[3];
+//    double gyro_raw[3];
+//    double acc[3];
+//    double gyro[3];
+//    double temp;
+//};
+//#pragma pack()
 
 int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter);
 int read_imu_calibation_parameter( StructImuParameter *imu_parameter);

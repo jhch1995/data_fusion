@@ -15,26 +15,26 @@
 
 using namespace imu;
 
-struct StructImuParameter
-{
-   double gyro_bias[3];
+//struct StructImuParameter
+//{
+//   double gyro_bias[3];
 //   double acc_A0[3];
 //   double acc_A0[3][3];
-};
+//};
 
 string g_file_addr = "/storage/sdcard0/imu/imu.flag";  // = "./gflags.flag";
 
-#pragma pack(1)    
-struct StructImuData
-{
-    double timestamp;
-    double acc_raw[3];
-    double gyro_raw[3];
-    double acc[3];
-    double gyro[3];
-    double temp;
-};
-#pragma pack()
+//#pragma pack(1)    
+//struct StructImuData
+//{
+//    double timestamp;
+//    double acc_raw[3];
+//    double gyro_raw[3];
+//    double acc[3];
+//    double gyro[3];
+//    double temp;
+//};
+//#pragma pack()
 
 // gflog
 
@@ -48,7 +48,6 @@ int main(int argc, char *argv[])
     DataFusion data_fusion;    
 
     #if defined(ANDROID)
-    {
         //读取车速测试
         HalIO &halio = HalIO::Instance();
         bool res = halio.Init(NULL, 1);
@@ -56,13 +55,11 @@ int main(int argc, char *argv[])
             std::cerr << "HALIO init fail" << std::endl;
             return -1;
         } 
-    }          
     #endif
 
     // 校正
     StructImuParameter imu_parameter_pre, imu_parameter_new;
     #if defined(ANDROID)
-    {
         double gyro_bias[3];
         data_fusion.CalibrateGyroBias(gyro_bias);        
         //read_imu_calibation_parameter(&imu_parameter_pre); 
@@ -72,7 +69,6 @@ int main(int argc, char *argv[])
         // 测试gflags读取配置并修改   
         google::ParseCommandLineFlags(&argc, &argv, true);
         printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);         
-    }
     #endif
 
     while(1){

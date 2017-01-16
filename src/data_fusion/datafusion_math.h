@@ -29,5 +29,76 @@ DECLARE_string(imu_parameter_log_addr); // imu每次上电后校准的结果，�
 DECLARE_string(log_data_addr); // 读取log.txt数据地址
 DECLARE_string(jpg_data_addr); // 读取jpg数据文件夹
 
+// 拨杆检测
+DECLARE_string(turnlamp_detect_init_addr); // 拨杆检测的初始化配置
+
+
+
+// data_fusion
+#pragma pack(1)
+    struct StructAtt
+    {
+        double timestamp;
+        double att[3];
+        double angle_z;
+        double att_gyro[3];
+        double acc[3];
+        double gyro[3];
+    };
+
+    struct StructVehicleState
+    {
+        double timestamp;
+        double pos[2];
+        double vel[2];
+        double yaw;
+    };
+
+    struct StructTurnRadius
+    {
+        double timestamp;
+        double R;
+        bool is_imu_value_ok;
+    };
+
+    struct StructImageFrameInfo
+    {
+        double timestamp;
+        double index;
+    };
+
+    struct StructImuData
+    {
+        double timestamp;
+        double acc_raw[3];
+        double gyro_raw[3];
+        double acc[3];
+        double gyro[3];
+        double temp;
+    };
+
+    struct StructCanSpeedData
+    {
+        double timestamp;
+        double speed;
+    };
+
+    struct StructImuParameter
+    {
+       double gyro_bias[3];
+    //   double acc_A0[3];
+    //   double acc_A0[3][3];
+    };
+
+
+    typedef struct {
+    	double timestamp;
+    	double acc[3];
+    }AccData;
+
+
+#pragma pack()
+
+
 
 #endif  // DATA_FUSION_MATH_H

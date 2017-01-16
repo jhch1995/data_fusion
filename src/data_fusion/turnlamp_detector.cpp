@@ -26,9 +26,19 @@ void TurnlampDetector::Init( )
     m_is_first_detect_rod_shift = true;
     m_rod_shift_state = 0;
 
+    // 计算自检测阈值
     m_d_acc_threshold[0] = 5.0;
     m_d_acc_threshold[1] = 5.0;
     m_d_acc_threshold[2] = 9.8;
+
+    m_d_acc_threshold_weight[0] = 1;
+    m_d_acc_threshold_weight[1] = 1;
+    m_d_acc_threshold_weight[2] = 1;
+    
+    memset(m_d_rod_acc, 0, sizeof(m_d_rod_acc));
+    m_is_d_rod_acc_threshold_start = false;
+    m_d_rod_acc_threshold_counter = 0;
+    memset(m_rod_detect_acc_data, 0, sizeof(m_rod_detect_acc_data));
 
     m_d_gyro_threshold[0] = 2.0;
     m_d_gyro_threshold[1] = 1.0;
@@ -45,8 +55,16 @@ void TurnlampDetector::Init( )
     m_turnlamp_state_pre = 0;
     m_turnlamp_state_change_CAN = false;
 
+    // 对准
+    m_is_init_rod_acc_collect_start = false; // 是否开始对准
+    m_is_init_road_acc_collect_ok = false;
+    memset(&m_rod_acc_queue, 0, sizeof(m_rod_acc_queue));
+    memset(&m_camera_acc_queue, 0, sizeof(m_camera_acc_queue));
+    memset(m_mean_init_rod_acc, 0, sizeof(m_mean_init_rod_acc));
+    ReadRodInitParameter();
+        
+    
     #if defined(DATA_FROM_LOG)
-    {
         // read data from log
         infile_log.open("./data/doing/log.txt"); // ifstream
         LOG(ERROR) << "try open " << FLAGS_log_data_addr;
@@ -54,7 +72,6 @@ void TurnlampDetector::Init( )
             LOG(ERROR) << "open " << FLAGS_log_data_addr << " ERROR!!";
         else
             LOG(ERROR) << "open " << FLAGS_log_data_addr << " OK!";
-    }
     #endif
 
 }
@@ -87,21 +104,29 @@ void TurnlampDetector::RunDetectTurnlampOffline()
 void TurnlampDetector::DetectSelfRodShiftOnline()
 {
     while (m_is_turnlamp_detect_running) {
-        int fmu_data_update = 0;
-         while(!fmu_data_update){
-            fmu_data_update = ReadRodDataOnline(); // 直到读到rod的acc数据
-            usleep(1000);
-        }
-        
-        VLOG(VLOG_INFO)<<"RunDetectTurnlamp--"<<"new fmu data"<<endl;
-        m_rod_shift_state = DetectRodShift();
+        int fmu_data_update = ReadRodDataOnline(); // 直到读到rod的acc数据
+        if(fmu_data_update){
+            if(m_is_init_rod_acc_collect_start){
+                // 进行match初始化
+                int state_t = CollectInitRodAccData(); // 数据读取完成会清空状态
+            }else{
+                m_rod_shift_state = DetectRodShift();
 
-       usleep(10000);
+                // 计算阈值
+                if(m_is_d_rod_acc_threshold_start && m_rod_shift_state)
+                    CalculateRodAccThreshold();
+            }
+                
+            VLOG(VLOG_INFO)<<"RunDetectTurnlamp--"<<"new fmu data"<<endl;
+            usleep(10000);  // 控制整个while循环在100hz左右
+        }else{
+            usleep(1000); // 等待1ms，再次读取数据
+        }
     }
 }
 
 
-// 仅利用拨杆上ＩＭＵ检测拨杆是否可能被拨动
+// 仅利用拨杆上IMU检测拨杆是否可能被拨动
 // 1: 可能被拨动
 // 0: 没拨动
 int TurnlampDetector::DetectRodShift()
@@ -110,14 +135,16 @@ int TurnlampDetector::DetectRodShift()
         memcpy(&m_fmu_imu_data_pre, &m_fmu_imu_data, sizeof(m_fmu_imu_data_pre));
         m_is_first_detect_rod_shift = false;
     }else{
-        double d_acc[3], d_gyro[3];
         for(int i=0; i<3; i++){
-            d_acc[i] = m_fmu_imu_data.acc[i] - m_fmu_imu_data_pre.acc[i];
-            d_gyro[i] = m_fmu_imu_data.gyro[i] - m_fmu_imu_data_pre.gyro[i];
-        }        
-        if(fabs(d_acc[2])>=m_d_acc_threshold[2]){
-            VLOG(VLOG_INFO)<<"DetectRodShift--"<<"fmu_d_acc = "<<d_acc[0]<<" "<<d_acc[1]<<" "<<d_acc[2]<<" "<<endl;
-            printf("Detect Rod Shift: d_acc= %f %f %f\n",d_acc[0], d_acc[1], d_acc[2]);
+            m_d_rod_acc[i] = m_fmu_imu_data.acc[i] - m_fmu_imu_data_pre.acc[i];
+        }  
+        memcpy(&m_fmu_imu_data_pre, &m_fmu_imu_data, sizeof(m_fmu_imu_data_pre));
+
+        // 判断是否可能被拨动
+        if(fabs(m_d_rod_acc[0])*m_d_acc_threshold_weight[0]>=m_d_acc_threshold[0] || fabs(m_d_rod_acc[1])*m_d_acc_threshold_weight[1]>=m_d_acc_threshold[1]
+            || fabs(m_d_rod_acc[2])*m_d_acc_threshold_weight[2]>=m_d_acc_threshold[2]){
+            VLOG(VLOG_INFO)<<"DetectRodShift--"<<"fmu_d_acc = "<<m_d_rod_acc[0]<<" "<<m_d_rod_acc[1]<<" "<<m_d_rod_acc[2]<<" "<<endl;
+            printf("Detect Rod Shift: m_d_rod_acc= %f %f %f\n",m_d_rod_acc[0], m_d_rod_acc[1], m_d_rod_acc[2]);
             return 1;
         }
     }
@@ -225,7 +252,7 @@ int TurnlampDetector::ReadRodDataOnline( )
     if(read_rod_state){
         // 比例因子缩放 和 坐标系变换
         for(int k=0; k<3; k++)
-            acc_data_ned[k] = rod_data[0].acc[k]/100.0;
+            acc_data_ned[k] = rod_data[read_rod_state-1].acc[k]/100.0;
 
         Array3Rotation(m_R_fmu2camera, acc_data_ned, acc_data_ned_new);
         m_fmu_imu_data.timestamp = rod_data[0].tv.tv_sec + rod_data[0].tv.tv_usec*1e-6;
@@ -262,6 +289,60 @@ void TurnlampDetector::CalculateRotationFmu2Camera(const double acc_fmu[3], cons
     }
 }
 
+// 用于外部调用接口，开启初始对准
+void TurnlampDetector::SartRotationInitDataCollect()
+{
+    // 重置转换矩阵
+    memset(m_R_fmu2camera, 0 , sizeof(m_R_fmu2camera));
+    m_R_fmu2camera[0][0] = 1.0;
+    m_R_fmu2camera[1][1] = 1.0;
+    m_R_fmu2camera[2][2] = 1.0;
+    m_is_init_rod_acc_collect_start = true;
+    printf("Sart rotation init acc data collect!\n");
+}
+
+// 收集acc数据
+// 1: 正在收集
+// 2: 收集完成
+//输出: m_mean_init_rod_acc[3]
+int TurnlampDetector::CollectInitRodAccData()
+{
+    memcpy(&m_rod_acc_queue.acc_data[m_rod_acc_queue.wr_index].acc, m_fmu_imu_data.acc, sizeof(m_fmu_imu_data.acc));
+    m_rod_acc_queue.acc_data[m_rod_acc_queue.wr_index].timestamp = m_fmu_imu_data.timestamp;
+
+    // 更新读写index
+    m_rod_acc_queue.wr_index = (m_rod_acc_queue.wr_index + 1);
+    if(m_rod_acc_queue.wr_index == ROD_ACC_QUEUE_SIZE){
+         // 数据收集完成进行计算 m_rod_acc_queue
+        int mean_num_counter = 0;
+        for(int i=m_rod_acc_queue.rd_index; i<m_rod_acc_queue.wr_index; i++){
+            for(int k=0; k<3; k++)
+                m_mean_init_rod_acc[k] += m_rod_acc_queue.acc_data[i].acc[k];
+            mean_num_counter++;                            
+        }
+        
+        for(int i=0; i<3; i++)
+            m_mean_init_rod_acc[i] = m_mean_init_rod_acc[i]/mean_num_counter;
+        m_is_init_rod_acc_collect_start = false;
+        m_is_init_road_acc_collect_ok = true; // 拨杆acc的初始化均值读取ok
+        
+        return 2;
+    }
+    return 1;
+}
+
+// 重置初始化对准的状态
+void TurnlampDetector::ResetInitMatchState()
+{
+    // reset state
+    m_is_init_rod_acc_collect_start = false;
+    m_is_init_road_acc_collect_ok = false;
+    memset(&m_rod_acc_queue, 0, sizeof(m_rod_acc_queue));
+    memset(&m_camera_acc_queue, 0, sizeof(m_camera_acc_queue));
+}
+
+
+
 // array_new = R*array_origin;
 void TurnlampDetector::Array3Rotation(const double R[3][3], const double array_origin[3], double array_new[3])
 {
@@ -269,6 +350,86 @@ void TurnlampDetector::Array3Rotation(const double R[3][3], const double array_o
     for(int  k=0; k<3; k++)
         array_new[k] = R[k][0]*array_origin[0] + R[k][1]*array_origin[1] + R[k][2]*array_origin[2];
 }
+
+// 读取初始化配置文件
+int TurnlampDetector:: ReadRodInitParameter()
+{
+    string buffer_log;
+    stringstream ss_log;
+    string data_flag;
+    double data_value[3];
+
+    ifstream file_turnlamp (FLAGS_turnlamp_detect_init_addr.c_str());
+    if(file_turnlamp.is_open()){
+        while(!file_turnlamp.eof()){
+            getline(file_turnlamp, buffer_log);
+            ss_log.clear();
+            ss_log.str(buffer_log);
+            ss_log>>data_flag>>data_value[0]>>data_value[1]>>data_value[2];
+
+            if(data_flag == "d_acc_threshold"){
+                memcpy(m_d_acc_threshold, data_value, sizeof(m_d_acc_threshold));
+                LOG(ERROR)<<"TD:ReadRodSelfShiftParameter--"<<" "<<data_flag.c_str()<<": "<<data_value[0]<<", "
+                    <<data_value[1]<<", "<<data_value[2]<<endl;
+            }else if(data_flag == "d_acc_threshold_weight"){
+                memcpy(m_d_acc_threshold_weight, data_value, sizeof(m_d_acc_threshold_weight));
+                LOG(ERROR)<<"TD:ReadRodSelfShiftParameter--"<<" "<<data_flag.c_str()<<": "<<data_value[0]<<", "
+                    <<data_value[1]<<", "<<data_value[2]<<endl;
+            }
+        }
+    }else{
+        LOG(ERROR)<<"TD:ReadRodSelfShiftParameter--"<<"open read turnlamp detect init parameter file error!!!"<<endl;
+        return -1;
+    }
+    file_turnlamp.close();
+    return 1;
+}
+
+// 用于外部调用接口，开启初始对准
+void TurnlampDetector::SartCalculateRodAccThreshold()
+{
+    m_is_d_rod_acc_threshold_start = true;
+    printf("Sart Calculate Rod Acc Threshold!\n");
+}
+
+
+// 计算自检测的阈值
+// 1: 正在收集数据 计算阈值
+// 2: 阈值计算完成
+int TurnlampDetector:: CalculateRodAccThreshold( )
+{
+    if(m_d_rod_acc_threshold_counter < ROD_ACC_THRESHOLD_SIZE){
+        memcpy(m_rod_detect_acc_data[m_d_rod_acc_threshold_counter].acc, m_d_rod_acc, sizeof(m_d_rod_acc));   
+        printf("new index %d rod acc: %f %f %f\n", m_d_rod_acc_threshold_counter, m_rod_detect_acc_data[m_d_rod_acc_threshold_counter].acc[0], 
+                    m_rod_detect_acc_data[m_d_rod_acc_threshold_counter].acc[1], m_rod_detect_acc_data[m_d_rod_acc_threshold_counter].acc[2]);
+        m_d_rod_acc_threshold_counter++;
+    }else{
+        double rod_acc_t[3] = {0, 0, 0};
+        for(int i=0; i<ROD_ACC_THRESHOLD_SIZE; i++){
+            for(int k=0; k<3; k++)
+                rod_acc_t[k] += fabs(m_rod_detect_acc_data[i].acc[k]);
+        }
+
+        for(int i=0; i<3; i++)
+            m_d_acc_threshold[i] = rod_acc_t[i]/ROD_ACC_THRESHOLD_SIZE/2.0; // 为了均衡
+        m_is_d_rod_acc_threshold_start = false;
+
+        // 挑选最大的权值对应的轴
+        double max_threshold = max(m_d_acc_threshold[0], max(m_d_acc_threshold[1], m_d_acc_threshold[2]));
+        for(int i=0; i<3; i++){
+            if(max_threshold == m_d_acc_threshold[i])
+                m_d_acc_threshold_weight[i] = 1;
+            else
+                m_d_acc_threshold_weight[i] = 0;
+        }
+            
+        printf("!!!!---new d_acc_threshold: %f %f %f\n", m_d_acc_threshold[0], m_d_acc_threshold[1], m_d_acc_threshold[2]);
+        printf("!!!!---new m_d_acc_threshold_weight: %f %f %f\n", m_d_acc_threshold_weight[0], m_d_acc_threshold_weight[1], m_d_acc_threshold_weight[2]);
+        return 1;
+    }
+    return 0;
+}
+
 
 
 }

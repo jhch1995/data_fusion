@@ -94,7 +94,6 @@ void DataFusion::Init( )
     m_is_first_run_read_data = 1; // 第一次运行读取数据
 
     #if defined(DATA_FROM_LOG)
-    {
         m_init_state = true; // 读取log的时候,认为imu初始化是OK的
         // read data from log
         infile_log.open(FLAGS_log_data_addr.c_str()); // ifstream
@@ -107,12 +106,9 @@ void DataFusion::Init( )
         // 读取imu参数
         StructImuParameter imu_parameter;
         int read_sate = read_imu_calibration_parameter( &imu_parameter);
-        if(read_sate){
+        if(read_sate)
             m_imu_attitude_estimate.SetGyroBias(imu_parameter.gyro_bias);
-        }
-    }
     #else
-    {
         int stste = init_gsensor();
         if(stste >= 0){
            m_init_state = true;
@@ -126,21 +122,15 @@ void DataFusion::Init( )
         // 读取imu参数
         StructImuParameter imu_parameter;
         int read_sate = read_imu_calibration_parameter( &imu_parameter);
-        if(read_sate){
+        if(read_sate)
             m_imu_attitude_estimate.SetGyroBias(imu_parameter.gyro_bias);
-        }
-    }
     #endif
 
     // 判断是从murata读数据还是mpu6500
     #if defined(DATA_FROM_MURATA)
-    {
         m_imu_log_flag = "Gsensor_m";
-    }
     #else
-    {
         m_imu_log_flag = "Gsensor";
-    }
     #endif
     
 }
