@@ -411,7 +411,7 @@ int TurnlampDetector:: CalculateRodAccThreshold( )
         }
 
         for(int i=0; i<3; i++)
-            m_d_acc_threshold[i] = rod_acc_t[i]/ROD_ACC_THRESHOLD_SIZE/2.0; // 为了均衡
+            m_d_acc_threshold[i] = rod_acc_t[i]/ROD_ACC_THRESHOLD_SIZE/3.5; // 为了均衡
         m_is_d_rod_acc_threshold_start = false;
 
         // 挑选最大的权值对应的轴

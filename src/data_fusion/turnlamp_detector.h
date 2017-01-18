@@ -21,7 +21,7 @@
 namespace imu {
 
 #define ROD_ACC_QUEUE_SIZE 100
-#define ROD_ACC_THRESHOLD_SIZE 20
+#define ROD_ACC_THRESHOLD_SIZE 30
 
 
 class TurnlampDetector: public SingletonBase<TurnlampDetector>
