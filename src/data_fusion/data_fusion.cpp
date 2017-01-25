@@ -94,7 +94,6 @@ void DataFusion::Init( )
     m_is_first_run_read_data = 1; // 第一次运行读取数据
 
     #if defined(DATA_FROM_LOG)
-    {
         m_init_state = true; // 读取log的时候,认为imu初始化是OK的
         // read data from log
         infile_log.open(FLAGS_log_data_addr.c_str()); // ifstream
@@ -107,12 +106,9 @@ void DataFusion::Init( )
         // 读取imu参数
         StructImuParameter imu_parameter;
         int read_sate = read_imu_calibration_parameter( &imu_parameter);
-        if(read_sate){
+        if(read_sate)
             m_imu_attitude_estimate.SetGyroBias(imu_parameter.gyro_bias);
-        }
-    }
     #else
-    {
         int stste = init_gsensor();
         if(stste >= 0){
            m_init_state = true;
@@ -126,11 +122,17 @@ void DataFusion::Init( )
         // 读取imu参数
         StructImuParameter imu_parameter;
         int read_sate = read_imu_calibration_parameter( &imu_parameter);
-        if(read_sate){
+        if(read_sate)
             m_imu_attitude_estimate.SetGyroBias(imu_parameter.gyro_bias);
-        }
-    }
     #endif
+
+    // 判断是从murata读数据还是mpu6500
+    #if defined(DATA_FROM_MURATA)
+        m_imu_log_flag = "Gsensor_m";
+    #else
+        m_imu_log_flag = "Gsensor";
+    #endif
+    
 }
 
 // 开始线程
@@ -246,7 +248,7 @@ int DataFusion::ReadDataFromLog( )
         m_image_frame_info.timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;
         m_image_frame_info.index = log_image_index;
         m_data_image_update = 1;
-    }else if(data_flag == "Gsensor"){
+    }else if(data_flag == m_imu_log_flag){
         double acc_data_raw[3]; // acc原始坐标系下的
         double acc_data_ned[3]; // 大地坐标系
         static double acc_data_filter_pre[3]; // 保存fliter变量
@@ -261,8 +263,19 @@ int DataFusion::ReadDataFromLog( )
         ss_log>>timestamp_raw[0]>>timestamp_raw[1]>>imu_flag>>acc_data_raw[0]>>acc_data_raw[1]>>acc_data_raw[2]
                 >>gyro_data_raw[0]>>gyro_data_raw[1]>>gyro_data_raw[2]>>imu_temperature;
         imu_timestamp = timestamp_raw[0] + timestamp_raw[1]*1e-6;
-        m_imu_attitude_estimate.AccDataCalibation(acc_data_raw, acc_data_ned);// 原始数据校正
-        m_imu_attitude_estimate.GyrocDataCalibation(gyro_data_raw, gyro_data_ned);
+
+        // 判断是从murata读数据还是mpu6500
+        #if defined(DATA_FROM_MURATA)
+        {
+            m_imu_attitude_estimate.AccDataCalibationMurata(acc_data_raw, acc_data_ned);// 原始数据校正
+            m_imu_attitude_estimate.GyrocDataCalibationMurata(gyro_data_raw, gyro_data_ned);
+        }
+        #else
+        {
+            m_imu_attitude_estimate.AccDataCalibation(acc_data_raw, acc_data_ned);// 原始数据校正
+            m_imu_attitude_estimate.GyrocDataCalibation(gyro_data_raw, gyro_data_ned);
+        }
+        #endif      
 
         if(m_is_first_read_gsensor){
             m_is_first_read_gsensor = 0;
@@ -571,9 +584,13 @@ void DataFusion::EstimateAtt()
 //        std::cout<<"acc_data = "<<imu_data.acc[0]<<", "<<imu_data.acc[1]<<", "<<imu_data.acc[2]<<endl;
 //        std::cout<<"gyro_data = "<<imu_data.gyro[0]<<", "<<imu_data.gyro[1]<<", "<<imu_data.gyro[2]<<endl;
 
-        // save att
+        // save att imu data
         m_imu_attitude_estimate.GetAttitudeAngleZ(m_struct_att.att, &(m_struct_att.angle_z));
         m_imu_attitude_estimate.GetAttitudeGyro(m_struct_att.att_gyro); // 纯gyro积分得到的数据
+        // 保存ＩＭＵ数据
+        memcpy(m_struct_att.acc, imu_data.acc, sizeof(m_struct_att.acc));
+        memcpy(m_struct_att.gyro, imu_data.gyro, sizeof(m_struct_att.gyro));
+
         m_struct_att.timestamp = cur_att_timestamp;
         m_vector_att.push_back(m_struct_att);
 
@@ -614,7 +631,7 @@ void DataFusion::EstimateVehicelState()
 // 1: 数据正常
 // -1:int_timestamp_search < all_data_time 落后
 // -2:int_timestamp_search > all_data_time 超前
-int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3] )
+int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] )
 {
     // m_vector_att
     bool att_data_search_ok = 0;
@@ -664,6 +681,24 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
                     att_gyro_cur[k] = (vector_att.end()-i)->att_gyro[k];
                     d_att_gyro[k] = att_gyro_cur[k] - att_gyro_pre[k];
                     att_gyro[k] = att_gyro_pre[k] + (fabs(dt_t_pre)/fabs(dt_t))*d_att_gyro[k];// 线性插值
+                }
+
+                // acc
+                double acc_pre[3], acc_cur[3], d_acc[3];
+                for(int k = 0; k<3; k++){
+                    acc_pre[k] = (vector_att.end()-i-1)->acc[k];
+                    acc_cur[k] = (vector_att.end()-i)->acc[k];
+                    d_acc[k] = acc_cur[k] - acc_pre[k];
+                    acc[k] = acc_pre[k] + (fabs(dt_t_pre)/fabs(dt_t))*d_acc[k];// 线性插值
+                }
+
+                // gyro
+                double gyro_pre[3], gyro_cur[3], d_gyro[3];
+                for(int k = 0; k<3; k++){
+                    gyro_pre[k] = (vector_att.end()-i-1)->gyro[k];
+                    gyro_cur[k] = (vector_att.end()-i)->gyro[k];
+                    d_gyro[k] = gyro_cur[k] - gyro_pre[k];
+                    gyro[k] = gyro_pre[k] + (fabs(dt_t_pre)/fabs(dt_t))*d_gyro[k];// 线性插值
                 }
 
                 att_data_search_ok = 1;
@@ -756,8 +791,9 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
     feature_rw_lock.Unlock();
 
     // 寻找跟需求的 timestamp对应的att,vehicle数据
-    data_search_state_pre = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre, att_gyro_pre);
-    data_search_state_cur = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur, &m_angle_z_cur, att_gyro_cur);
+    double acc_t[3], gyro_t[3];
+    data_search_state_pre = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre, att_gyro_pre, acc_t, gyro_t);
+    data_search_state_cur = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur, &m_angle_z_cur, att_gyro_cur, acc_t, gyro_t);
 
     VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: pre(s) = "<<std::fixed<<image_timestamp_pre_t<<", cur(s): "<<std::fixed<<image_timestamp_cur_t<<endl;
     VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: dt(ms) = "<<image_timestamp_cur - image_timestamp_pre<<endl;

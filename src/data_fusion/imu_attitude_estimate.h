@@ -38,6 +38,9 @@ public:
 
     void GetAttitudeAngleZ(double att[3], double *angle_z);
 
+    // euler attitude to Rbn(from n to b)
+    void CalculateAtt2Rotation(const double att[3], double R[3][3]);
+
     // 获取由gyro积分得到的姿态角度
     void GetAttitudeGyro(double att_gyro[3]);
 
@@ -49,6 +52,11 @@ public:
     int SetAccCalibationParam(double A0[3], double A1[3][3]);
 
     int GyrocDataCalibation(const double gyro_data_raw[3], double gyro_data_new[3] );
+
+    // murata
+    int GyrocDataCalibationMurata(const double gyro_data_raw[3], double gyro_data_new[3] );
+
+    int AccDataCalibationMurata(const double acc_data_raw[3], double acc_data_ned[3] );
 
     void ResetState();
 
@@ -81,6 +89,13 @@ private:
     double m_A1[3][3];
     double m_gyro_range_scale;
     double m_gyro_drift[3]; //  // 陀螺仪零偏，在线估计
+
+    // murata
+    double m_accel_range_scale_murata;
+    double m_A0_murata[3];
+    double m_A1_murata[3][3];
+    double m_gyro_range_scale_murata;
+    double m_gyro_drift_murata[3]; //  // 陀螺仪零偏，在线估计
 };
 
 }

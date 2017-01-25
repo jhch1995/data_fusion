@@ -1,10 +1,16 @@
 cmake_minimum_required(VERSION 2.8.2)
 cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
 
-
+######################### configuration ###########################
+OPTION(READ_IMU_DATA_FROM_MURATA "switch for read imu data from murata" OFF)
+IF (READ_IMU_DATA_FROM_MURATA)
+    MESSAGE(STATUS "read imu data from murata")
+    ADD_DEFINITIONS(-DDATA_FROM_MURATA) # read data from murata
+ENDIF()
 
 IF (WIN32)
 ELSEIF(ANDROID_ABI)
+
     MESSAGE(STATUS "LINK: ANDROID")
     ADD_EXECUTABLE(imu_calibrate  "./imu_calibrate_main.cpp")
     TARGET_LINK_LIBRARIES(imu_calibrate
@@ -30,8 +36,16 @@ ELSEIF(ANDROID_ABI)
             gflags
             -Wl,--end-group
     )
+ADD_EXECUTABLE(turnlamp_detection "./turnlamp_detection_main.cpp")
+    TARGET_LINK_LIBRARIES(turnlamp_detection  
+                          -Wl,--start-group
+                          data_fusion halio
+                          gflags   
+                          ${ARM_LIBS}
+                         -Wl,--end-group
+                             )
 
-    ADD_EXECUTABLE(eigen_test  "./eigen_test.cpp")
+ADD_EXECUTABLE(eigen_test  "./eigen_test.cpp")
     TARGET_LINK_LIBRARIES(eigen_test
             -Wl,--start-group
             data_fusion
@@ -40,9 +54,9 @@ ELSEIF(ANDROID_ABI)
             -Wl,--end-group
     )
 
+
 ELSEIF (UNIX)
     MESSAGE(STATUS "LINK: UNIX")
-#    find_package(OpenCV REQUIRED)
     ADD_EXECUTABLE(lane_tracking "./lane_tracking_test_main.cpp")
     TARGET_LINK_LIBRARIES(lane_tracking imu  data_fusion halio
                           concurrency relative_locate time glog gflags pthread
@@ -62,6 +76,12 @@ ELSEIF (UNIX)
     TARGET_LINK_LIBRARIES(imu_calibrate_online imu data_fusion halio
                           gflags glog  pthread
                           opencv_imgcodecs opencv_core opencv_highgui )
+
+    ADD_EXECUTABLE(turnlamp_detection "./turnlamp_detection_main.cpp")
+    TARGET_LINK_LIBRARIES(turnlamp_detection  data_fusion halio
+                          gflags glog  pthread
+                          opencv_imgcodecs opencv_core opencv_highgui
+                             )
 
 #    ADD_EXECUTABLE(producer_consumer "./proudcer_consumer_test_main.cpp")
 #    TARGET_LINK_LIBRARIES(producer_consumer data_fusion

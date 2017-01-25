@@ -27,62 +27,66 @@
 using namespace std;
 namespace imu {
 
-class DataFusion
+class DataFusion : public SingletonBase<DataFusion>
 {
 public:
-#pragma pack(1)
-    struct StructAtt
-    {
-        double timestamp;
-        double att[3];
-        double angle_z;
-        double att_gyro[3];
-    };
+    friend class SingletonBase<DataFusion>;
+    
+//#pragma pack(1)
+//    struct StructAtt
+//    {
+//        double timestamp;
+//        double att[3];
+//        double angle_z;
+//        double att_gyro[3];
+//        double acc[3];
+//        double gyro[3];
+//    };
 
-    struct StructVehicleState
-    {
-        double timestamp;
-        double pos[2];
-        double vel[2];
-        double yaw;
-    };
+//    struct StructVehicleState
+//    {
+//        double timestamp;
+//        double pos[2];
+//        double vel[2];
+//        double yaw;
+//    };
 
-    struct StructTurnRadius
-    {
-        double timestamp;
-        double R;
-        bool is_imu_value_ok;
-    };
+//    struct StructTurnRadius
+//    {
+//        double timestamp;
+//        double R;
+//        bool is_imu_value_ok;
+//    };
 
-    struct StructImageFrameInfo
-    {
-        double timestamp;
-        double index;
-    };
+//    struct StructImageFrameInfo
+//    {
+//        double timestamp;
+//        double index;
+//    };
 
-    struct StructImuData
-    {
-        double timestamp;
-        double acc_raw[3];
-        double gyro_raw[3];
-        double acc[3];
-        double gyro[3];
-        double temp;
-    };
+//    struct StructImuData
+//    {
+//        double timestamp;
+//        double acc_raw[3];
+//        double gyro_raw[3];
+//        double acc[3];
+//        double gyro[3];
+//        double temp;
+//    };
 
-    struct StructCanSpeedData
-    {
-        double timestamp;
-        double speed;
-    };
+//    struct StructCanSpeedData
+//    {
+//        double timestamp;
+//        double speed;
+//    };
 
-    struct StructImuParameter
-    {
-       double gyro_bias[3];
-    //   double acc_A0[3];
-    //   double acc_A0[3][3];
-    };
-#pragma pack()
+//    struct StructImuParameter
+//    {
+//       double gyro_bias[3];
+//    //   double acc_A0[3];
+//    //   double acc_A0[3][3];
+//    };
+//#pragma pack()
 
 
 public:
@@ -125,7 +129,7 @@ public:
     void DeleteOldRadiusData( );
 
     // 根据时间戳查找对应的数据
-    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3] );
+    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] );
 
     // 估计汽车的运动状态数据
     void EstimateVehicelState();
@@ -200,6 +204,9 @@ private:
     std::vector<StructImuData> m_vector_imu_data;
     StructCanSpeedData m_can_speed_data;
     std::vector<StructCanSpeedData> m_vector_can_speed_data;
+
+    //murata
+    string m_imu_log_flag; // 读取哪个imu的flag
 
     bool m_is_print_imu_data; // 是否打印IMU数据
     int m_is_print_speed_data;// 是否打印speed数据

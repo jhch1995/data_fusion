@@ -26,11 +26,11 @@ ENDIF()
 
 OPTION(COMPILE_DEBUG_SWITCH "switch for copmile debug OR release" OFF)
 IF (COMPILE_DEBUG_SWITCH)
-    MESSAGE(STATUS " copmile debug")
+    MESSAGE(STATUS "copmile debug")
     SET(CMAKE_BUILD_TYPE "Debug")
     SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
 ELSE()
-    MESSAGE(STATUS " copmile release")
+    MESSAGE(STATUS "copmile release")
 ENDIF()
 
 OPTION(SAVE_ALL_IMU_CALIBRATE_RESULTS "switch for save all the imu calibrate results OR not" OFF)
@@ -39,10 +39,10 @@ IF (SAVE_ALL_IMU_CALIBRATE_RESULTS)
     ADD_DEFINITIONS(-DSAVE_ALL_IMU_CALIBRATE_RESULTS) # when the borard power on, imu will do calibrate, save all the results
 ENDIF()
 
-OPTION(LOG_TO_STD_OUT "print all the log data" OFF)
-IF (LOG_TO_STD_OUT)
-    MESSAGE(STATUS "print all the log data")
-    ADD_DEFINITIONS(-DLOG_STD_COUT) # when the borard power on, imu will do calibrate, save all the results
+OPTION(PRINT_LOG_INFO_SWITCH "switch for print all the log data for debug" OFF)
+IF (PRINT_LOG_INFO_SWITCH)
+    MESSAGE(STATUS "print all the log data for debug")
+    ADD_DEFINITIONS(-DLOG_STD_COUT) 
 ENDIF()
 
 ######################### packet ###########################
@@ -68,9 +68,16 @@ ELSEIF (ANDROID_ABI)
     ADD_CUSTOM_TARGET(MINIEYE_VERSION COMMAND ${SCRIPTS_PATH}/version.sh |tee ${PROJECT_ROOT_PATH}/version.h.in)
 ELSEIF (UNIX)
     MESSAGE(STATUS "DEFINE: UNIX platform")
-    SET(OpenCV_DIR "/opt/opencv/default/share/OpenCV")
-#    SET(OpenCV_DIR "/home/yj/bak/packet/opencv/opencv-3.1-install/share/OpenCV")
-#    SET(OpenCV_CONFIG_PATH "/home/yj/bak/packet/opencv/opecv-3.1-install/share/OpenCV")
+
+    OPTION(SET_OPENCV_LIB_ADDR "switch for change opencv library address" OFF)
+    IF (SET_OPENCV_LIB_ADDR)
+        SET(OpenCV_DIR "/home/yj/bak/packet/opencv/opencv-3.1-install/share/OpenCV")
+        MESSAGE(STATUS "set the new opencv library address: ${OpenCV_DIR}")
+    ELSE()
+        SET(OpenCV_DIR "/opt/opencv/default/share/OpenCV")
+        MESSAGE(STATUS "OpenCV_DIR: ${OpenCV_DIR}")
+    ENDIF()
+
     FIND_PACKAGE(OpenCV REQUIRED)
     ADD_DEFINITIONS(-DUSE_GLOG)
 ENDIF ()
