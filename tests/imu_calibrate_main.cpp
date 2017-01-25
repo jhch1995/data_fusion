@@ -48,21 +48,18 @@ int main(int argc, char *argv[])
     DataFusion data_fusion;    
 
     #if defined(ANDROID)
-    {
         //读取车速测试
         HalIO &halio = HalIO::Instance();
-        bool res = halio.Init(NULL, MOBILEEYE);
+        bool res = halio.Init(NULL, 1);
         if (!res) {
             std::cerr << "HALIO init fail" << std::endl;
             return -1;
         } 
-    }          
     #endif
 
     // 校正
     StructImuParameter imu_parameter_pre, imu_parameter_new;
     #if defined(ANDROID)
-    {
         double gyro_bias[3];
         data_fusion.CalibrateGyroBias(gyro_bias);        
         //read_imu_calibation_parameter(&imu_parameter_pre); 
@@ -72,7 +69,6 @@ int main(int argc, char *argv[])
         // 测试gflags读取配置并修改   
         google::ParseCommandLineFlags(&argc, &argv, true);
         printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);         
-    }
     #endif
 
     while(1){

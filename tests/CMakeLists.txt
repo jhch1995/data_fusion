@@ -1,43 +1,7 @@
 cmake_minimum_required(VERSION 2.8.2)
 cmake_policy(SET CMP0054 OLD) # cmake 3.1以后版本新特性
 
-IF (WIN32)
-ELSEIF (ANDROID_ABI)
-    MESSAGE(STATUS "include: ANDORID platform")
-    #include directory
-    INCLUDE_DIRECTORIES(
-        "${PROJECT_ROOT_PATH}/thirdparty/opencv/android/sdk/native/jni/include/"
-        "${PROJECT_ROOT_PATH}/thirdparty/libusb-1.0/android_armv8/"
-        "${PROJECT_ROOT_PATH}/thirdparty/libblis/armv8/include/blis"
-        "${PROJECT_ROOT_PATH}/thirdparty/gflags/android/include/"
-        "${PROJECT_ROOT_PATH}/thirdparty/miniglog/"
-        "${PROJECT_SOURCE_DIR}/src/data_fusion/"
-    )
-    LINK_DIRECTORIES(
-        "${PROJECT_ROOT_PATH}/thirdparty/opencv/android/sdk/native/libs/arm64-v8a/"
-        "${PROJECT_ROOT_PATH}/thirdparty/opencv/android/sdk/native/3rdparty/libs/arm64-v8a/"
-        "${PROJECT_ROOT_PATH}/thirdparty/gflags/android/lib/${PLATFORM}/"
-        "${PROJECT_ROOT_PATH}/thirdparty/libblis/armv8/lib"
-        "${PROJECT_ROOT_PATH}/thirdparty/libusb-1.0/android_armv8/"
-    )
-ELSEIF (UNIX)
-    MESSAGE(STATUS "include: UNIX platform")
-    ADD_DEFINITIONS(-DUSE_GLOG)
-    #ADD_DEFINITIONS(-DLOG_STD_COUT)
-#    ADD_DEFINITIONS(-DDATA_FROM_LOG)
-#    MESSAGE(STATUS "DATA_FROM_LOG=${DATA_FROM_LOG}")
-    INCLUDE_DIRECTORIES(
-        #"${PROJECT_ROOT_PATH}"
-        "${PROJECT_SOURCE_DIR}/src/data_fusion/"
-        "${PROJECT_SOURCE_DIR}/src/"
-        "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/include/"
-        "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/include/"
-    )
-    LINK_DIRECTORIES(
-        "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/lib/x64/"
-        "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/static/x64/"
-    )
-ENDIF()
+
 
 IF (WIN32)
 ELSEIF(ANDROID_ABI)
@@ -66,6 +30,16 @@ ELSEIF(ANDROID_ABI)
             gflags
             -Wl,--end-group
     )
+
+    ADD_EXECUTABLE(eigen_test  "./eigen_test.cpp")
+    TARGET_LINK_LIBRARIES(eigen_test
+            -Wl,--start-group
+            data_fusion
+            ${EIGEN3_LIBS}
+            ${ARM_LIBS}
+            -Wl,--end-group
+    )
+
 ELSEIF (UNIX)
     MESSAGE(STATUS "LINK: UNIX")
 #    find_package(OpenCV REQUIRED)
@@ -92,4 +66,11 @@ ELSEIF (UNIX)
 #    ADD_EXECUTABLE(producer_consumer "./proudcer_consumer_test_main.cpp")
 #    TARGET_LINK_LIBRARIES(producer_consumer data_fusion
 #                             pthread concurrency )
+    ADD_EXECUTABLE(eigen_test  "./eigen_test.cpp")
+    TARGET_LINK_LIBRARIES(eigen_test
+            -Wl,--start-group
+            data_fusion
+            ${EIGEN3_LIBS}
+            -Wl,--end-group
+    )
 ENDIF()

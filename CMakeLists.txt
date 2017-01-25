@@ -45,6 +45,12 @@ IF (LOG_TO_STD_OUT)
     ADD_DEFINITIONS(-DLOG_STD_COUT) # when the borard power on, imu will do calibrate, save all the results
 ENDIF()
 
+######################### packet ###########################
+#LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_ROOT_PATH}/cmake) # 这个时ORB_SLAM2中的用法
+#find_package(Eigen3 3.1.0 REQUIRED)
+include(cmake/script_eigen.cmake REQUIRED)  # 添加Eigen3：linux和android都可以用
+MESSAGE(STATUS "EIGEN3_INCLUDE_DIR = ${EIGEN3_INCLUDE_DIR}")
+
 #root
 IF ("${CMAKE_SIZEOF_VOID_P}" EQUAL "4")
     MESSAGE(STATUS "root: x32 platform")
