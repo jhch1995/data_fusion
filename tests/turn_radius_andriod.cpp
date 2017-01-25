@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
     halio.EnableFMU();
     
     while(1){
-        int read_rod_state = halio.read_rod_data(rod_data, 20);
+        int read_rod_state = halio.ReadRodData(rod_data, 20);
         if(read_rod_state){
             for(int i=0; i<read_rod_state; i++){
                 printf("rod data: %ld %ld %d %d %d num: %d\n", rod_data[i].tv.tv_sec, rod_data[i].tv.tv_usec, rod_data[i].acc[0], rod_data[i].acc[1], rod_data[i].acc[2], read_rod_state);

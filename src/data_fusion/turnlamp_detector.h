@@ -79,9 +79,23 @@ class TurnlampDetector: public SingletonBase<TurnlampDetector>
         int ReadRodInitParameter();
 
         // 计算自检测的阈值
-        int CalculateRodAccThreshold( );
+        int CalculateRodSelfDetectThreshold( );
 
         void SartCalculateRodAccThreshold();
+
+        void GetRodSelfDetectThreshold(double threshold_t[3], double weight_t[3]);
+
+        // 设置自检测阈值
+        void SetRodSelfDetectThreshold(const double threshold_t[3], const double weight_t[3]);
+
+        // 读取 m_R_rod2camera
+        void GetRod2CameraRotation(double R[3][3] );
+
+        // 设置 m_R_rod2camera
+        void SetRod2CameraRotation(const double R[3][3] );
+
+        // 获取拨杆的数据
+        void GetRodAccData( StructImuData *rod_acc_data);
 
     public:
         // 线程
@@ -94,26 +108,29 @@ class TurnlampDetector: public SingletonBase<TurnlampDetector>
         stringstream ss_tmp;
         ifstream infile_log;
 
-        ImuAttitudeEstimate m_fmu_attitude_estimate;
-        bool m_is_first_read_fmu;
-        double m_fmu_sample_hz;  // fmu采样频率
-        double m_R_fmu2camera[3][3];
-        StructImuData m_fmu_imu_data;
-        StructImuData m_fmu_imu_data_pre;
+        ImuAttitudeEstimate m_rod_attitude_estimate;
+        bool m_is_first_read_rod_acc;
+        double m_rod_sample_hz;  // fmu采样频率
+        double m_R_rod2camera[3][3];
+        StructImuData m_rod_imu_data;
+        StructImuData m_rod_imu_data_pre;
         int m_turnlamp_state; //  转向灯信号 -1: right 1: left
         int m_turnlamp_state_pre; // 上一时刻的数据 转向灯信号 -1: right 1: left
         bool m_turnlamp_state_change_CAN; // CAN 数据上显示turnlamp状态变化
 
+        // 数据读写锁
+        RWLock m_rod_acc_rw_lock;
+        
         // 计算rod自检测的阈值
         double m_d_rod_acc[3]; // 拨杆前后两帧的差值
-        bool m_is_d_rod_acc_threshold_start; // 是否开始计算拨杆m_d_acc_threshold的计算
-        int m_d_rod_acc_threshold_counter; // 拨杆m_d_acc_threshold的数据计数
+        bool m_is_rod_self_detect_threshold_start; // 是否开始计算拨杆m_d_acc_threshold的计算
+        int m_rod_self_detect_threshold_counter; // 拨杆m_d_acc_threshold的数据计数
         AccData m_rod_detect_acc_data[ROD_ACC_THRESHOLD_SIZE];
        
         int m_rod_shift_state; // 拨杆可能被拨动的标志位
         bool m_is_first_detect_rod_shift; // 第一次进入拨杆拨动判断
-        double m_d_acc_threshold[3]; // 检测拨杆拨动的acc前后变化阈值
-        double m_d_acc_threshold_weight[3]; // 对应个阈值的权值
+        double m_rod_self_detect_threshold[3]; // 检测拨杆拨动的acc前后变化阈值
+        double m_rod_self_detect_threshold_weight[3]; // 对应个阈值的权值
         double m_d_gyro_threshold[3]; // 检测拨杆拨动的gyro前后变化阈值
 
         // 拨杆imu和摄像头imu初始对准

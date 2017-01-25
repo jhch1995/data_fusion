@@ -17,26 +17,7 @@
 
 using namespace imu;
 
-//struct StructImuParameter
-//{
-//   double gyro_bias[3];
-//   double acc_A0[3];
-//   double acc_A0[3][3];
-//};
-
 string g_file_addr = "/storage/sdcard0/imu/imu.flag";  // = "./gflags.flag";
-
-//#pragma pack(1)    
-//struct StructImuData
-//{
-//    double timestamp;
-//    double acc_raw[3];
-//    double gyro_raw[3];
-//    double acc[3];
-//    double gyro[3];
-//    double temp;
-//};
-//#pragma pack()
 
 int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter);
 int read_imu_calibation_parameter( StructImuParameter *imu_parameter);
@@ -52,7 +33,7 @@ int main(int argc, char *argv[])
 //    #endif
 
     // 进行数据融合的类
-//    DataFusion data_fusion;
+    DataFusion data_fusion;
 
     #if defined(DATA_FROM_LOG)
 //        data_fusion.StartDataFusionTask( );
@@ -66,12 +47,11 @@ int main(int argc, char *argv[])
 //            return -1;
 //        }
         // 测试gflags读取配置并修改   
-//        data_fusion.StartDataFusionTask( );
-        ImuModule::Instance().StartDataFusionTask();
+        data_fusion.StartDataFusionTask( );
+//        ImuModule::Instance().StartDataFusionTask();
     #endif
 
     #if defined(DATA_FROM_LOG)
-    {
         // 读入log
         ifstream infile_log("data/doing/log.txt");  // 指定log的路径
         string buffer_log;
@@ -98,8 +78,8 @@ int main(int argc, char *argv[])
 
                 // 执行查询转弯半径
                 int64_t image_timestamp_cur_int = (int64_t)(image_timestamp*1000);
-                int r_1  = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int*1000, &R_cur);
-//                int r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &R_cur);
+//                int r_1  = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int*1000, &R_cur);
+                int r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &R_cur);
                 if(r_1 <= 0){
                     printf("main timestamp dismatch, match state= %d, so sleep\n", r_1);
                     sleep(1);
@@ -111,20 +91,18 @@ int main(int argc, char *argv[])
         }
         printf("radius calculate over!!\n");
         infile_log.close();
-    }
     #else
-    {
         TimeUtils f_time_counter;
         int64_t t_1;
         int r_state = -1;
         double R_cur;
+        data_fusion.PrintImuData(1);
         while(1){
             t_1 = f_time_counter.Microseconds();
             usleep(50000); // 50ms
-            r_state = ImuModule::Instance().GetTurnRadius( t_1*1000, &R_cur);
-//            r_state = data_fusion.GetTurnRadius( t_1, &R_cur);
+//            r_state = ImuModule::Instance().GetTurnRadius( t_1*1000, &R_cur);
+            r_state = data_fusion.GetTurnRadius( t_1, &R_cur);
         }
-    }
     #endif
 
     return 0;
