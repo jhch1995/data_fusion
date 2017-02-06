@@ -27,27 +27,27 @@ static const char* usage = "Usage: %s [options]\n"
 
 "\n";
 
-struct StructImuParameter
-{
-   double gyro_bias[3];
-//   double acc_A0[3];
-//   double acc_A0[3][3];
-};
+//struct StructImuParameter
+//{
+//   double gyro_bias[3];
+   //double acc_A0[3];
+   //double acc_A1[3][3];
+//};
 
 string g_file_addr = "/mnt/media_rw/sdcard1/imu_calibulation_paramer.ini";
 
 
-#pragma pack(1)    
-struct StructImuData
-{
-    double timestamp;
-    double acc_raw[3];
-    double gyro_raw[3];
-    double acc[3];
-    double gyro[3];
-    double temp;
-};
-#pragma pack()
+//#pragma pack(1)    
+//struct StructImuData
+//{
+//    double timestamp;
+//    double acc_raw[3];
+//    double gyro_raw[3];
+//    double acc[3];
+//    double gyro[3];
+//    double temp;
+//};
+//#pragma pack()
 
 int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter);
 

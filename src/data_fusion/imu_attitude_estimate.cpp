@@ -213,8 +213,8 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
 
     // IMU原始坐标系-->大地坐标系(NED)
     acc_data_ned[0] = -acc_data_imu[2];
-    acc_data_ned[1] = -acc_data_imu[1];
-    acc_data_ned[2] = -acc_data_imu[0];
+    acc_data_ned[1] = acc_data_imu[1];
+    acc_data_ned[2] = acc_data_imu[0];
 
     return 1;
 }
@@ -228,8 +228,8 @@ int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], doub
 
     // IMU原始坐标系-->大地坐标系(NED)
     gyro_data_new[0] = -gyro_data_imu[2] - m_gyro_drift[0];
-    gyro_data_new[1] = -gyro_data_imu[1] - m_gyro_drift[1];
-    gyro_data_new[2] = -gyro_data_imu[0] - m_gyro_drift[2];
+    gyro_data_new[1] = gyro_data_imu[1] - m_gyro_drift[1];
+    gyro_data_new[2] = gyro_data_imu[0] - m_gyro_drift[2];
 
     return 1;
 }
@@ -274,11 +274,11 @@ int ImuAttitudeEstimate::GyrocDataCalibationMurata(const double gyro_data_raw[3]
 }
 
 // 获取当前陀螺仪零偏
-void ImuAttitudeEstimate::GetGyroBias( double gyro_bias[3] )
+void ImuAttitudeEstimate::GetGyroBias( double gyro_A0[3] )
 {
-    gyro_bias[0] = m_gyro_drift[0];
-    gyro_bias[1] = m_gyro_drift[1];
-    gyro_bias[2] = m_gyro_drift[2];
+    gyro_A0[0] = m_gyro_drift[0];
+    gyro_A0[1] = m_gyro_drift[1];
+    gyro_A0[2] = m_gyro_drift[2];
 }
 
 // 设置陀螺仪新零偏
@@ -319,19 +319,19 @@ void ImuAttitudeEstimate::ReadGyroBias()
         printf("please calibrate the imu first!!\n");
     }else{
         string buffer_data, data_flag;
-        double gyro_bias[3];
+        double gyro_A0[3];
         stringstream ss_tmp;
         getline(infile_imu_coeff, buffer_data);
         ss_tmp.clear();
         ss_tmp.str(buffer_data);
-        ss_tmp>>data_flag>>gyro_bias[0]>>gyro_bias[1]>>gyro_bias[2];
-        if(fabs(gyro_bias[0])<0.1 && fabs(gyro_bias[1])<0.1 && fabs(gyro_bias[2])<0.1){
-            m_gyro_drift[0] = gyro_bias[0];
-            m_gyro_drift[1] = gyro_bias[1];
-            m_gyro_drift[2] = gyro_bias[2];
-            std::cout<<"IAE:Initialize--"<<"gyro bias: "<<gyro_bias[0]<<", "<<gyro_bias[1]<<", "<<gyro_bias[2]<<endl;
+        ss_tmp>>data_flag>>gyro_A0[0]>>gyro_A0[1]>>gyro_A0[2];
+        if(fabs(gyro_A0[0])<0.1 && fabs(gyro_A0[1])<0.1 && fabs(gyro_A0[2])<0.1){
+            m_gyro_drift[0] = gyro_A0[0];
+            m_gyro_drift[1] = gyro_A0[1];
+            m_gyro_drift[2] = gyro_A0[2];
+            std::cout<<"IAE:Initialize--"<<"gyro bias: "<<gyro_A0[0]<<", "<<gyro_A0[1]<<", "<<gyro_A0[2]<<endl;
         }else{
-            std::cout<<"IAE:Initialize--"<<"gyro bias: "<<gyro_bias[0]<<", "<<gyro_bias[1]<<", "<<gyro_bias[2]<<endl;
+            std::cout<<"IAE:Initialize--"<<"gyro bias: "<<gyro_A0[0]<<", "<<gyro_A0[1]<<", "<<gyro_A0[2]<<endl;
             printf("ERROR:the gyro bias is too large!!\n");
         }
     }

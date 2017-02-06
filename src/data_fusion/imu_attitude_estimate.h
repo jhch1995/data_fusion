@@ -60,9 +60,9 @@ public:
 
     void ResetState();
 
-    void GetGyroBias( double gyro_bias[3] );
+    void GetGyroBias( double gyro_A0[3] );
 
-    void SetGyroBias( const double gyro_bias[3] );
+    void SetGyroBias( const double gyro_A0[3] );
 
     void ClearGyroBias();
 

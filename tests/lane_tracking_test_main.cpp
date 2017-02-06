@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
     google::ParseCommandLineFlags(&argc, &argv, true);
 //    printf("log_data_addr cur: %s\n", FLAGS_log_data_addr.c_str());
 //
-//    printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);
+//    printf("FLAG: gyro_A0= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);
 //    printf("FLAG: d_test= %f\n", FLAGS_d_test);
 
         // 初始化

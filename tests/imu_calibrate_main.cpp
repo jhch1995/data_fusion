@@ -15,26 +15,7 @@
 
 using namespace imu;
 
-//struct StructImuParameter
-//{
-//   double gyro_bias[3];
-//   double acc_A0[3];
-//   double acc_A0[3][3];
-//};
-
 string g_file_addr = "/storage/sdcard0/imu/imu.flag";  // = "./gflags.flag";
-
-//#pragma pack(1)    
-//struct StructImuData
-//{
-//    double timestamp;
-//    double acc_raw[3];
-//    double gyro_raw[3];
-//    double acc[3];
-//    double gyro[3];
-//    double temp;
-//};
-//#pragma pack()
 
 // gflog
 
@@ -60,15 +41,15 @@ int main(int argc, char *argv[])
     // 校正
     StructImuParameter imu_parameter_pre, imu_parameter_new;
     #if defined(ANDROID)
-        double gyro_bias[3];
-        data_fusion.CalibrateGyroBias(gyro_bias);        
+        double gyro_A0[3];
+        data_fusion.CalibrateGyroBias(gyro_A0);        
         //read_imu_calibation_parameter(&imu_parameter_pre); 
-        memcpy(imu_parameter_new.gyro_bias, gyro_bias, sizeof(gyro_bias));
+        memcpy(imu_parameter_new.gyro_A0, gyro_A0, sizeof(gyro_A0));
         wite_imu_calibation_parameter(imu_parameter_new);
 
         // 测试gflags读取配置并修改   
         google::ParseCommandLineFlags(&argc, &argv, true);
-        printf("FLAG: gyro_bias= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);         
+        printf("FLAG: gyro_A0= %f, %f, %f\n", FLAGS_gyro_bias_x, FLAGS_gyro_bias_y, FLAGS_gyro_bias_z);         
     #endif
 
     while(1){
@@ -84,21 +65,21 @@ int read_imu_calibation_parameter( StructImuParameter *imu_parameter)
     string buffer_log;
     stringstream ss_log;
     string data_flag;  
-    double gyro_bias[3];      
+    double gyro_A0[3];      
 
     ifstream file_imu (g_file_addr.c_str());
     if(file_imu.is_open()){
         getline(file_imu, buffer_log);
         ss_log.clear();
         ss_log.str(buffer_log);
-        ss_log>>data_flag>>gyro_bias[0]>>gyro_bias[1]>>gyro_bias[2]; 
+        ss_log>>data_flag>>gyro_A0[0]>>gyro_A0[1]>>gyro_A0[2]; 
 
-        //int len = GET_ARRAY_LEN(gyro_bias);
-        //memcpy(&(imu_parameter->gyro_bias[0]), gyro_bias, GET_ARRAY_LEN(gyro_bias)); // 为什么有问题
-        imu_parameter->gyro_bias[0] = gyro_bias[0];
-        imu_parameter->gyro_bias[1] = gyro_bias[1];
-        imu_parameter->gyro_bias[2] = gyro_bias[2];
-        printf("read imu parameter %s, %f %f %f\n", data_flag.c_str(), imu_parameter->gyro_bias[0], imu_parameter->gyro_bias[1], imu_parameter->gyro_bias[2]);
+        //int len = GET_ARRAY_LEN(gyro_A0);
+        //memcpy(&(imu_parameter->gyro_A0[0]), gyro_A0, GET_ARRAY_LEN(gyro_A0)); // 为什么有问题
+        imu_parameter->gyro_A0[0] = gyro_A0[0];
+        imu_parameter->gyro_A0[1] = gyro_A0[1];
+        imu_parameter->gyro_A0[2] = gyro_A0[2];
+        printf("read imu parameter %s, %f %f %f\n", data_flag.c_str(), imu_parameter->gyro_A0[0], imu_parameter->gyro_A0[1], imu_parameter->gyro_A0[2]);
     }else{
         printf("open file error!!!\n");
     }
@@ -109,7 +90,7 @@ int read_imu_calibation_parameter( StructImuParameter *imu_parameter)
 
 int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter)
 {
-    // 文件格式: gyro_bias gyro_bias[0] gyro_bias[1] gyro_bias[2]
+    // 文件格式: gyro_A0 gyro_A0[0] gyro_A0[1] gyro_A0[2]
     char buffer[100]; 
     // clear content
     fstream file_imu;    
@@ -124,12 +105,12 @@ int wite_imu_calibation_parameter(const StructImuParameter &imu_parameter)
     file_imu.open(g_file_addr.c_str());  
     if (file_imu.is_open()) {
         sprintf(buffer, "--gyro_bias_x=%f\n--gyro_bias_y=%f\n--gyro_bias_z=%f\n", 
-                imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
-//          sprintf(buffer, "gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
+                imu_parameter.gyro_A0[0],  imu_parameter.gyro_A0[1],  imu_parameter.gyro_A0[2]);
+//          sprintf(buffer, "gyro_A0 %f %f %f\n", imu_parameter.gyro_A0[0],  imu_parameter.gyro_A0[1],  imu_parameter.gyro_A0[2]);
         file_imu << buffer; 
-        printf("write new gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0], imu_parameter.gyro_bias[1], imu_parameter.gyro_bias[2] );
+        printf("write new gyro_A0 %f %f %f\n", imu_parameter.gyro_A0[0], imu_parameter.gyro_A0[1], imu_parameter.gyro_A0[2] );
     }else{
-        printf("write new gyro_bias failed!!\n");
+        printf("write new gyro_A0 failed!!\n");
     }
 
     file_imu.close();

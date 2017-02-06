@@ -85,9 +85,10 @@ DECLARE_string(turnlamp_detect_init_addr); // 拨杆检测的初始化配置
 
     struct StructImuParameter
     {
-       double gyro_bias[3];
-    //   double acc_A0[3];
-    //   double acc_A0[3][3];
+       double gyro_A0[3];
+       double gyro_A1[3][3];
+       double acc_A0[3];
+       double acc_A1[3][3];
     };
 
 

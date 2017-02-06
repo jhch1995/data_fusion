@@ -16,6 +16,14 @@
 #include "datafusion_math.h"
 #include "imu_module.h"
 
+// 6个面的顺序: 1:-Y 2:-Z 3:+X 4:+Y 5:-X 6:+Z
+#define NEGATIVE_Y 1
+#define NEGATIVE_Z 2
+#define POSITIVE_X 3
+#define POSITIVE_Y 4
+#define NEGATIVE_X 5
+#define POSITIVE_Z 6
+
 using namespace imu;
 using namespace Eigen;  
 using namespace std; 
@@ -24,25 +32,36 @@ using namespace std;
 string g_file_addr = "/storage/sdcard0/imu/imu.flag";  // = "./gflags.flag";
 
 MatrixXd g_acc_calibrate_sequence(6,3);// 校准的acc的哪个面
-int g_acc_calibrate_state = 0; // 用于表示正在校正哪个面
+MatrixXd g_acc_average_save(6,3);// 6个面的均值
+//g_acc_average_save.setZero();
+MatrixXd g_acc_A0(3, 1), g_acc_A1(3,3);
+
+
+
+// 6个面的顺序: 1:-Y 2:-Z 3:+X 4:+Y 5:-X 6:+Z
+int g_acc_calibrate_index = 0 ;// 用于表示正在校正哪个面  0表示刚开始
+
+bool g_acc_average_data_ready = false; // 是否收集完数据
 
 
 //----------------------function-------------------------------//
-
 // 获取当前循环需要读取数据的时间
 void GetReadAccDataTime(double* timestamp);
 
-int GetAccAverageData(const int data_num);
+int GetAccAverageData(const int data_num, const int acc_sequence_index, MatrixXd &acc_average_save);
 
 // 继续读取acc数据 用于校正
-void ContinueReadAccAverageData(int sig);  
+void ReadAccAverageData(int sig);  
 
-
+// 计算acc校正参数
+int CalculateAccParameter(const MatrixXd acc_average_save, MatrixXd &A0, MatrixXd &A1);
 
 int WiteImuCalibationParameter(const StructImuParameter &imu_parameter);
+
 int ReadImuCalibationParameter( StructImuParameter *imu_parameter);
 
-
+int CalculatGyroParameter(double gyro_bias[3]);
+    
 
 #if defined(ANDROID)
     DEFINE_string(log_dir, "./log/", " ");
@@ -63,84 +82,48 @@ int main(int argc, char *argv[])
             FLAGS_log_dir = "./log/";
         #endif
     #endif
+    // SIGTSTP: Ctrl+Z   SIGTINI: Ctrl+C
+    (void) signal(SIGTSTP, ReadAccAverageData);  // SIGTSTP: ctrl+Z
 
-    (void) signal(1, ContinueReadAccAverageData); 
+    g_acc_calibrate_sequence<<0,-1,0, 0,0,-1, 1,0,0,
+                            0,1,0, -1,0,0, 0,0,1;
 
-    g_acc_calibrate_sequence<<0,-1,0,
-                             0,0,-1,
-                             1,0,0,
-                             0,1,0,
-                            -1,0,0,
-                             0,0,1;
-    cout<<g_acc_calibrate_sequence;
-    // imu的acc参数
-    double A0[3] = {0.03312, 0.00830, 0.02780};
-    double A1[3][3] = {1.00094091021825, -0.00363380068824405, -0.00990621587281586, 0.00634451729910714,
-                        1.00072829473586, -0.0320083650978663, 0.0142462642609127, 0.0270694986979167,1.00604358303931};
     // 进行数据融合的类
     DataFusion &data_fusion = DataFusion::Instance();
+    data_fusion.SetGyroAutoCalibrateState(0); // 停止自动校准
     data_fusion.StartDataFusionTask();
 
+    if(g_acc_calibrate_index == 0)
+        printf("请将 1 号面朝天放平，然后按Ctrl+Z!!!\n");
+
     #if !defined(DATA_FROM_LOG)
+        while(1){          
+            if(g_acc_average_data_ready){
+                printf("try calculate acc parameter\n");
+                int cal_acc_parameter = CalculateAccParameter(g_acc_average_save, g_acc_A0, g_acc_A1);
+                g_acc_average_data_ready = false;
 
-    #endif
-//    data_fusion.StartDataFusionTask( );
+                double gyro_bias[3];
+                int cal_gyro_parameter = CalculatGyroParameter(gyro_bias);
 
-    #if defined(DATA_FROM_LOG)
-
-    #else
-        TimeUtils f_time_counter;
-        int64_t t_1;
-        int r_state = -1;
-        double R_cur;
-//        data_fusion.PrintImuData(1);
-        while(1){
-            t_1 = f_time_counter.Microseconds();
-            usleep(50000); // 50ms
-            r_state = data_fusion.GetTurnRadius( t_1, &R_cur);
+                if(cal_acc_parameter == 1 && cal_gyro_parameter == 1){
+                    printf("gyro calibrate ok, save parameter\n");
+                    StructImuParameter imu_parameter;
+                    for(int i=0; i<3; i++){
+                        imu_parameter.gyro_A0[i] = gyro_bias[i];
+                        imu_parameter.acc_A0[i] = g_acc_A0(i, 0);
+                        for(int j=0; j<3; j++)
+                            imu_parameter.acc_A1[i][j] = g_acc_A1(i, j);
+                    }
+                    data_fusion.WriteImuCalibrationParameter(imu_parameter);
+                    break;
+                }
+            }
         }
     #endif
 
+    printf("exe over\n");
     return 0;
-}
-
-
-// 获取当前循环需要读取数据的时间
-void GetReadAccDataTime(double* timestamp)
-{
-   // 读取camera imu数据
-    struct timeval time_imu;
-    gettimeofday(&time_imu, NULL);
-    *timestamp = time_imu.tv_sec + time_imu.tv_usec*1e-6;
-}
-
-// 获取平均数据
-int GetAccAverageData(const int data_num)
-{
-    if(data_num <=0)
-        return 0;
-    double timestamp;
-    GetReadAccDataTime(&timestamp);
-
-    double vehicle_pos[2], att[3], angle_z, att_gyro[3], acc_camera[3], acc_camera_pre[3], gyro_camera[3];
-    double acc_sum[3] = {0, 0, 0};
-    bool read_acc_data = true;
-    bool is_firat_acc_data = true;
-    int read_acc_data_index = 0;
-    while(read_acc_data){
-        int search_state = DataFusion::Instance().GetTimestampData(timestamp-0.01, vehicle_pos, att, &angle_z, att_gyro, acc_camera, gyro_camera);
-        if(search_state == 1){
-            // 判断数据的有效性
-            read_acc_data_index++;
-        }
-        
-        // 读取足都的数据后退出
-        if(read_acc_data_index > data_num)
-            read_acc_data = false;
-        usleep(30000);
-    }
-    return 0;
-    
 }
 
 
@@ -149,21 +132,21 @@ int ReadImuCalibationParameter( StructImuParameter *imu_parameter)
     string buffer_log;
     stringstream ss_log;
     string data_flag;
-    double gyro_bias[3];
+    double gyro_A0[3];
 
     ifstream file_imu (g_file_addr.c_str());
     if(file_imu.is_open()){
         getline(file_imu, buffer_log);
         ss_log.clear();
         ss_log.str(buffer_log);
-        ss_log>>data_flag>>gyro_bias[0]>>gyro_bias[1]>>gyro_bias[2];
+        ss_log>>data_flag>>gyro_A0[0]>>gyro_A0[1]>>gyro_A0[2];
 
-        int len = GET_ARRAY_LEN(gyro_bias);
-        memcpy(&(imu_parameter->gyro_bias[0]), gyro_bias, GET_ARRAY_LEN(gyro_bias)); // 为什么有问题
-        imu_parameter->gyro_bias[0] = gyro_bias[0];
-        imu_parameter->gyro_bias[1] = gyro_bias[1];
-        imu_parameter->gyro_bias[2] = gyro_bias[2];
-        printf("read imu parameter %s, %f %f %f\n", data_flag.c_str(), imu_parameter->gyro_bias[0], imu_parameter->gyro_bias[1], imu_parameter->gyro_bias[2]);
+        int len = GET_ARRAY_LEN(gyro_A0);
+        memcpy(&(imu_parameter->gyro_A0[0]), gyro_A0, GET_ARRAY_LEN(gyro_A0)); // 为什么有问题
+        imu_parameter->gyro_A0[0] = gyro_A0[0];
+        imu_parameter->gyro_A0[1] = gyro_A0[1];
+        imu_parameter->gyro_A0[2] = gyro_A0[2];
+        printf("read imu parameter %s, %f %f %f\n", data_flag.c_str(), imu_parameter->gyro_A0[0], imu_parameter->gyro_A0[1], imu_parameter->gyro_A0[2]);
     }else{
         printf("open file error!!!\n");
     }
@@ -174,7 +157,7 @@ int ReadImuCalibationParameter( StructImuParameter *imu_parameter)
 
 int WiteImuCalibationParameter(const StructImuParameter &imu_parameter)
 {
-     //文件格式: gyro_bias gyro_bias[0] gyro_bias[1] gyro_bias[2]
+     //文件格式: gyro_A0 gyro_A0[0] gyro_A0[1] gyro_A0[2]
     char buffer[100];
     //clear content
     fstream file_imu;
@@ -189,12 +172,12 @@ int WiteImuCalibationParameter(const StructImuParameter &imu_parameter)
     file_imu.open(g_file_addr.c_str());
     if (file_imu.is_open()) {
         sprintf(buffer, "--gyro_bias_x=%f\n--gyro_bias_y=%f\n--gyro_bias_z=%f\n",
-                imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
-          sprintf(buffer, "gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0],  imu_parameter.gyro_bias[1],  imu_parameter.gyro_bias[2]);
+                imu_parameter.gyro_A0[0],  imu_parameter.gyro_A0[1],  imu_parameter.gyro_A0[2]);
+          sprintf(buffer, "gyro_A0 %f %f %f\n", imu_parameter.gyro_A0[0],  imu_parameter.gyro_A0[1],  imu_parameter.gyro_A0[2]);
         file_imu << buffer;
-        printf("write new gyro_bias %f %f %f\n", imu_parameter.gyro_bias[0], imu_parameter.gyro_bias[1], imu_parameter.gyro_bias[2] );
+        printf("write new gyro_A0 %f %f %f\n", imu_parameter.gyro_A0[0], imu_parameter.gyro_A0[1], imu_parameter.gyro_A0[2] );
     }else{
-        printf("write new gyro_bias failed!!\n");
+        printf("write new gyro_A0 failed!!\n");
     }
 
     file_imu.close();
@@ -202,10 +185,157 @@ int WiteImuCalibationParameter(const StructImuParameter &imu_parameter)
 }
 
 
-void ContinueReadAccAverageData(int sig)
+
+// 获取当前循环需要读取数据的时间
+void GetReadAccDataTime(double* timestamp)
 {
-    if(g_acc_calibrate_state == 0)
-        printf("你好\n");
-    
+   // 读取camera imu数据
+    struct timeval time_imu;
+    gettimeofday(&time_imu, NULL);
+    *timestamp = time_imu.tv_sec + time_imu.tv_usec*1e-6;
 }
 
+// 0: 错误
+// 1: 当前面数据采集结束
+// 2: 6个面数据都采集结束
+// 获取平均数据,并判断数据的有效性
+int GetAccAverageData(const int data_num, const int acc_sequence_index, MatrixXd &acc_average_save)
+{
+    if(data_num <=0 || acc_sequence_index<0 || acc_sequence_index>6)
+        return 0;
+    double timestamp;
+    GetReadAccDataTime(&timestamp);
+
+    double vehicle_pos[2], att[3], angle_z, att_gyro[3], acc_camera[3], acc_camera_pre[3], gyro_camera[3];
+    double acc_sum[3] = {0, 0, 0};
+    bool read_acc_data = true;
+    bool is_firat_acc_data = true;
+    int read_acc_data_index = 0;
+    MatrixXd acc_average_tmp_save(3,3); // 每个面都要取三次均值，三次均值一致才能通过校正
+    RowVectorXd acc_average_tmp(3);
+    RowVectorXd acc_vector_tmp(3), acc_vector_sum_tmp(3);
+    acc_vector_sum_tmp.setZero();
+    RowVectorXd acc_standard(3); // 当前面下acc标准值
+    acc_standard = g_acc_calibrate_sequence.row(acc_sequence_index);
+    int acc_index_tmp = 0; //  计算某一面的均值的序号
+    bool is_first_acc_data = true;
+    while(read_acc_data){
+        if(is_first_acc_data){
+            usleep(10000);
+            is_first_acc_data = false;
+        }
+        
+        int search_state = DataFusion::Instance().GetTimestampData(timestamp, vehicle_pos, att, &angle_z, att_gyro, acc_camera, gyro_camera);
+        if(search_state == 1){
+            // 判断数据的有效性
+            for(int j = 0; j<3; j++)
+                acc_vector_tmp(j) = acc_camera[j]/ONE_G;
+            RowVectorXd acc_diff(3);
+            acc_diff = acc_vector_tmp - acc_standard;
+            double acc_diff_normal = acc_diff.norm();
+          
+//            printf("acc_vector_tmp: %f %f %f\n", acc_vector_tmp(0), acc_vector_tmp(1), acc_vector_tmp(2));
+//            printf("acc_diff: %f %f %f norm: %f\n", acc_diff(0), acc_diff(1),acc_diff(2), acc_diff_normal);
+            // 对平面就行判断
+            if(acc_diff_normal < 1.5){
+                // 满足条件，则进行累加求和
+                acc_vector_sum_tmp += acc_vector_tmp;
+            }else{
+                // 不满足条件 退出这次采集数据
+                read_acc_data_index = 0;
+                acc_vector_sum_tmp.setZero();
+                printf("acc_diff: %.2f\n", acc_diff_normal);
+                printf("请确认校准模块是否放置平整，并且 %d 号面朝天，然后按Ctrl+Z!!!\n", acc_sequence_index+1);
+                return 0;
+            }
+            read_acc_data_index++;
+        }else{
+            printf("no new acc data!!\n");
+        }
+        // 这个面数据读取完毕
+        if(read_acc_data_index >= data_num){
+            acc_average_save.row(acc_sequence_index) = acc_vector_sum_tmp/read_acc_data_index;
+            read_acc_data = false;
+            printf("\nindex: %d , average value: %.2f %.2f %.2f\n", acc_sequence_index+1, acc_average_save(acc_sequence_index, 0), 
+                        acc_average_save(acc_sequence_index, 1), acc_average_save(acc_sequence_index, 2));
+            if(acc_sequence_index < 5){
+                printf("请将 %d 号面朝天放平，然后按Ctrl+Z!!!\n", acc_sequence_index+2);
+            }else{
+                printf("acc data collect over, try to calculate the acc parameter!!\n");
+                return 2;
+            }
+            return 1;
+        }
+        GetReadAccDataTime(&timestamp);
+        usleep(20000);
+    }
+    return 0;    
+}
+
+
+
+void ReadAccAverageData(int sig)
+{   if(g_acc_calibrate_index < 6){
+        usleep(100000);
+        int get_acc_average_state = GetAccAverageData(50, g_acc_calibrate_index, g_acc_average_save);
+        if(get_acc_average_state == 1)
+            g_acc_calibrate_index++;
+        else if(get_acc_average_state == 2)
+            g_acc_average_data_ready = true;
+    }else{
+        printf("acc data collect over!!!\n");
+    }
+}
+
+// 计算结果
+// acc_average_save: 6*3
+int CalculateAccParameter(const MatrixXd acc_average_save, MatrixXd &A0, MatrixXd &A1)
+{
+//    MatrixXd A0(3, 1), A1(3,3);
+    MatrixXd Acc(6, 3);
+    Acc = acc_average_save;
+    A0(0,0) = (Acc(0,0) + Acc(1,0) + Acc(3,0) + Acc(5,0))/4;
+    A1(0,0) = (Acc(2,0) - Acc(4,0))/2;
+    A1(0,1) = (Acc(3,0) - Acc(0,0))/2;
+    A1(0,2) = (Acc(5,0) - Acc(1,0))/2;
+
+    A0(1,0) = (Acc(1,1) + Acc(2,1) + Acc(4,1) + Acc(5,1))/4;
+    A1(1,0) = (Acc(2,1) - Acc(4,1))/2;
+    A1(1,1) = (Acc(3,1) - Acc(0,1))/2;
+    A1(1,2) = (Acc(5,1) - Acc(1,1))/2;
+
+    A0(2,0) = (Acc(0,2) + Acc(2,2) + Acc(3,2) + Acc(4,2))/4;
+    A1(2,0) = (Acc(2,2) - Acc(4,2))/2;
+    A1(2,1) = (Acc(3,2) - Acc(0,2))/2;
+    A1(2,2) = (Acc(5,2) - Acc(1,2))/2;
+
+    cout<<"Acc: "<<endl<<Acc<<endl;
+    cout<<"acc_A0: "<<endl<<A0<<endl;
+    cout<<"acc_A1: "<<endl<<A1<<endl;
+    return 1;
+}
+
+
+int CalculatGyroParameter(double gyro_bias[3])
+{
+    // 校正陀螺仪
+    printf("请放置校正模块禁止不动，开始校正陀螺仪\n");
+    DataFusion::Instance().SetGyroAutoCalibrateState(1); // 开启陀螺仪校准
+
+    double gyro_bias_tmp[3];
+    int loop_coubter = 0;
+    while(1){
+        if(1 == DataFusion::Instance().GetGyroCurrentBias(gyro_bias_tmp)){
+            memcpy(gyro_bias, gyro_bias_tmp, sizeof(gyro_bias_tmp));
+            return 1;                
+        }else{
+            printf("请放置校正模块禁止不动，正在校正陀螺仪\n");
+            sleep(1);
+            if(loop_coubter++ > 20){
+                printf("gyro calibrate failed!!!\n");
+                return -1;
+            }
+        }
+    }
+    
+}
