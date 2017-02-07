@@ -19,46 +19,46 @@ void ImuAttitudeEstimate::Initialize( )
     m_accel_range_scale = 8.0f/32768;
     m_gyro_range_scale = 2000.0/180*3.141593/32768;
 
-    m_A0[0] = 0;
-    m_A0[1] = 0;
-    m_A0[2] = 0;
+    m_acc_A0[0] = 0;
+    m_acc_A0[1] = 0;
+    m_acc_A0[2] = 0;
 
-    m_A1[0][0] = 1;
-    m_A1[0][1] = 0;
-    m_A1[0][2] = 0;
-    m_A1[1][0] = 0;
-    m_A1[1][1] = 1;
-    m_A1[1][2] = 0;
-    m_A1[2][0] = 0;
-    m_A1[2][1] = 0;
-    m_A1[2][2] = 1;
+    m_acc_A1[0][0] = 1;
+    m_acc_A1[0][1] = 0;
+    m_acc_A1[0][2] = 0;
+    m_acc_A1[1][0] = 0;
+    m_acc_A1[1][1] = 1;
+    m_acc_A1[1][2] = 0;
+    m_acc_A1[2][0] = 0;
+    m_acc_A1[2][1] = 0;
+    m_acc_A1[2][2] = 1;
 
     // 初始化为0,　目前会从配置文件中读取，并每次上电在这个基础上进一步校正
-    m_gyro_drift[0] = 0;
-    m_gyro_drift[1] = 0;
-    m_gyro_drift[2] = 0;
+    m_gyro_A0[0] = 0;
+    m_gyro_A0[1] = 0;
+    m_gyro_A0[2] = 0;
     // murata
     m_accel_range_scale_murata = 1.0/1962;
 
-    m_A0_murata[0] = 0;
-    m_A0_murata[1] = 0;
-    m_A0_murata[2] = 0;
+    m_acc_A0_murata[0] = 0;
+    m_acc_A0_murata[1] = 0;
+    m_acc_A0_murata[2] = 0;
 
-    m_A1_murata[0][0] = 1;
-    m_A1_murata[0][1] = 0;
-    m_A1_murata[0][2] = 0;
-    m_A1_murata[1][0] = 0;
-    m_A1_murata[1][1] = 1;
-    m_A1_murata[1][2] = 0;
-    m_A1_murata[2][0] = 0;
-    m_A1_murata[2][1] = 0;
-    m_A1_murata[2][2] = 1;
+    m_acc_A1_murata[0][0] = 1;
+    m_acc_A1_murata[0][1] = 0;
+    m_acc_A1_murata[0][2] = 0;
+    m_acc_A1_murata[1][0] = 0;
+    m_acc_A1_murata[1][1] = 1;
+    m_acc_A1_murata[1][2] = 0;
+    m_acc_A1_murata[2][0] = 0;
+    m_acc_A1_murata[2][1] = 0;
+    m_acc_A1_murata[2][2] = 1;
     
     m_gyro_range_scale_murata = 1.0/50*D2R;
-    m_gyro_drift_murata[0] = 0;
-    m_gyro_drift_murata[1] = 0;
-    m_gyro_drift_murata[2] = 0;
-//    m_gyro_drift[2] = -0.0217;
+    m_gyro_A0_murata[0] = 0;
+    m_gyro_A0_murata[1] = 0;
+    m_gyro_A0_murata[2] = 0;
+//    m_gyro_A0[2] = -0.0217;
 }
 
 void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double gyro_data[3], double dt)
@@ -181,19 +181,19 @@ int ImuAttitudeEstimate::LowpassFilter3f(double y_pre[3], const double x_new[3],
 
 int ImuAttitudeEstimate::SetAccCalibationParam(double A0[3], double A1[3][3])
 {
-    m_A0[0]  = A0[0];
-    m_A0[1]  = A0[1];
-    m_A0[2]  = A0[2];
+    m_acc_A0[0]  = A0[0];
+    m_acc_A0[1]  = A0[1];
+    m_acc_A0[2]  = A0[2];
 
-    m_A1[0][0] = A1[0][0];
-    m_A1[0][1] = A1[0][1];
-    m_A1[0][2] = A1[0][2];
-    m_A1[1][0] = A1[1][0];
-    m_A1[1][1] = A1[1][1];
-    m_A1[1][2] = A1[1][2];
-    m_A1[2][0] = A1[2][0];
-    m_A1[2][1] = A1[2][1];
-    m_A1[2][2] = A1[2][2];
+    m_acc_A1[0][0] = A1[0][0];
+    m_acc_A1[0][1] = A1[0][1];
+    m_acc_A1[0][2] = A1[0][2];
+    m_acc_A1[1][0] = A1[1][0];
+    m_acc_A1[1][1] = A1[1][1];
+    m_acc_A1[1][2] = A1[1][2];
+    m_acc_A1[2][0] = A1[2][0];
+    m_acc_A1[2][1] = A1[2][1];
+    m_acc_A1[2][2] = A1[2][2];
 
     return 1;
 }
@@ -201,15 +201,21 @@ int ImuAttitudeEstimate::SetAccCalibationParam(double A0[3], double A1[3][3])
 
 int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double acc_data_ned[3] )
 {
-    double acc_data_t[3];
+    double acc_data_t[3], acc_data_raw_t[3];
     double acc_data_imu[3];
-    acc_data_t[0] = acc_data_raw[0]*m_accel_range_scale - m_A0[0];
-    acc_data_t[1] = acc_data_raw[1]*m_accel_range_scale - m_A0[1];
-    acc_data_t[2] = acc_data_raw[2]*m_accel_range_scale - m_A0[2];
+    // IMU原始坐标系-->大地坐标系(NED)
+    acc_data_raw_t[0] = -acc_data_raw[2]*m_accel_range_scale;
+    acc_data_raw_t[1] = acc_data_raw[1]*m_accel_range_scale;
+    acc_data_raw_t[2] = acc_data_raw[0]*m_accel_range_scale;
 
-    acc_data_imu[0]= (m_A1[0][0]*acc_data_t[0] + m_A1[0][1]*acc_data_t[1] + m_A1[0][2]*acc_data_t[2])*ONE_G; // 地理坐标系Z
-    acc_data_imu[1]= (m_A1[1][0]*acc_data_t[0] + m_A1[1][1]*acc_data_t[1] + m_A1[1][2]*acc_data_t[2])*ONE_G; // 地理坐标系Y
-    acc_data_imu[2]= (m_A1[2][0]*acc_data_t[0] + m_A1[2][1]*acc_data_t[1] + m_A1[2][2]*acc_data_t[2])*ONE_G;  // 地理坐标系X
+    // 校正
+    acc_data_t[0] = acc_data_raw_t[0] - m_acc_A0[0];
+    acc_data_t[1] = acc_data_raw_t[1] - m_acc_A0[1];
+    acc_data_t[2] = acc_data_raw_t[2] - m_acc_A0[2];
+
+    acc_data_imu[0]= (m_acc_A1[0][0]*acc_data_t[0] + m_acc_A1[0][1]*acc_data_t[1] + m_acc_A1[0][2]*acc_data_t[2])*ONE_G; // 地理坐标系Z
+    acc_data_imu[1]= (m_acc_A1[1][0]*acc_data_t[0] + m_acc_A1[1][1]*acc_data_t[1] + m_acc_A1[1][2]*acc_data_t[2])*ONE_G; // 地理坐标系Y
+    acc_data_imu[2]= (m_acc_A1[2][0]*acc_data_t[0] + m_acc_A1[2][1]*acc_data_t[1] + m_acc_A1[2][2]*acc_data_t[2])*ONE_G;  // 地理坐标系X
 
     // IMU原始坐标系-->大地坐标系(NED)
     acc_data_ned[0] = -acc_data_imu[2];
@@ -219,17 +225,20 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
     return 1;
 }
 
-int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], double gyro_data_new[3] )
+int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], double gyro_data_ned[3] )
 {
     double gyro_data_imu[3];
-    gyro_data_imu[0] = gyro_data_raw[0]*m_gyro_range_scale;// - m_gyro_drift[0]; // 地理坐标系Z
-    gyro_data_imu[1] = gyro_data_raw[1]*m_gyro_range_scale;// - m_gyro_drift[1]; // 地理坐标系Y
-    gyro_data_imu[2] = gyro_data_raw[2]*m_gyro_range_scale;// - m_gyro_drift[2]; // 地理坐标系X
+    double gyro_data_raw_t[3];
 
     // IMU原始坐标系-->大地坐标系(NED)
-    gyro_data_new[0] = -gyro_data_imu[2] - m_gyro_drift[0];
-    gyro_data_new[1] = gyro_data_imu[1] - m_gyro_drift[1];
-    gyro_data_new[2] = gyro_data_imu[0] - m_gyro_drift[2];
+    gyro_data_raw_t[0] = -gyro_data_raw[2]*m_gyro_range_scale;
+    gyro_data_raw_t[1] = gyro_data_raw[1]*m_gyro_range_scale;
+    gyro_data_raw_t[2] = gyro_data_raw[0]*m_gyro_range_scale;
+    
+    //校正
+    gyro_data_ned[0] = gyro_data_raw_t[0] - m_gyro_A0[0];
+    gyro_data_ned[1] = gyro_data_raw_t[1] - m_gyro_A0[1];
+    gyro_data_ned[2] = gyro_data_raw_t[2] - m_gyro_A0[2];
 
     return 1;
 }
@@ -240,12 +249,12 @@ int ImuAttitudeEstimate::AccDataCalibationMurata(const double acc_data_raw[3], d
     double acc_data_t[3];
     double acc_data_imu[3];
     for(int i=0; i<3; i++){
-        acc_data_t[i] = acc_data_raw[i]*m_accel_range_scale - m_A0_murata[i];
-        acc_data_imu[i]= (m_A1[i][0]*acc_data_t[0] + m_A1[i][1]*acc_data_t[1] + m_A1[i][2]*acc_data_t[2])*ONE_G;
+        acc_data_t[i] = acc_data_raw[i]*m_accel_range_scale - m_acc_A0_murata[i];
+        acc_data_imu[i]= (m_acc_A1[i][0]*acc_data_t[0] + m_acc_A1[i][1]*acc_data_t[1] + m_acc_A1[i][2]*acc_data_t[2])*ONE_G;
     }
-    acc_data_t[0] = acc_data_raw[0]*m_accel_range_scale - m_A0_murata[0];
-    acc_data_t[1] = acc_data_raw[1]*m_accel_range_scale - m_A0[1];
-    acc_data_t[2] = acc_data_raw[2]*m_accel_range_scale - m_A0[2];
+    acc_data_t[0] = acc_data_raw[0]*m_accel_range_scale - m_acc_A0_murata[0];
+    acc_data_t[1] = acc_data_raw[1]*m_accel_range_scale - m_acc_A0[1];
+    acc_data_t[2] = acc_data_raw[2]*m_accel_range_scale - m_acc_A0[2];
 
     // IMU原始坐标系-->大地坐标系(NED)
     acc_data_ned[0] = -acc_data_imu[2];
@@ -268,7 +277,7 @@ int ImuAttitudeEstimate::GyrocDataCalibationMurata(const double gyro_data_raw[3]
 
     // 去掉drift
     for(int i=0; i<3; i++)
-         gyro_data_new[i] = -gyro_data_imu_t[i] - m_gyro_drift_murata[i];
+         gyro_data_new[i] = -gyro_data_imu_t[i] - m_gyro_A0_murata[i];
 
     return 1;
 }
@@ -276,67 +285,56 @@ int ImuAttitudeEstimate::GyrocDataCalibationMurata(const double gyro_data_raw[3]
 // 获取当前陀螺仪零偏
 void ImuAttitudeEstimate::GetGyroBias( double gyro_A0[3] )
 {
-    gyro_A0[0] = m_gyro_drift[0];
-    gyro_A0[1] = m_gyro_drift[1];
-    gyro_A0[2] = m_gyro_drift[2];
+    gyro_A0[0] = m_gyro_A0[0];
+    gyro_A0[1] = m_gyro_A0[1];
+    gyro_A0[2] = m_gyro_A0[2];
 }
 
 // 设置陀螺仪新零偏
 void ImuAttitudeEstimate::SetGyroBias( const double gyro_bias_new[3] )
 {
-    m_gyro_drift[0] = gyro_bias_new[0];
-    m_gyro_drift[1] = gyro_bias_new[1];
-    m_gyro_drift[2] = gyro_bias_new[2];
+    m_gyro_A0[0] = gyro_bias_new[0];
+    m_gyro_A0[1] = gyro_bias_new[1];
+    m_gyro_A0[2] = gyro_bias_new[2];
 }
 
 // 陀螺仪新零偏清零
 void ImuAttitudeEstimate::ClearGyroBias(  )
 {
-    m_gyro_drift[0] = 0;
-    m_gyro_drift[1] = 0;
-    m_gyro_drift[2] = 0;
+    m_rw_lock.WriterLock();
+    m_gyro_A0[0] = 0;
+    m_gyro_A0[1] = 0;
+    m_gyro_A0[2] = 0;
+    m_rw_lock.WriterUnlock();
 }
 
-// 从配置文件中读取陀螺仪bias
-void ImuAttitudeEstimate::ReadGyroBias()
+
+// 设置imu参数
+int ImuAttitudeEstimate::SetImuParameter(const StructImuParameter imu_parameter)
 {
-    string imu_coeff_file_addr;
-    #if defined(ANDROID)
-    {
-        imu_coeff_file_addr = "/system/bin/imu_paramer.flag";
-    }
-    #else
-    {
-        imu_coeff_file_addr = "./data/doing/imu_paramer.flag";
-    }
-    #endif
-
-    // 读入imu的参数
-    ifstream infile_imu_coeff;
-    infile_imu_coeff.open(imu_coeff_file_addr.c_str());
-    if(!infile_imu_coeff){
-        printf("open imu paramer: imu_paramer.flag ERROR!!\n");
-        printf("please calibrate the imu first!!\n");
-    }else{
-        string buffer_data, data_flag;
-        double gyro_A0[3];
-        stringstream ss_tmp;
-        getline(infile_imu_coeff, buffer_data);
-        ss_tmp.clear();
-        ss_tmp.str(buffer_data);
-        ss_tmp>>data_flag>>gyro_A0[0]>>gyro_A0[1]>>gyro_A0[2];
-        if(fabs(gyro_A0[0])<0.1 && fabs(gyro_A0[1])<0.1 && fabs(gyro_A0[2])<0.1){
-            m_gyro_drift[0] = gyro_A0[0];
-            m_gyro_drift[1] = gyro_A0[1];
-            m_gyro_drift[2] = gyro_A0[2];
-            std::cout<<"IAE:Initialize--"<<"gyro bias: "<<gyro_A0[0]<<", "<<gyro_A0[1]<<", "<<gyro_A0[2]<<endl;
-        }else{
-            std::cout<<"IAE:Initialize--"<<"gyro bias: "<<gyro_A0[0]<<", "<<gyro_A0[1]<<", "<<gyro_A0[2]<<endl;
-            printf("ERROR:the gyro bias is too large!!\n");
-        }
-    }
-    infile_imu_coeff.close();
+    m_rw_lock.WriterLock();
+    memcpy(m_gyro_A0, imu_parameter.gyro_A0, sizeof(m_gyro_A0));
+    memcpy(m_acc_A0, imu_parameter.acc_A0, sizeof(m_acc_A0));
+    memcpy(m_acc_A1, imu_parameter.acc_A1, sizeof(m_acc_A1));
+    m_rw_lock.WriterUnlock();
+    return 1;
 }
+
+// imu参数清零
+int ImuAttitudeEstimate::ResetImuParameter(  )
+{
+    m_rw_lock.WriterLock();
+    memset(m_gyro_A0, 0, sizeof(m_gyro_A0));
+    memset(m_acc_A0, 0, sizeof(m_acc_A0));
+    memset(m_acc_A1, 0, sizeof(m_acc_A1));
+    m_acc_A1[0][0] = 1;
+    m_acc_A1[1][1] = 1;
+    m_acc_A1[2][2] = 1;
+    m_rw_lock.WriterUnlock();
+    printf("reset imu parameter!!!!\n");
+    return 1;
+}
+
 
 
 

@@ -18,6 +18,7 @@
 #include "common/concurrency/rwlock.h"
 #include "common/hal/android_gsensor.h"
 #include "common/hal/halio.h"
+#include "common/hal/camctl.h"
 #include "common/time/time_utils.h"
 
 #include "imu_attitude_estimate.h"
@@ -86,8 +87,6 @@ public:
     // 线程循环周期控制
     void FusionScheduler(const timeval time_counter_pre, const int64_t period_us);
 
-    int Polyfit(const cv::Mat& xy_feature, int order , std::vector<float>* lane_coeffs);
-
     double Raw2Degree(short raw);
 
     // 校准陀螺仪零偏
@@ -97,8 +96,11 @@ public:
 
     int CalibrateGyroBiasOnline(double gyro_A0[3]);
 
+    // 从摄像头寄存器读取imu参数
+    int ReadImuParameterFromCamera( StructImuParameter *imu_parameter);
+
     // 读取imu参数
-    int ReadImuCalibrationParameter( StructImuParameter *imu_parameter);
+    int ReadImuParameterFromTxt( StructImuParameter *imu_parameter);
 
     // 写入imu校准结果
     int WriteImuCalibrationParameter(const StructImuParameter &imu_parameter);
@@ -129,6 +131,9 @@ public:
 
     // 设置陀螺仪自动校准的状态: 1:执行自动校准  0: 不自动校准
     int GetGyroCurrentBias(double gyro_bias[3]);
+
+    // 重置imu参数
+    int ResetImuParameter( );
 
 private:
     // 线程

@@ -8,6 +8,7 @@
 
 #include "gflags/gflags.h"
 #include "common/hal/halio.h"
+#include "common/hal/camctl.h"
 #include "common/base/log_level.h"
 #include "common/time/time_utils.h"
 
@@ -31,6 +32,7 @@ using namespace std;
 //---------------------variable--------------------------------//
 string g_file_addr = "/storage/sdcard0/imu/imu.flag";  // = "./gflags.flag";
 
+bool g_is_print_imu_data = false;
 MatrixXd g_acc_calibrate_sequence(6,3);// 校准的acc的哪个面
 MatrixXd g_acc_average_save(6,3);// 6个面的均值
 //g_acc_average_save.setZero();
@@ -52,6 +54,13 @@ int GetAccAverageData(const int data_num, const int acc_sequence_index, MatrixXd
 
 // 继续读取acc数据 用于校正
 void ReadAccAverageData(int sig);  
+
+void TryCalGyroParameter(int sig);
+
+void TryPrintImuData(int sig);
+
+void PintImuData();
+
 
 // 计算acc校正参数
 int CalculateAccParameter(const MatrixXd acc_average_save, MatrixXd &A0, MatrixXd &A1);
@@ -84,6 +93,8 @@ int main(int argc, char *argv[])
     #endif
     // SIGTSTP: Ctrl+Z   SIGTINI: Ctrl+C
     (void) signal(SIGTSTP, ReadAccAverageData);  // SIGTSTP: ctrl+Z
+    (void) signal(3, TryCalGyroParameter);  
+    (void) signal(4, TryPrintImuData);  
 
     g_acc_calibrate_sequence<<0,-1,0, 0,0,-1, 1,0,0,
                             0,1,0, -1,0,0, 0,0,1;
@@ -91,15 +102,19 @@ int main(int argc, char *argv[])
     // 进行数据融合的类
     DataFusion &data_fusion = DataFusion::Instance();
     data_fusion.SetGyroAutoCalibrateState(0); // 停止自动校准
+//    data_fusion.ResetImuParameter();
     data_fusion.StartDataFusionTask();
 
     if(g_acc_calibrate_index == 0)
-        printf("请将 1 号面朝天放平，然后按Ctrl+Z!!!\n");
+        printf("请将 1 号面朝天放平，然后按Ctrl+Z !!!\n");
 
     #if !defined(DATA_FROM_LOG)
-        while(1){          
+        while(1){        
+            // print imu data
+            if(g_is_print_imu_data)
+                PintImuData();
+
             if(g_acc_average_data_ready){
-                printf("try calculate acc parameter\n");
                 int cal_acc_parameter = CalculateAccParameter(g_acc_average_save, g_acc_A0, g_acc_A1);
                 g_acc_average_data_ready = false;
 
@@ -116,6 +131,27 @@ int main(int argc, char *argv[])
                             imu_parameter.acc_A1[i][j] = g_acc_A1(i, j);
                     }
                     data_fusion.WriteImuCalibrationParameter(imu_parameter);
+
+                    //  WR camera register
+                    int write_state = camera_write_flash_file(CAMERA_FLASH_FILE_IMU_CAL, &imu_parameter, sizeof(imu_parameter));
+                    if (0 != write_state) {
+                        printf("camera_write_flash_file failed %d\n", write_state);
+                        return write_state;
+                    }
+
+                    StructImuParameter imu_parameter_read;
+                    int read_state = camera_read_flash_file(CAMERA_FLASH_FILE_IMU_CAL, &imu_parameter_read, sizeof(imu_parameter_read));
+                    if (0 != read_state) {
+                        printf("camera_read_flash_file failed %d\n", read_state);
+                        return read_state;
+                    }else{
+                            printf("read new gyro A0: %f %f %f\n", imu_parameter_read.gyro_A0[0], imu_parameter_read.gyro_A0[1], imu_parameter_read.gyro_A0[2]);
+                            printf("read new acc A0: %f %f %f\n", imu_parameter_read.acc_A0[0], imu_parameter_read.acc_A0[1], imu_parameter_read.acc_A0[2]);
+                            printf("read new acc A1:\n %f %f %f\n %f %f %f\n %f %f %f\n", imu_parameter_read.acc_A1[0][0], imu_parameter_read.acc_A1[0][1], 
+                                imu_parameter_read.acc_A1[0][2], imu_parameter_read.acc_A1[1][0], imu_parameter_read.acc_A1[1][1],
+                                imu_parameter_read.acc_A1[1][2], imu_parameter_read.acc_A1[2][0], imu_parameter_read.acc_A1[2][1], imu_parameter_read.acc_A1[2][2]);
+                    }
+    
                     break;
                 }
             }
@@ -226,6 +262,8 @@ int GetAccAverageData(const int data_num, const int acc_sequence_index, MatrixXd
         }
         
         int search_state = DataFusion::Instance().GetTimestampData(timestamp, vehicle_pos, att, &angle_z, att_gyro, acc_camera, gyro_camera);
+        if(g_is_print_imu_data)
+            printf("acc: %0.2f %0.2f %0.2f gyro: %0.2f %0.2f %0.2f\n", acc_camera[0], acc_camera[1], acc_camera[2], gyro_camera[0]*R2D,  gyro_camera[1]*R2D,  gyro_camera[2]*R2D);
         if(search_state == 1){
             // 判断数据的有效性
             for(int j = 0; j<3; j++)
@@ -233,9 +271,6 @@ int GetAccAverageData(const int data_num, const int acc_sequence_index, MatrixXd
             RowVectorXd acc_diff(3);
             acc_diff = acc_vector_tmp - acc_standard;
             double acc_diff_normal = acc_diff.norm();
-          
-//            printf("acc_vector_tmp: %f %f %f\n", acc_vector_tmp(0), acc_vector_tmp(1), acc_vector_tmp(2));
-//            printf("acc_diff: %f %f %f norm: %f\n", acc_diff(0), acc_diff(1),acc_diff(2), acc_diff_normal);
             // 对平面就行判断
             if(acc_diff_normal < 1.5){
                 // 满足条件，则进行累加求和
@@ -259,7 +294,7 @@ int GetAccAverageData(const int data_num, const int acc_sequence_index, MatrixXd
             printf("\nindex: %d , average value: %.2f %.2f %.2f\n", acc_sequence_index+1, acc_average_save(acc_sequence_index, 0), 
                         acc_average_save(acc_sequence_index, 1), acc_average_save(acc_sequence_index, 2));
             if(acc_sequence_index < 5){
-                printf("请将 %d 号面朝天放平，然后按Ctrl+Z!!!\n", acc_sequence_index+2);
+                printf("请将 %d 号面朝天放平，然后按Ctrl+Z !!!\n", acc_sequence_index+2);
             }else{
                 printf("acc data collect over, try to calculate the acc parameter!!\n");
                 return 2;
@@ -275,7 +310,8 @@ int GetAccAverageData(const int data_num, const int acc_sequence_index, MatrixXd
 
 
 void ReadAccAverageData(int sig)
-{   if(g_acc_calibrate_index < 6){
+{   
+    if(g_acc_calibrate_index < 6){
         usleep(100000);
         int get_acc_average_state = GetAccAverageData(50, g_acc_calibrate_index, g_acc_average_save);
         if(get_acc_average_state == 1)
@@ -287,11 +323,34 @@ void ReadAccAverageData(int sig)
     }
 }
 
+void TryCalGyroParameter(int sig)
+{   
+    double gyro_bias[3];
+    CalculatGyroParameter(gyro_bias);
+}
+
+void TryPrintImuData(int sig)
+{ 
+    g_is_print_imu_data = !g_is_print_imu_data;
+        
+}
+
+void PintImuData()
+{
+    double timestamp;
+    GetReadAccDataTime(&timestamp);
+    double vehicle_pos[2], att[3], angle_z, att_gyro[3], acc_camera[3], acc_camera_pre[3], gyro_camera[3];
+    int search_state = DataFusion::Instance().GetTimestampData(timestamp-0.01, vehicle_pos, att, &angle_z, att_gyro, acc_camera, gyro_camera);
+    if(search_state == 1)
+        printf("acc: %0.2f %0.2f %0.2f gyro: %0.2f %0.2f %0.2f\n", acc_camera[0], acc_camera[1], acc_camera[2], gyro_camera[0]*R2D,  gyro_camera[1]*R2D,  gyro_camera[2]*R2D);
+}
+
+
+
 // 计算结果
 // acc_average_save: 6*3
 int CalculateAccParameter(const MatrixXd acc_average_save, MatrixXd &A0, MatrixXd &A1)
 {
-//    MatrixXd A0(3, 1), A1(3,3);
     MatrixXd Acc(6, 3);
     Acc = acc_average_save;
     A0(0,0) = (Acc(0,0) + Acc(1,0) + Acc(3,0) + Acc(5,0))/4;
@@ -329,8 +388,8 @@ int CalculatGyroParameter(double gyro_bias[3])
             memcpy(gyro_bias, gyro_bias_tmp, sizeof(gyro_bias_tmp));
             return 1;                
         }else{
-            printf("请放置校正模块禁止不动，正在校正陀螺仪\n");
-            sleep(1);
+            printf("请保持校正模块禁止不动，正在校正陀螺仪\n");
+            sleep(2);
             if(loop_coubter++ > 20){
                 printf("gyro calibrate failed!!!\n");
                 return -1;
