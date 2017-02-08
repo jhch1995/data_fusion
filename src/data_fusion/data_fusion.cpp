@@ -1457,6 +1457,14 @@ int DataFusion::ResetImuParameter( )
     return ret;
 }
 
+// 设置imu参数
+int DataFusion::SetImuParameter(const StructImuParameter imu_parameter)
+{
+    int ret = m_imu_attitude_estimate.SetImuParameter(imu_parameter);
+    return ret;
+}
+
+
 
 
 }

@@ -135,6 +135,9 @@ public:
     // 重置imu参数
     int ResetImuParameter( );
 
+    // 设置imu参数
+    int SetImuParameter(const StructImuParameter imu_parameter);
+
 private:
     // 线程
     WorkThread m_fusion_thread;

@@ -202,7 +202,6 @@ int ImuAttitudeEstimate::SetAccCalibationParam(double A0[3], double A1[3][3])
 int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double acc_data_ned[3] )
 {
     double acc_data_t[3], acc_data_raw_t[3];
-    double acc_data_imu[3];
     // IMU原始坐标系-->大地坐标系(NED)
     acc_data_raw_t[0] = -acc_data_raw[2]*m_accel_range_scale;
     acc_data_raw_t[1] = acc_data_raw[1]*m_accel_range_scale;
@@ -213,14 +212,9 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
     acc_data_t[1] = acc_data_raw_t[1] - m_acc_A0[1];
     acc_data_t[2] = acc_data_raw_t[2] - m_acc_A0[2];
 
-    acc_data_imu[0]= (m_acc_A1[0][0]*acc_data_t[0] + m_acc_A1[0][1]*acc_data_t[1] + m_acc_A1[0][2]*acc_data_t[2])*ONE_G; // 地理坐标系Z
-    acc_data_imu[1]= (m_acc_A1[1][0]*acc_data_t[0] + m_acc_A1[1][1]*acc_data_t[1] + m_acc_A1[1][2]*acc_data_t[2])*ONE_G; // 地理坐标系Y
-    acc_data_imu[2]= (m_acc_A1[2][0]*acc_data_t[0] + m_acc_A1[2][1]*acc_data_t[1] + m_acc_A1[2][2]*acc_data_t[2])*ONE_G;  // 地理坐标系X
-
-    // IMU原始坐标系-->大地坐标系(NED)
-    acc_data_ned[0] = -acc_data_imu[2];
-    acc_data_ned[1] = acc_data_imu[1];
-    acc_data_ned[2] = acc_data_imu[0];
+    acc_data_ned[0]= (m_acc_A1[0][0]*acc_data_t[0] + m_acc_A1[0][1]*acc_data_t[1] + m_acc_A1[0][2]*acc_data_t[2])*ONE_G; // 地理坐标系Z
+    acc_data_ned[1]= (m_acc_A1[1][0]*acc_data_t[0] + m_acc_A1[1][1]*acc_data_t[1] + m_acc_A1[1][2]*acc_data_t[2])*ONE_G; // 地理坐标系Y
+    acc_data_ned[2]= (m_acc_A1[2][0]*acc_data_t[0] + m_acc_A1[2][1]*acc_data_t[1] + m_acc_A1[2][2]*acc_data_t[2])*ONE_G;  // 地理坐标系X
 
     return 1;
 }
