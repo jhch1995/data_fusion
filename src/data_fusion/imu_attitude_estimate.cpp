@@ -67,7 +67,7 @@ void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double
     double gyro_rate[3];
     static unsigned char start_flag = 0; // first time run
     // ACC to angle
-    acc_angle[X_AXIS] = (atan2f(-acc_data[Y_AXIS], -acc_data[Z_AXIS]));       // Calculating pitch ACC angle
+    acc_angle[X_AXIS] = (atan2f(acc_data[Y_AXIS], acc_data[Z_AXIS]));       // Calculating pitch ACC angle
     acc_angle[Y_AXIS] = (atan2f(acc_data[X_AXIS], sqrtf(acc_data[Z_AXIS]*acc_data[Z_AXIS] + acc_data[Y_AXIS]*acc_data[Y_AXIS])));   //Calculating roll ACC angle
 
     if( start_flag == 0 ){
@@ -98,10 +98,8 @@ void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double
 
         m_angle_z += gyro_data[Z_AXIS] * dt;
 
-//        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"att[3]: "<<m_att[Z_AXIS]*180/M_PI;
-//        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"m_angle_z: "<<m_angle_z*180/M_PI;
-//        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"gyro_z_new: "<<gyro_rate[Z_AXIS]*180/M_PI;
-//        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"gyro_z_raw: "<<gyro_data[Z_AXIS]*180/M_PI;
+//        printf("acc_angle: %f %f\n", acc_angle[0]*R2D, acc_angle[1]*R2D);
+//        printf("att: %f %f %f\n", m_att[0]*R2D, m_att[1]*R2D, m_att[2]*R2D);
     }
 }
 
@@ -198,7 +196,7 @@ int ImuAttitudeEstimate::SetAccCalibationParam(double A0[3], double A1[3][3])
     return 1;
 }
 
-
+// acc_out_calibrated = A1*(acc - A0)  
 int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double acc_data_ned[3] )
 {
     double acc_data_t[3], acc_data_raw_t[3];

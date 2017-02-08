@@ -347,17 +347,19 @@ void PintImuData()
     GetReadAccDataTime(&timestamp);
     double vehicle_pos[2], att[3], angle_z, att_gyro[3], acc_camera[3], acc_camera_pre[3], gyro_camera[3];
     int search_state = DataFusion::Instance().GetTimestampData(timestamp-0.01, vehicle_pos, att, &angle_z, att_gyro, acc_camera, gyro_camera);
-    if(search_state == 1)
+    if(search_state == 1){
         printf("acc: %0.2f %0.2f %0.2f gyro: %0.2f %0.2f %0.2f\n", acc_camera[0], acc_camera[1], acc_camera[2], gyro_camera[0]*R2D,  gyro_camera[1]*R2D,  gyro_camera[2]*R2D);
+    }
 }
 
 
 
 // 计算结果
 // acc_average_save: 6*3
-int CalculateAccParameter(const MatrixXd acc_average_save, MatrixXd &A0, MatrixXd &A1)
+int CalculateAccParameter(const MatrixXd acc_average_save, MatrixXd &A0, MatrixXd &A1_inv)
 {
     MatrixXd Acc(6, 3);
+    MatrixXd A1(3,3);
     Acc = acc_average_save;
     A0(0,0) = (Acc(0,0) + Acc(1,0) + Acc(3,0) + Acc(5,0))/4;
     A1(0,0) = (Acc(2,0) - Acc(4,0))/2;
@@ -374,8 +376,9 @@ int CalculateAccParameter(const MatrixXd acc_average_save, MatrixXd &A0, MatrixX
     A1(2,1) = (Acc(3,2) - Acc(0,2))/2;
     A1(2,2) = (Acc(5,2) - Acc(1,2))/2;
 
+    A1_inv = A1.inverse();
     cout<<"Acc: "<<endl<<Acc<<endl;
-    cout<<"acc_A0: "<<endl<<A0<<endl;
+    cout<<"acc_A0: "<<endl<<A1_inv<<endl;
     cout<<"acc_A1: "<<endl<<A1<<endl;
     return 1;
 }
@@ -384,7 +387,7 @@ int CalculateAccParameter(const MatrixXd acc_average_save, MatrixXd &A0, MatrixX
 int CalculatGyroParameter(double gyro_bias[3])
 {
     // 校正陀螺仪
-    printf("请放置校正模块禁止不动，开始校正陀螺仪\n");
+    printf("请放置校正模块静止不动，开始校正陀螺仪\n");
     DataFusion::Instance().SetGyroAutoCalibrateState(1); // 开启陀螺仪校准
 
     double gyro_bias_tmp[3];

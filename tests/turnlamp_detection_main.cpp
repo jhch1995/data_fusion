@@ -24,12 +24,12 @@
 
 using namespace imu;
 
-#define MACH_INIT 1
-#define ROD_ACC_THRESHOLD 2
-#define L_LAMP 3
-#define R_LAMP 4
-#define SAVE_PARAMETER 5 // 保存在线标定结果
-#define READ_PARAMETER 6 // 读取在线标定结果
+#define MACH_INIT 11
+#define ROD_ACC_THRESHOLD 12
+#define L_LAMP 13
+#define R_LAMP 14
+#define SAVE_PARAMETER 15 // 保存在线标定结果
+#define READ_PARAMETER 16 // 读取在线标定结果
 
 #define RESET_ALL 10 // 重置所有变脸
 
@@ -275,7 +275,7 @@ void DoCommondSwitch()
 
     // 开始拨杆拨动自检测
     if(g_start_d_rod_acc_calculate){
-        TurnlampDetector::Instance().SartCalculateRodAccThreshold();
+        TurnlampDetector::Instance().StartCalculateRodAccThreshold();
         g_start_d_rod_acc_calculate = false;
     }
 
@@ -314,6 +314,7 @@ int CalculateDiffAcc()
                 usleep(10000); // 为了获取匹配的数据
                 int search_state = DataFusion::Instance().GetTimestampData(rod_acc_data.timestamp, vehicle_pos, att, &angle_z, att_gyro, acc_camera, gyro_camera);
                 if(search_state == 1){
+                    printf("camera acc data: %f %f %f\n", acc_camera[0], acc_camera[1], acc_camera[2] );
                     for(int i=0; i<3; i++ )
                         g_diff_acc[i] = rod_acc_data.acc[i] - acc_camera[i];
 
@@ -327,7 +328,7 @@ int CalculateDiffAcc()
                             g_diff_acc_average[i] += g_diff_acc[i]; // 计算均值
                          g_average_num_counter++;
                     }
-//                    printf("rod acc data: %f %f %f\n", rod_acc_data.acc[0], rod_acc_data.acc[1], rod_acc_data.acc[2] );
+                    printf("rod acc data: %f %f %f\n", rod_acc_data.acc[0], rod_acc_data.acc[1], rod_acc_data.acc[2] );
 //                    printf("camera acc data: %f %f %f\n", acc_camera[0], acc_camera[1], acc_camera[2] );
                     printf("Rod&Camera_diff_acc--loop index: %03d, value index: %03d, data: %f %f %f\n", g_turnlamp_detect_delay_counter, g_average_num_counter, g_diff_acc[0], g_diff_acc[1], g_diff_acc[2] );
                 }else{

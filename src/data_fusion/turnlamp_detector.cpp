@@ -44,6 +44,23 @@ void TurnlampDetector::Init( )
     m_d_gyro_threshold[1] = 1.0;
     m_d_gyro_threshold[2] = 0.0;
 
+    // imu
+    m_accel_range_scale = 8.0f/32768;
+
+    m_acc_A0[0] = 0;
+    m_acc_A0[1] = 0;
+    m_acc_A0[2] = 0;
+
+    m_acc_A1[0][0] = 1;
+    m_acc_A1[0][1] = 0;
+    m_acc_A1[0][2] = 0;
+    m_acc_A1[1][0] = 0;
+    m_acc_A1[1][1] = 1;
+    m_acc_A1[1][2] = 0;
+    m_acc_A1[2][0] = 0;
+    m_acc_A1[2][1] = 0;
+    m_acc_A1[2][2] = 1;
+
     memset(m_R_rod2camera, 0 , sizeof(m_R_rod2camera));
     m_R_rod2camera[0][0] = 1.0;
     m_R_rod2camera[1][1] = 1.0;
@@ -251,8 +268,9 @@ int TurnlampDetector::ReadRodDataOnline( )
     int read_rod_state = HalIO::Instance().ReadRodData(rod_data, 20);
     if(read_rod_state){
         // 比例因子缩放 和 坐标系变换
-        for(int k=0; k<3; k++)
-            acc_data_ned[k] = rod_data[read_rod_state-1].acc[k]/100.0;
+        for(int k=0; k<3; k++){
+            acc_data_ned[k] = rod_data[read_rod_state-1].acc[k]*m_accel_range_scale;  // scale: fmu /100
+        }
 
         Array3Rotation(m_R_rod2camera, acc_data_ned, acc_data_ned_new);
         m_rod_imu_data.timestamp = rod_data[0].tv.tv_sec + rod_data[0].tv.tv_usec*1e-6;
@@ -262,6 +280,18 @@ int TurnlampDetector::ReadRodDataOnline( )
     }
     return 0;
 }
+
+
+//int TurnlampDetector::CalibrateAccData(const double acc_data_raw[3], double acc_data_ned[3] )
+//{
+//    double acc_data_t[3], acc_data_raw_t[3];
+//    // IMU原始坐标系-->大地坐标系(NED)
+//    acc_data_ned[0] = acc_data_raw[0]*m_accel_range_scale;
+//    acc_data_ned[1] = acc_data_raw[1]*m_accel_range_scale;
+//    acc_data_ned[2] = acc_data_raw[2]*m_accel_range_scale;
+
+//    return 1;
+//}
 
 
 
@@ -386,7 +416,7 @@ int TurnlampDetector:: ReadRodInitParameter()
 }
 
 // 用于外部调用接口，开启初始对准
-void TurnlampDetector::SartCalculateRodAccThreshold()
+void TurnlampDetector::StartCalculateRodAccThreshold()
 {
     m_is_rod_self_detect_threshold_start = true;
     printf("Sart Calculate Rod Acc Threshold!\n");

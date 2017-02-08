@@ -21,7 +21,7 @@
 namespace imu {
 
 #define ROD_ACC_QUEUE_SIZE 100
-#define ROD_ACC_THRESHOLD_SIZE 30
+#define ROD_ACC_THRESHOLD_SIZE 100
 
 
 class TurnlampDetector: public SingletonBase<TurnlampDetector>
@@ -81,7 +81,7 @@ class TurnlampDetector: public SingletonBase<TurnlampDetector>
         // 计算自检测的阈值
         int CalculateRodSelfDetectThreshold( );
 
-        void SartCalculateRodAccThreshold();
+        void StartCalculateRodAccThreshold( );
 
         void GetRodSelfDetectThreshold(double threshold_t[3], double weight_t[3]);
 
@@ -117,6 +117,10 @@ class TurnlampDetector: public SingletonBase<TurnlampDetector>
         int m_turnlamp_state; //  转向灯信号 -1: right 1: left
         int m_turnlamp_state_pre; // 上一时刻的数据 转向灯信号 -1: right 1: left
         bool m_turnlamp_state_change_CAN; // CAN 数据上显示turnlamp状态变化
+
+        double m_accel_range_scale;
+        double m_acc_A0[3];
+        double m_acc_A1[3][3];
 
         // 数据读写锁
         RWLock m_rod_acc_rw_lock;
