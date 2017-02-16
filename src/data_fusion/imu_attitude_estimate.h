@@ -93,6 +93,10 @@ private:
     double m_acc_A1[3][3];
     double m_gyro_range_scale;
     double m_gyro_A0[3]; //  // 陀螺仪零偏，在线估计
+    
+    // 新老摄像头参数选择
+    bool m_is_imu_mod_set;
+	int m_imu_mode;  // 默认是0，1:旧摄像头 2：新摄像头
 
     // murata
     double m_accel_range_scale_murata;

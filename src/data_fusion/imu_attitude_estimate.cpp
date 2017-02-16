@@ -9,15 +9,19 @@ ImuAttitudeEstimate::ImuAttitudeEstimate()
 
 void ImuAttitudeEstimate::Initialize( )
 {
-    m_factor_acc_gyro[0] = 0.05; // 加速度计修正的姿态的系数
-    m_factor_acc_gyro[1] = 0.05;
-    m_factor_acc_gyro[2] = 0.05;
+    m_factor_acc_gyro[0] = 0.001; // 加速度计修正的姿态的系数
+    m_factor_acc_gyro[1] = 0.001;
+    m_factor_acc_gyro[2] = 0.001;
     memset(&m_att, 0, sizeof(m_att));
     memset(&m_gyro_angle, 0, sizeof(m_gyro_angle));
     m_angle_z = 0.0;
     m_att_init_counter = 30;
     m_accel_range_scale = 8.0f/32768;
     m_gyro_range_scale = 2000.0/180*3.141593/32768;
+	
+	// 摄像头版本
+	m_is_imu_mod_set = false;
+	m_imu_mode = 0; // 默认是0，1:旧摄像头 2：新摄像头
 
     m_acc_A0[0] = 0;
     m_acc_A0[1] = 0;
@@ -58,7 +62,7 @@ void ImuAttitudeEstimate::Initialize( )
     m_gyro_A0_murata[0] = 0;
     m_gyro_A0_murata[1] = 0;
     m_gyro_A0_murata[2] = 0;
-//    m_gyro_A0[2] = -0.0217;
+
 }
 
 void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double gyro_data[3], double dt)
@@ -67,8 +71,19 @@ void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double
     double gyro_rate[3];
     static unsigned char start_flag = 0; // first time run
     // ACC to angle
-    acc_angle[X_AXIS] = (atan2f(acc_data[Y_AXIS], acc_data[Z_AXIS]));       // Calculating pitch ACC angle
+    acc_angle[X_AXIS] = (atan2f(-acc_data[Y_AXIS], -acc_data[Z_AXIS]));       // Calculating pitch ACC angle
     acc_angle[Y_AXIS] = (atan2f(acc_data[X_AXIS], sqrtf(acc_data[Z_AXIS]*acc_data[Z_AXIS] + acc_data[Y_AXIS]*acc_data[Y_AXIS])));   //Calculating roll ACC angle
+
+    double acc_normal = sqrtf(acc_data[X_AXIS]*acc_data[X_AXIS] + acc_data[Y_AXIS]*acc_data[Y_AXIS] + acc_data[Z_AXIS]*acc_data[Z_AXIS])/ONE_G;
+    if(acc_normal > 1.1 || acc_normal < 0.9){
+        m_factor_acc_gyro[0] = 0.0002; // 加速度计修正的姿态的系数
+        m_factor_acc_gyro[1] = 0.0002;
+        m_factor_acc_gyro[2] = 0.0002;
+    }else{
+        m_factor_acc_gyro[0] = 0.005; // 加速度计修正的姿态的系数
+        m_factor_acc_gyro[1] = 0.005;
+        m_factor_acc_gyro[2] = 0.005;
+    }
 
     if( start_flag == 0 ){
         m_att_init_counter--;
@@ -98,8 +113,6 @@ void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double
 
         m_angle_z += gyro_data[Z_AXIS] * dt;
 
-//        printf("acc_angle: %f %f\n", acc_angle[0]*R2D, acc_angle[1]*R2D);
-//        printf("att: %f %f %f\n", m_att[0]*R2D, m_att[1]*R2D, m_att[2]*R2D);
     }
 }
 
@@ -200,10 +213,42 @@ int ImuAttitudeEstimate::SetAccCalibationParam(double A0[3], double A1[3][3])
 int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double acc_data_ned[3] )
 {
     double acc_data_t[3], acc_data_raw_t[3];
-    // IMU原始坐标系-->大地坐标系(NED)
-    acc_data_raw_t[0] = -acc_data_raw[2]*m_accel_range_scale;
-    acc_data_raw_t[1] = acc_data_raw[1]*m_accel_range_scale;
-    acc_data_raw_t[2] = acc_data_raw[0]*m_accel_range_scale;
+	// 选择摄像头版本
+	if(!m_is_imu_mod_set){
+		#if defined(IMU_MODE_AUTO_SELECT)// 新旧版本的摄像头模组自动选择
+			double acc_z_tmp = acc_data_raw[0]*m_accel_range_scale;
+			if( acc_z_tmp < -0.6)
+				m_imu_mode = 2; // 新摄像头
+			else
+				m_imu_mode = 1;
+		#else
+			// 设定了摄像头是哪个版本
+			#if defined(IMU_MODE_SET_2)
+				m_imu_mode = 2; // 默认是新版本摄像头
+			#else
+				m_imu_mode = 1; // 
+			#endif
+		#endif
+		m_is_imu_mod_set = true;
+		printf("imu mode: %d\n", m_imu_mode);
+	} 
+	
+	// 1: 旧摄像头
+	if(m_imu_mode == 1){
+		// 这个配置是老摄像头的
+		// IMU原始坐标系-->大地坐标系(NED)  imu:
+		acc_data_raw_t[0] = -acc_data_raw[2]*m_accel_range_scale;
+		acc_data_raw_t[1] = -acc_data_raw[1]*m_accel_range_scale;
+		acc_data_raw_t[2] = -acc_data_raw[0]*m_accel_range_scale;
+	}else if(m_imu_mode == 2){
+		// 新摄像头 2017.02.10
+		// IMU原始坐标系-->大地坐标系(NED)
+		acc_data_raw_t[0] = -acc_data_raw[2]*m_accel_range_scale;
+		acc_data_raw_t[1] = acc_data_raw[1]*m_accel_range_scale;
+		acc_data_raw_t[2] = acc_data_raw[0]*m_accel_range_scale;
+	}else{
+		printf("error!!!!\n");
+	}
 
     // 校正
     acc_data_t[0] = acc_data_raw_t[0] - m_acc_A0[0];
@@ -222,11 +267,23 @@ int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], doub
     double gyro_data_imu[3];
     double gyro_data_raw_t[3];
 
-    // IMU原始坐标系-->大地坐标系(NED)
-    gyro_data_raw_t[0] = -gyro_data_raw[2]*m_gyro_range_scale;
-    gyro_data_raw_t[1] = gyro_data_raw[1]*m_gyro_range_scale;
-    gyro_data_raw_t[2] = gyro_data_raw[0]*m_gyro_range_scale;
-    
+		// 1: 旧摄像头
+	if(m_imu_mode == 1){
+		// 这个配置是老摄像头的
+	// IMU原始坐标系-->大地坐标系(NED)
+	gyro_data_raw_t[0] = -gyro_data_raw[2]*m_gyro_range_scale;
+	gyro_data_raw_t[1] = -gyro_data_raw[1]*m_gyro_range_scale;
+	gyro_data_raw_t[2] = -gyro_data_raw[0]*m_gyro_range_scale;
+	}else if(m_imu_mode == 2){
+	    // 新摄像头 2017.02.10
+		// IMU原始坐标系-->大地坐标系(NED)
+		gyro_data_raw_t[0] = -gyro_data_raw[2]*m_gyro_range_scale;
+		gyro_data_raw_t[1] = gyro_data_raw[1]*m_gyro_range_scale;
+		gyro_data_raw_t[2] = gyro_data_raw[0]*m_gyro_range_scale;
+	}else{
+		printf("error!!!!\n");
+	}
+	
     //校正
     gyro_data_ned[0] = gyro_data_raw_t[0] - m_gyro_A0[0];
     gyro_data_ned[1] = gyro_data_raw_t[1] - m_gyro_A0[1];
@@ -309,6 +366,8 @@ int ImuAttitudeEstimate::SetImuParameter(const StructImuParameter imu_parameter)
     memcpy(m_acc_A0, imu_parameter.acc_A0, sizeof(m_acc_A0));
     memcpy(m_acc_A1, imu_parameter.acc_A1, sizeof(m_acc_A1));
     m_rw_lock.WriterUnlock();
+
+//    printf("set acc_A1: %f %f %f\n", imu_parameter.acc_A1[0][0], imu_parameter.acc_A1[1][1], imu_parameter.acc_A1[2][2]);
     return 1;
 }
 

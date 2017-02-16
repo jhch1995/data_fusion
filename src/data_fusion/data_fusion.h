@@ -96,8 +96,10 @@ public:
 
     int CalibrateGyroBiasOnline(double gyro_A0[3]);
 
+#ifdef ANDROID
     // 从摄像头寄存器读取imu参数
     int ReadImuParameterFromCamera( StructImuParameter *imu_parameter);
+#endif
 
     // 读取imu参数
     int ReadImuParameterFromTxt( StructImuParameter *imu_parameter);

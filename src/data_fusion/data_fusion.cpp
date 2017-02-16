@@ -115,7 +115,7 @@ void DataFusion::Init( )
         int stste = init_gsensor();
         if(stste >= 0){
            m_init_state = true;
-           printf("init_gsensor OK!\n");
+//           printf("init_gsensor OK!\n");
            LOG(ERROR) << "DataFusion::Init--init_gsensor OK!";
         }else{
            m_init_state = false;
@@ -125,8 +125,10 @@ void DataFusion::Init( )
         // 读取imu参数
         StructImuParameter imu_parameter;
         int read_sate = ReadImuParameterFromCamera( &imu_parameter);
-        if(read_sate)
+        if(read_sate >= 0){
+            printf("read imu parameter state: %d\n", read_sate);
             m_imu_attitude_estimate.SetImuParameter(imu_parameter);
+        }
     #endif
 
     // 判断是从murata读数据还是mpu6500
@@ -152,15 +154,9 @@ void DataFusion::RunFusion( )
 {
     struct timeval time_counter_start;
     int64_t run_fusion_period_us = 1e6/m_imu_sample_hz;// 数据生成的频率是m_imu_sample_hz， 读取数据的频率最好时2×m_imu_sample_hz，保证数据的实时性
-    if(m_init_state == 1){
-        while (m_is_running) {
+    while (m_is_running) {
+        if(m_init_state == 1){
             gettimeofday(&time_counter_start, NULL); // 用于控制频率
-
-            // FOR test: 打印系统运行时间
-//            int dt_counter = (time_counter_start.tv_sec - time_run_fusion_pre.tv_sec)*1000000 + (time_counter_start.tv_usec - time_run_fusion_pre.tv_usec);
-//            printf("run fuSion time = %d(us)\n", dt_counter);
-//            memcpy(&time_run_fusion_pre, &time_counter_start, sizeof(time_counter_start));
-
             int read_state = ReadData(); // 数据保存在  m_vector_imu_data; read_state>0，代表数据正常读取
             if(read_state > 0){
                 int vector_imu_length = m_vector_imu_data.size();
@@ -183,9 +179,9 @@ void DataFusion::RunFusion( )
                 }
             }
             FusionScheduler(time_counter_start,  run_fusion_period_us); // 运行频率控制
+        }else{
+            LOG(ERROR)<<"DF:init imu failed!!!"<<endl;
         }
-    }else{
-        LOG(ERROR)<<"DF:init imu failed!!!"<<endl;
     }
 }
 
@@ -1030,7 +1026,7 @@ int DataFusion::DoCalibrateGyroBiasOnline( double bias_drift_new[3])
                         m_imu_attitude_estimate.SetGyroBias(new_imu_parameter.gyro_A0);
                         // 保存imu校准结果
                         int write_state = WriteImuCalibrationParameter( new_imu_parameter);
-                        printf("new gyro bias: %f %f %f\n", new_imu_parameter.gyro_A0[0], new_imu_parameter.gyro_A0[1], new_imu_parameter.gyro_A0[2]);
+//                        printf("new gyro bias: %f %f %f\n", new_imu_parameter.gyro_A0[0], new_imu_parameter.gyro_A0[1], new_imu_parameter.gyro_A0[2]);
                         if(write_state == 1){
                             m_is_gyro_online_calibrate_ok = true;
                             VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter sucess!!"<<endl;
@@ -1278,29 +1274,30 @@ int DataFusion::CalibrateGyroBias( double gyro_A0[3] )
     }
 }
 
+#ifdef ANDROID
 // 从摄像头寄存器读取imu参数
 int DataFusion:: ReadImuParameterFromCamera( StructImuParameter *imu_parameter)
 {
     int read_state = camera_read_flash_file(CAMERA_FLASH_FILE_IMU_CAL, imu_parameter, sizeof(*imu_parameter));
-    if (0 != read_state) {
-        printf("camera_read_flash_file failed %d\n", read_state);
-        return read_state;
-    }else{
+    if (read_state >= 0) {
+        if(abs(imu_parameter->acc_A1[0][0] - 1.0) > 0.15 || abs(imu_parameter->acc_A1[1][1] - 1.0) > 0.15 ||abs(imu_parameter->acc_A1[2][2] - 1.0) > 0.15){
+            printf("read imu parameter from camera value is illegal !!!\n");
+            return -1;
+        }
         m_imu_attitude_estimate.SetImuParameter(*imu_parameter);
-        
-        printf("read new gyro A0: %f %f %f\n", imu_parameter->gyro_A0[0], imu_parameter->gyro_A0[1], imu_parameter->gyro_A0[2]);
-        printf("read new acc A0: %f %f %f\n", imu_parameter->acc_A0[0], imu_parameter->acc_A0[1], imu_parameter->acc_A0[2]);
-        printf("read new acc A1:\n %f %f %f\n %f %f %f\n %f %f %f\n", imu_parameter->acc_A1[0][0], imu_parameter->acc_A1[0][1], 
-            imu_parameter->acc_A1[0][2], imu_parameter->acc_A1[1][0], imu_parameter->acc_A1[1][1],
-            imu_parameter->acc_A1[1][2], imu_parameter->acc_A1[2][0], imu_parameter->acc_A1[2][1], imu_parameter->acc_A1[2][2]);
-
-        return 1;
-
+//        printf("read imu parameter from camera state: %d\n", read_state);
+//        printf("read new gyro A0: %f %f %f\n", imu_parameter->gyro_A0[0], imu_parameter->gyro_A0[1], imu_parameter->gyro_A0[2]);
+//        printf("read new acc A0: %f %f %f\n", imu_parameter->acc_A0[0], imu_parameter->acc_A0[1], imu_parameter->acc_A0[2]);
+//        printf("read new acc A1:\n %f %f %f\n %f %f %f\n %f %f %f\n", imu_parameter->acc_A1[0][0], imu_parameter->acc_A1[0][1], 
+//            imu_parameter->acc_A1[0][2], imu_parameter->acc_A1[1][0], imu_parameter->acc_A1[1][1],
+//            imu_parameter->acc_A1[1][2], imu_parameter->acc_A1[2][0], imu_parameter->acc_A1[2][1], imu_parameter->acc_A1[2][2]);
+    }else{
+        printf("camera_read_flash_file failed %d\n", read_state);
     }
-
+    return read_state;
 }
 
-
+#endif
 int DataFusion:: ReadImuParameterFromTxt( StructImuParameter *imu_parameter)
 {
     string buffer_log;
@@ -1326,20 +1323,20 @@ int DataFusion:: ReadImuParameterFromTxt( StructImuParameter *imu_parameter)
                 memcpy(imu_parameter->gyro_A0, gyro_A0, sizeof(gyro_A0));
                 LOG(ERROR)<<"DF:ReadImuParameterFromTxt--"<<"read imu parameter = "<<data_flag.c_str()<<", "<<imu_parameter->gyro_A0[0]<<", "
                         <<imu_parameter->gyro_A0[1]<<", "<<imu_parameter->gyro_A0[2]<<endl;
-                printf("new gyro A0: %f %f %f\n", gyro_A0[0], gyro_A0[1], gyro_A0[2]);
+//                printf("new gyro A0: %f %f %f\n", gyro_A0[0], gyro_A0[1], gyro_A0[2]);
                 is_gyro_A0_ok = true;
             }else if(data_flag == "acc_A0"){
                 double acc_A0[3];
                 ss_log>>data_flag>>acc_A0[0]>>acc_A0[1]>>acc_A0[2];
                 memcpy(imu_parameter->acc_A0, acc_A0, sizeof(acc_A0));
-                printf("new acc A0: %f %f %f\n", acc_A0[0], acc_A0[1], acc_A0[2]);
+//                printf("new acc A0: %f %f %f\n", acc_A0[0], acc_A0[1], acc_A0[2]);
                 is_acc_A0_ok = true;
             }else if(data_flag == "acc_A1"){
                 double acc_A1[3][3];
                 ss_log>>data_flag>>acc_A1[0][0]>>acc_A1[0][1]>>acc_A1[0][2]>>acc_A1[1][0]>>acc_A1[1][1]>>acc_A1[1][2]>>acc_A1[2][0]>>acc_A1[2][1]>>acc_A1[2][2];
                 memcpy(imu_parameter->acc_A1, acc_A1, sizeof(acc_A1));
-                printf("new acc A1:\n %f %f %f\n %f %f %f\n %f %f %f\n", acc_A1[0][0], acc_A1[0][1], acc_A1[0][2], acc_A1[1][0], acc_A1[1][1],
-                    acc_A1[1][2], acc_A1[2][0], acc_A1[2][1], acc_A1[2][2]);
+//                printf("new acc A1:\n %f %f %f\n %f %f %f\n %f %f %f\n", acc_A1[0][0], acc_A1[0][1], acc_A1[0][2], acc_A1[1][0], acc_A1[1][1],
+//                    acc_A1[1][2], acc_A1[2][0], acc_A1[2][1], acc_A1[2][2]);
                 is_acc_A1_ok = true;
             }
         }

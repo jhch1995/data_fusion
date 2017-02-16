@@ -44,6 +44,14 @@ IF (PRINT_LOG_INFO_SWITCH)
     MESSAGE(STATUS "print all the log data for debug")
     ADD_DEFINITIONS(-DLOG_STD_COUT) 
 ENDIF()
+# 是否开启摄像头选择，默认时开启的
+OPTION(IMU_MODE_AUTO_SELECT_SWITCH "switch for old or new camera" ON)
+IF (IMU_MODE_AUTO_SELECT_SWITCH)
+    MESSAGE(STATUS "auto to select the imu mode: new or old camera!!")
+    ADD_DEFINITIONS(-DIMU_MODE_AUTO_SELECT) 
+ELSE()
+	ADD_DEFINITIONS(-DIMU_MODE_SET_2)
+ENDIF()
 
 ######################### packet ###########################
 #LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_ROOT_PATH}/cmake) # 这个时ORB_SLAM2中的用法
