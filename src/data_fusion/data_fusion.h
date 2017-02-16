@@ -18,6 +18,7 @@
 #include "common/concurrency/rwlock.h"
 #include "common/hal/android_gsensor.h"
 #include "common/hal/halio.h"
+#include "common/hal/camctl.h"
 #include "common/time/time_utils.h"
 
 #include "imu_attitude_estimate.h"
@@ -27,63 +28,10 @@
 using namespace std;
 namespace imu {
 
-class DataFusion
+class DataFusion : public SingletonBase<DataFusion>
 {
 public:
-#pragma pack(1)
-    struct StructAtt
-    {
-        double timestamp;
-        double att[3];
-        double angle_z;
-        double att_gyro[3];
-    };
-
-    struct StructVehicleState
-    {
-        double timestamp;
-        double pos[2];
-        double vel[2];
-        double yaw;
-    };
-
-    struct StructTurnRadius
-    {
-        double timestamp;
-        double R;
-        bool is_imu_value_ok;
-    };
-
-    struct StructImageFrameInfo
-    {
-        double timestamp;
-        double index;
-    };
-
-    struct StructImuData
-    {
-        double timestamp;
-        double acc_raw[3];
-        double gyro_raw[3];
-        double acc[3];
-        double gyro[3];
-        double temp;
-    };
-
-    struct StructCanSpeedData
-    {
-        double timestamp;
-        double speed;
-    };
-
-    struct StructImuParameter
-    {
-       double gyro_bias[3];
-    //   double acc_A0[3];
-    //   double acc_A0[3][3];
-    };
-#pragma pack()
-
+    friend class SingletonBase<DataFusion>;
 
 public:
     DataFusion();
@@ -125,7 +73,7 @@ public:
     void DeleteOldRadiusData( );
 
     // 根据时间戳查找对应的数据
-    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3] );
+    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] );
 
     // 估计汽车的运动状态数据
     void EstimateVehicelState();
@@ -139,22 +87,28 @@ public:
     // 线程循环周期控制
     void FusionScheduler(const timeval time_counter_pre, const int64_t period_us);
 
-    int Polyfit(const cv::Mat& xy_feature, int order , std::vector<float>* lane_coeffs);
-
     double Raw2Degree(short raw);
 
     // 校准陀螺仪零偏
     int CalibrateGyroBias( double new_gyro_bias[3] );
 
-    int DoCalibrateGyroBiasOnline( );
+    int DoCalibrateGyroBiasOnline( double bias_drift_new[3]);
 
-    int CalibrateGyroBiasOnline(double gyro_bias[3]);
+    int CalibrateGyroBiasOnline(double gyro_A0[3]);
+
+#ifdef ANDROID
+    // 从摄像头寄存器读取imu参数
+    int ReadImuParameterFromCamera( StructImuParameter *imu_parameter);
+#endif
 
     // 读取imu参数
-    int read_imu_calibration_parameter( StructImuParameter *imu_parameter);
+    int ReadImuParameterFromTxt( StructImuParameter *imu_parameter);
 
     // 写入imu校准结果
-    int write_imu_calibration_parameter(const StructImuParameter &imu_parameter);
+    int WriteImuCalibrationParameter(const StructImuParameter &imu_parameter);
+
+    // 设置acc的校正参数
+    void SetAccCalibationParam(double A0[3], double A1[3][3]);
 
     // 外部调用接口: 预测特征点的坐标
     int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,
@@ -173,6 +127,18 @@ public:
 
     // 计算测量的转弯半径
     void CalculateVehicleTurnRadius();
+
+    // 设置陀螺仪自动校准的状态: 1:执行自动校准  0: 不自动校准
+    void SetGyroAutoCalibrateState(int auto_calibrate_state);
+
+    // 设置陀螺仪自动校准的状态: 1:执行自动校准  0: 不自动校准
+    int GetGyroCurrentBias(double gyro_bias[3]);
+
+    // 重置imu参数
+    int ResetImuParameter( );
+
+    // 设置imu参数
+    int SetImuParameter(const StructImuParameter imu_parameter);
 
 private:
     // 线程
@@ -198,10 +164,14 @@ private:
     StructCanSpeedData m_can_speed_data;
     std::vector<StructCanSpeedData> m_vector_can_speed_data;
 
+    //murata
+    string m_imu_log_flag; // 读取哪个imu的flag
+
     bool m_is_print_imu_data; // 是否打印IMU数据
     int m_is_print_speed_data;// 是否打印speed数据
 
     // imu在线校准
+    int m_is_auto_calibrate_gyro_online; // 是否在线自动校正陀螺仪零偏  默认是自动校正
     double m_zero_speed_time_counter; // 持续速度为0时间计数
     double m_zero_speed_time_pre; // 上一个speed为0时刻
     bool m_is_first_zero_speed; // 是否是最近时段第一次速度为0
@@ -217,13 +187,17 @@ private:
     int m_gyro_sample_num; // the gyro sample numbers each cycle
     int m_sample_counter; // 采样计数
 
+    double m_gyro_bias_cur[3]; // 当前的bias
+    bool m_gyro_calibrate_ok; // 陀螺仪是否标结束
+
     string m_imu_parameter_addr; // imu参数存放地址
     string m_imu_parameter_log_addr; // 记录每次上电后校准的imu参数结果
 
     // 数据读写锁
-    RWLock radius_rw_lock;
-    RWLock feature_rw_lock;
+    RWLock m_radius_rw_lock;
+    RWLock m_feature_rw_lock;
     RWLock get_data_rw_lock; // get_timestamp_data
+    RWLock m_rw_lock; 
 
     // 读取数据控制
     double m_cur_fusion_timestamp; // 当前在进行计算的时间点，

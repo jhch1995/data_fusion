@@ -23,6 +23,7 @@
 #include "imu_module.h"
 
 using namespace std;
+using namespace cv;
 using namespace imu;
 
 DEFINE_string(image_name, "./1.jpg", "image_name");
@@ -32,32 +33,25 @@ DEFINE_double(cu, 685.044, "cu");
 DEFINE_double(cv, 360.02380, "cv");
 DEFINE_double(camera_height, 1.25, "camera height mm");    // ??? mm
 DEFINE_double(pitch, -0.3, "pitch angle (degree)"); // -1.8
-DEFINE_double(yaw, 7.3, "yaw angle (degree)");
+DEFINE_double(yaw, 10.3, "yaw angle (degree)");
 DEFINE_int32(image_width, 1280, "image width");
 DEFINE_int32(image_height, 720, "image height");
 DEFINE_double(x_start_offset, -7.0, "x start offset");
 DEFINE_double(x_end_offset, 7.0, "x start offset");
 DEFINE_double(y_start_offset, 1.0, "y start offset");
 DEFINE_double(y_end_offset, 70.0, "y end offset");
-DEFINE_double(x_res, 0.04, "x resolution");
-DEFINE_double(y_res, 0.1, "y resolution");
+DEFINE_double(x_res, 0.03, "x resolution");
+DEFINE_double(y_res, 0.08, "y resolution");
 
 //DEFINE_string(flagfile, "./data/doing/frame/detect.flag", " parameter address ");
-
-
-// 读入log和图片路径
-string str_image_frame_add = "data/doing/frame/image/";
-
-ifstream infile_log("data/doing/frame/log.txt");       // 指定log的路径
-string buffer_log;
-string data_flag;
-stringstream ss_log;
-stringstream ss_tmp;
 
 void LoadImage(cv::Mat* image, string image_name);
 
 // 对图片进行IPM变化
 void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para);
+
+void image_IPM_color(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para);
+
 
 // 获取指定路径下所有文件
 string get_file_name(string file_path);
@@ -68,11 +62,16 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path);
 // 在IPM图上画车道线
 void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  cv::Mat &ipm_image );
 
+void mark_IPM_radius_color(const IPMPara ipm_para, const double R, const Vec3b value_vec,  cv::Mat &ipm_image );
+
+
+
 void do_get_turn_radius();
 
 TimeUtils f_time_counter;
 double g_R_cur;
 double image_timestamp;
+double vehicle_L = 2.637;
 
 int main(int argc, char *argv[])
 {
@@ -82,6 +81,14 @@ int main(int argc, char *argv[])
     // 初始化
     google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir = "./log/";
+
+    // 读入log和图片路径
+    string str_image_frame_add = FLAGS_jpg_data_addr; // jpg
+    ifstream infile_log(FLAGS_log_data_addr.c_str());       // 指定log的路径
+    string buffer_log;
+    string data_flag;
+    stringstream ss_log;
+    stringstream ss_tmp;
 
     CameraPara camera_para;
     camera_para.fu = FLAGS_fu;
@@ -118,7 +125,7 @@ int main(int argc, char *argv[])
     ImuModule::Instance().StartDataFusionTask();
 
     string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字
-    string frame_file_addr = str_image_frame_add + frame_file_name;// 获取图片的max,min index
+    string frame_file_addr = str_image_frame_add + "/" + frame_file_name;// 获取图片的max,min index
     int max_frame_index, min_frame_index;
     get_max_min_image_index(max_frame_index, min_frame_index, frame_file_addr);
 
@@ -159,18 +166,30 @@ int main(int argc, char *argv[])
                     image_name = frame_file_addr + "/" + str_iamge_name_index + ".jpg";
 
                     // IPM
-                    cv::Mat org_image;
-                    LoadImage(&org_image, image_name);
-                    cv::Mat ipm_image = cv::Mat::zeros(ipm_para.height+1, ipm_para.width+1, CV_32FC1);
-                    image_IPM(ipm_image, org_image, ipm_para);
+//                    cv::Mat org_image;
+//                    LoadImage(&org_image, image_name);
+//                    cv::Mat ipm_image = cv::Mat::zeros(ipm_para.height+1, ipm_para.width+1, CV_32FC1);
+//                    image_IPM(ipm_image, org_image, ipm_para);
+
+                    // color IPM
+                    cv::Mat org_image_color = cv::imread(image_name, cv::IMREAD_COLOR);
+                    cv::Mat ipm_image_color(ipm_para.height+1, ipm_para.width+1, CV_8UC3);
+                    ipm_image_color.setTo(Scalar(0));
+                    image_IPM_color(ipm_image_color, org_image_color, ipm_para);
 
                     // 执行查询转弯半径
                     do_get_turn_radius();
 
-                    // 画车道线
-                    mark_IPM_radius(ipm_para, g_R_cur, 0.9,  ipm_image );
+                    // 画车道线  
+                    Vec3b value_vec(110, 255, 0); // 绿色
+                    mark_IPM_radius_color(ipm_para, g_R_cur, value_vec, ipm_image_color);
+                    
+                    // 画图像光轴直线
+                    Vec3b value_vec_1(250, 0, 0); // 黑色
+                    mark_IPM_radius_color(ipm_para, 0, value_vec_1, ipm_image_color);
 
-                    cv::imshow("ipm", ipm_image);
+//                    cv::imshow("ipm", ipm_image);
+                    cv::imshow("ipm", ipm_image_color);
                     //按键事件，空格暂停，其他跳出循环
                    int temp = cvWaitKey(100);
                    if (temp == 32)
@@ -206,7 +225,7 @@ string get_file_name(string file_path)
     int n=0;
     const char *filePath = file_path.data();
     if((dp=opendir(filePath))==NULL)
-        printf("can't open %s", filePath);
+        printf("can't open %s\n", filePath);
 
     while(((dirp=readdir(dp))!=NULL)){
          if((strcmp(dirp->d_name,".")==0)||(strcmp(dirp->d_name,"..")==0))
@@ -282,6 +301,28 @@ void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
     }
 }
 
+// 图片IPM
+void image_IPM_color(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
+{
+    for (int i = 0; i < ipm_para.height; ++i){
+        int base = i * ipm_para.width;
+        for (int j = 0; j < ipm_para.width; ++j){
+            int offset = base + j;
+            float ui = ipm_para.uv_grid.at<float>(0, offset);
+            float vi = ipm_para.uv_grid.at<float>(1, offset);
+            if (ui < ipm_para.u_limits[0] || ui > ipm_para.u_limits[1] || vi < ipm_para.v_limits[0] || vi > ipm_para.v_limits[1])
+                continue;
+            int x1 = int(ui), x2 = int(ui + 1);
+            int y1 = int(vi), y2 = int(vi + 1);
+            float x = ui - x1, y = vi - y1;
+            Vec3b val = org_image.at<Vec3b>(y1, x1) * (1 - x) * (1-y) + org_image.at<Vec3b>(y1, x2) * x * (1-y) +
+                        org_image.at<Vec3b>(y2, x1) * (1-x) * y + org_image.at<Vec3b>(y2, x2) * x * y;
+            ipm_image.at<Vec3b>(i, j) = static_cast<Vec3b>(val);
+        }
+    }
+}
+
+
 //// 标记 IPM 转弯半径
 void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  cv::Mat &ipm_image )
 {
@@ -298,9 +339,9 @@ void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  c
 
     for (double y_t = ipm_para.y_limits[0]; y_t < y_max_t; y_t+=ipm_para.y_scale) {
         if(R > 0)
-            x_t = R - sqrt(R*R - y_t*y_t);
+            x_t = -R + sqrt(R*R - y_t*y_t);
         else if(R < 0)
-            x_t = R + sqrt(R*R - y_t*y_t);
+            x_t = -R - sqrt(R*R - y_t*y_t);
         else
             x_t = 0;
 
@@ -312,6 +353,39 @@ void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  c
            continue;
         else
            ipm_image.at<float>(u, v) = val;
+    }
+}
+
+// 在彩图上标注R
+//// 标记 IPM 转弯半径
+void mark_IPM_radius_color(const IPMPara ipm_para, const double R, const Vec3b value_vec,  cv::Mat &ipm_image )
+{
+    /// 在IPM中标注当前lane
+    std::vector<int> x(ipm_para.height+2);
+    std::vector<int> y(ipm_para.height+2);
+    double y_max_t, x_t;
+    int u, v;
+
+    if(R == 0)
+        y_max_t = ipm_para.y_limits[1];  // IPM 横向是x
+    else
+         y_max_t = min(ipm_para.y_limits[1], fabs(R));
+
+    for (double y_t = ipm_para.y_limits[0]; y_t < y_max_t; y_t+=ipm_para.y_scale) {
+        if(R > 0)
+            x_t = -R + sqrt(R*R - y_t*y_t);
+        else if(R < 0)
+            x_t = -R - sqrt(R*R - y_t*y_t);
+        else
+            x_t = 0;
+
+        u = (-y_t + ipm_para.y_limits[1])/ipm_para.y_scale;
+        v = (x_t + ipm_para.x_limits[1])/ipm_para.x_scale;
+
+        if (v < 0 || v > ipm_para.width )
+           continue;
+        else
+           ipm_image.at<Vec3b>(u, v) = static_cast<Vec3b>(value_vec);
     }
 }
 
@@ -339,7 +413,17 @@ void do_get_turn_radius()
             usleep(20000);
         }
         main_sleep_counter++;
-        printf("state: %d, R = %f\n",r_1, g_R_cur);
+        // 计算车轮角度
+        double sin_angle, tan_angle;
+        if(g_R_cur != 0){
+            double tmp1 = vehicle_L/g_R_cur;
+            sin_angle = asin(tmp1);
+            tan_angle = atan(tmp1);
+        }else{
+            sin_angle = 0;
+            tan_angle = 0;
+        }
+        printf("state: %d, R = %f, sin_angle=%.2f, tan_angle=%.2f\n",r_1, g_R_cur, sin_angle*R2D, tan_angle*R2D);
     }
 
 

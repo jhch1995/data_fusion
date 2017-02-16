@@ -9,71 +9,60 @@ ImuAttitudeEstimate::ImuAttitudeEstimate()
 
 void ImuAttitudeEstimate::Initialize( )
 {
-    m_factor_acc_gyro[0] = 0.01; // 加速度计修正的姿态的系数
-    m_factor_acc_gyro[1] = 0.01;
-    m_factor_acc_gyro[2] = 0.01;
+    m_factor_acc_gyro[0] = 0.001; // 加速度计修正的姿态的系数
+    m_factor_acc_gyro[1] = 0.001;
+    m_factor_acc_gyro[2] = 0.001;
     memset(&m_att, 0, sizeof(m_att));
     memset(&m_gyro_angle, 0, sizeof(m_gyro_angle));
     m_angle_z = 0.0;
     m_att_init_counter = 30;
     m_accel_range_scale = 8.0f/32768;
     m_gyro_range_scale = 2000.0/180*3.141593/32768;
+	
+	// 摄像头版本
+	m_is_imu_mod_set = false;
+	m_imu_mode = 0; // 默认是0，1:旧摄像头 2：新摄像头
 
-    m_A0[0] = 0;
-    m_A0[1] = 0;
-    m_A0[2] = 0;
+    m_acc_A0[0] = 0;
+    m_acc_A0[1] = 0;
+    m_acc_A0[2] = 0;
 
-    m_A1[0][0] = 1;
-    m_A1[0][1] = 0;
-    m_A1[0][2] = 0;
-    m_A1[1][0] = 0;
-    m_A1[1][1] = 1;
-    m_A1[1][2] = 0;
-    m_A1[2][0] = 0;
-    m_A1[2][1] = 0;
-    m_A1[2][2] = 1;
+    m_acc_A1[0][0] = 1;
+    m_acc_A1[0][1] = 0;
+    m_acc_A1[0][2] = 0;
+    m_acc_A1[1][0] = 0;
+    m_acc_A1[1][1] = 1;
+    m_acc_A1[1][2] = 0;
+    m_acc_A1[2][0] = 0;
+    m_acc_A1[2][1] = 0;
+    m_acc_A1[2][2] = 1;
 
-    // 初始化为０,　目前会从配置文件中读取，并每次上电在这个基础上进一步校正
-    m_gyro_drift[0] = 0;
-    m_gyro_drift[1] = 0;
-    m_gyro_drift[2] = 0;
+    // 初始化为0,　目前会从配置文件中读取，并每次上电在这个基础上进一步校正
+    m_gyro_A0[0] = 0;
+    m_gyro_A0[1] = 0;
+    m_gyro_A0[2] = 0;
+    // murata
+    m_accel_range_scale_murata = 1.0/1962;
 
-//    m_A0[0] = 0.0628;
-//    m_A0[1] = 0.0079;
-//    m_A0[2] = -0.0003;
-//
-//    m_A1[0][0] = 0.9986;
-//    m_A1[0][1] = -0.0027;
-//    m_A1[0][2] = 0.0139;
-//    m_A1[1][0] = 0.0164;
-//    m_A1[1][1] = 0.9993;
-//    m_A1[1][2] = -0.0176;
-//    m_A1[2][0] = -0.0159;
-//    m_A1[2][1] = 0.0064;
-//    m_A1[2][2] = 0.9859;
-    // nj 采集器
-//    m_gyro_drift[0] = 0.00897;
-//    m_gyro_drift[1] = -0.0322;
-//    m_gyro_drift[2] = -0.0214;
+    m_acc_A0_murata[0] = 0;
+    m_acc_A0_murata[1] = 0;
+    m_acc_A0_murata[2] = 0;
 
-//    // nj 测试板子
-//    m_gyro_drift[0] = -0.01822;
-//    m_gyro_drift[1] = -0.01601;
-//    m_gyro_drift[2] = -0.06251;
+    m_acc_A1_murata[0][0] = 1;
+    m_acc_A1_murata[0][1] = 0;
+    m_acc_A1_murata[0][2] = 0;
+    m_acc_A1_murata[1][0] = 0;
+    m_acc_A1_murata[1][1] = 1;
+    m_acc_A1_murata[1][2] = 0;
+    m_acc_A1_murata[2][0] = 0;
+    m_acc_A1_murata[2][1] = 0;
+    m_acc_A1_murata[2][2] = 1;
+    
+    m_gyro_range_scale_murata = 1.0/50*D2R;
+    m_gyro_A0_murata[0] = 0;
+    m_gyro_A0_murata[1] = 0;
+    m_gyro_A0_murata[2] = 0;
 
-    // nj 南京新
-//    m_gyro_drift[0] = -0.045082;
-//    m_gyro_drift[1] = -0.039585;
-//    m_gyro_drift[2] = 0.017939;
-    // new
-//    m_gyro_drift[0] = -0.0431746;
-//    m_gyro_drift[1] = -0.0394169;
-//    m_gyro_drift[2] = 0.013547269;
-
-    // Y-1
-//    m_gyro_drift[0] = 0.0155;
-//    m_gyro_drift[1] = -0.0421;
-//    m_gyro_drift[2] = -0.0217;
 }
 
 void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double gyro_data[3], double dt)
@@ -84,6 +73,17 @@ void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double
     // ACC to angle
     acc_angle[X_AXIS] = (atan2f(-acc_data[Y_AXIS], -acc_data[Z_AXIS]));       // Calculating pitch ACC angle
     acc_angle[Y_AXIS] = (atan2f(acc_data[X_AXIS], sqrtf(acc_data[Z_AXIS]*acc_data[Z_AXIS] + acc_data[Y_AXIS]*acc_data[Y_AXIS])));   //Calculating roll ACC angle
+
+    double acc_normal = sqrtf(acc_data[X_AXIS]*acc_data[X_AXIS] + acc_data[Y_AXIS]*acc_data[Y_AXIS] + acc_data[Z_AXIS]*acc_data[Z_AXIS])/ONE_G;
+    if(acc_normal > 1.1 || acc_normal < 0.9){
+        m_factor_acc_gyro[0] = 0.0002; // 加速度计修正的姿态的系数
+        m_factor_acc_gyro[1] = 0.0002;
+        m_factor_acc_gyro[2] = 0.0002;
+    }else{
+        m_factor_acc_gyro[0] = 0.005; // 加速度计修正的姿态的系数
+        m_factor_acc_gyro[1] = 0.005;
+        m_factor_acc_gyro[2] = 0.005;
+    }
 
     if( start_flag == 0 ){
         m_att_init_counter--;
@@ -113,13 +113,28 @@ void ImuAttitudeEstimate::UpdataAttitude( const double acc_data[3], const double
 
         m_angle_z += gyro_data[Z_AXIS] * dt;
 
-//        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"att[3]: "<<m_att[Z_AXIS]*180/M_PI;
-//        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"m_angle_z: "<<m_angle_z*180/M_PI;
-//        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"gyro_z_new: "<<gyro_rate[Z_AXIS]*180/M_PI;
-//        VLOG(VLOG_DEBUG)<<"IAE:UpdataAttitude--"<<"gyro_z_raw: "<<gyro_data[Z_AXIS]*180/M_PI;
     }
-
 }
+
+// euler attitude to Rbn(from n to b)
+void ImuAttitudeEstimate::CalculateAtt2Rotation(const double att[3], double R[3][3] )
+{
+    double roll, pitch, yaw;
+    roll = att[0];
+    pitch = att[1];
+    yaw = att[2];
+
+    R[0][0] = cosf(pitch)*cosf(yaw);
+    R[0][1] = cosf(pitch)*sinf(yaw);
+    R[0][2] = -sinf(pitch);
+    R[1][0] = cosf(yaw)*sinf(pitch)*sinf(roll) - cosf(roll)*sinf(yaw);
+    R[1][1] = cosf(roll)*cosf(yaw) + sinf(pitch)*sinf(roll)*sinf(yaw);
+    R[1][2] = cosf(pitch)*sinf(roll);
+    R[2][0] = sinf(roll)*sinf(yaw) + cosf(roll)*cosf(yaw)*sinf(pitch);
+    R[2][1] = cosf(roll)*sinf(pitch)*sinf(yaw) - cosf(yaw)*sinf(roll);
+    R[2][2] = cosf(pitch)*cosf(roll);
+ }
+
 
 void ImuAttitudeEstimate::GetAttitude(double att[3])
 {
@@ -177,123 +192,202 @@ int ImuAttitudeEstimate::LowpassFilter3f(double y_pre[3], const double x_new[3],
 
 int ImuAttitudeEstimate::SetAccCalibationParam(double A0[3], double A1[3][3])
 {
-    m_A0[0]  = A0[0];
-    m_A0[1]  = A0[1];
-    m_A0[2]  = A0[2];
+    m_acc_A0[0]  = A0[0];
+    m_acc_A0[1]  = A0[1];
+    m_acc_A0[2]  = A0[2];
 
-    m_A1[0][0] = A1[0][0];
-    m_A1[0][1] = A1[0][1];
-    m_A1[0][2] = A1[0][2];
-    m_A1[1][0] = A1[1][0];
-    m_A1[1][1] = A1[1][1];
-    m_A1[1][2] = A1[1][2];
-    m_A1[2][0] = A1[2][0];
-    m_A1[2][1] = A1[2][1];
-    m_A1[2][2] = A1[2][2];
+    m_acc_A1[0][0] = A1[0][0];
+    m_acc_A1[0][1] = A1[0][1];
+    m_acc_A1[0][2] = A1[0][2];
+    m_acc_A1[1][0] = A1[1][0];
+    m_acc_A1[1][1] = A1[1][1];
+    m_acc_A1[1][2] = A1[1][2];
+    m_acc_A1[2][0] = A1[2][0];
+    m_acc_A1[2][1] = A1[2][1];
+    m_acc_A1[2][2] = A1[2][2];
 
     return 1;
 }
 
-
+// acc_out_calibrated = A1*(acc - A0)  
 int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double acc_data_ned[3] )
+{
+    double acc_data_t[3], acc_data_raw_t[3];
+	// 选择摄像头版本
+	if(!m_is_imu_mod_set){
+		#if defined(IMU_MODE_AUTO_SELECT)// 新旧版本的摄像头模组自动选择
+			double acc_z_tmp = acc_data_raw[0]*m_accel_range_scale;
+			if( acc_z_tmp < -0.6)
+				m_imu_mode = 2; // 新摄像头
+			else
+				m_imu_mode = 1;
+		#else
+			// 设定了摄像头是哪个版本
+			#if defined(IMU_MODE_SET_2)
+				m_imu_mode = 2; // 默认是新版本摄像头
+			#else
+				m_imu_mode = 1; // 
+			#endif
+		#endif
+		m_is_imu_mod_set = true;
+		printf("imu mode: %d\n", m_imu_mode);
+	} 
+	
+	// 1: 旧摄像头
+	if(m_imu_mode == 1){
+		// 这个配置是老摄像头的
+		// IMU原始坐标系-->大地坐标系(NED)  imu:
+		acc_data_raw_t[0] = -acc_data_raw[2]*m_accel_range_scale;
+		acc_data_raw_t[1] = -acc_data_raw[1]*m_accel_range_scale;
+		acc_data_raw_t[2] = -acc_data_raw[0]*m_accel_range_scale;
+	}else if(m_imu_mode == 2){
+		// 新摄像头 2017.02.10
+		// IMU原始坐标系-->大地坐标系(NED)
+		acc_data_raw_t[0] = -acc_data_raw[2]*m_accel_range_scale;
+		acc_data_raw_t[1] = acc_data_raw[1]*m_accel_range_scale;
+		acc_data_raw_t[2] = acc_data_raw[0]*m_accel_range_scale;
+	}else{
+		printf("error!!!!\n");
+	}
+
+    // 校正
+    acc_data_t[0] = acc_data_raw_t[0] - m_acc_A0[0];
+    acc_data_t[1] = acc_data_raw_t[1] - m_acc_A0[1];
+    acc_data_t[2] = acc_data_raw_t[2] - m_acc_A0[2];
+
+    acc_data_ned[0]= (m_acc_A1[0][0]*acc_data_t[0] + m_acc_A1[0][1]*acc_data_t[1] + m_acc_A1[0][2]*acc_data_t[2])*ONE_G; // 地理坐标系Z
+    acc_data_ned[1]= (m_acc_A1[1][0]*acc_data_t[0] + m_acc_A1[1][1]*acc_data_t[1] + m_acc_A1[1][2]*acc_data_t[2])*ONE_G; // 地理坐标系Y
+    acc_data_ned[2]= (m_acc_A1[2][0]*acc_data_t[0] + m_acc_A1[2][1]*acc_data_t[1] + m_acc_A1[2][2]*acc_data_t[2])*ONE_G;  // 地理坐标系X
+
+    return 1;
+}
+
+int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], double gyro_data_ned[3] )
+{
+    double gyro_data_imu[3];
+    double gyro_data_raw_t[3];
+
+		// 1: 旧摄像头
+	if(m_imu_mode == 1){
+		// 这个配置是老摄像头的
+	// IMU原始坐标系-->大地坐标系(NED)
+	gyro_data_raw_t[0] = -gyro_data_raw[2]*m_gyro_range_scale;
+	gyro_data_raw_t[1] = -gyro_data_raw[1]*m_gyro_range_scale;
+	gyro_data_raw_t[2] = -gyro_data_raw[0]*m_gyro_range_scale;
+	}else if(m_imu_mode == 2){
+	    // 新摄像头 2017.02.10
+		// IMU原始坐标系-->大地坐标系(NED)
+		gyro_data_raw_t[0] = -gyro_data_raw[2]*m_gyro_range_scale;
+		gyro_data_raw_t[1] = gyro_data_raw[1]*m_gyro_range_scale;
+		gyro_data_raw_t[2] = gyro_data_raw[0]*m_gyro_range_scale;
+	}else{
+		printf("error!!!!\n");
+	}
+	
+    //校正
+    gyro_data_ned[0] = gyro_data_raw_t[0] - m_gyro_A0[0];
+    gyro_data_ned[1] = gyro_data_raw_t[1] - m_gyro_A0[1];
+    gyro_data_ned[2] = gyro_data_raw_t[2] - m_gyro_A0[2];
+
+    return 1;
+}
+
+// Murata IMU
+int ImuAttitudeEstimate::AccDataCalibationMurata(const double acc_data_raw[3], double acc_data_ned[3] )
 {
     double acc_data_t[3];
     double acc_data_imu[3];
-    acc_data_t[0] = acc_data_raw[0]*m_accel_range_scale - m_A0[0];
-    acc_data_t[1] = acc_data_raw[1]*m_accel_range_scale - m_A0[1];
-    acc_data_t[2] = acc_data_raw[2]*m_accel_range_scale - m_A0[2];
-
-    acc_data_imu[0]= (m_A1[0][0]*acc_data_t[0] + m_A1[0][1]*acc_data_t[1] + m_A1[0][2]*acc_data_t[2])*ONE_G; // 地理坐标系Z
-    acc_data_imu[1]= (m_A1[1][0]*acc_data_t[0] + m_A1[1][1]*acc_data_t[1] + m_A1[1][2]*acc_data_t[2])*ONE_G; // 地理坐标系Y
-    acc_data_imu[2]= (m_A1[2][0]*acc_data_t[0] + m_A1[2][1]*acc_data_t[1] + m_A1[2][2]*acc_data_t[2])*ONE_G;  // 地理坐标系X
+    for(int i=0; i<3; i++){
+        acc_data_t[i] = acc_data_raw[i]*m_accel_range_scale - m_acc_A0_murata[i];
+        acc_data_imu[i]= (m_acc_A1[i][0]*acc_data_t[0] + m_acc_A1[i][1]*acc_data_t[1] + m_acc_A1[i][2]*acc_data_t[2])*ONE_G;
+    }
+    acc_data_t[0] = acc_data_raw[0]*m_accel_range_scale - m_acc_A0_murata[0];
+    acc_data_t[1] = acc_data_raw[1]*m_accel_range_scale - m_acc_A0[1];
+    acc_data_t[2] = acc_data_raw[2]*m_accel_range_scale - m_acc_A0[2];
 
     // IMU原始坐标系-->大地坐标系(NED)
     acc_data_ned[0] = -acc_data_imu[2];
     acc_data_ned[1] = -acc_data_imu[1];
-    acc_data_ned[2] = -acc_data_imu[0];
+    acc_data_ned[2] = acc_data_imu[0];
 
     return 1;
 }
 
-int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], double gyro_data_new[3] )
+int ImuAttitudeEstimate::GyrocDataCalibationMurata(const double gyro_data_raw[3], double gyro_data_new[3] )
 {
-    double gyro_data_imu[3];
-    gyro_data_imu[0] = gyro_data_raw[0]*m_gyro_range_scale;// - m_gyro_drift[0]; // 地理坐标系Z
-    gyro_data_imu[1] = gyro_data_raw[1]*m_gyro_range_scale;// - m_gyro_drift[1]; // 地理坐标系Y
-    gyro_data_imu[2] = gyro_data_raw[2]*m_gyro_range_scale;// - m_gyro_drift[2]; // 地理坐标系X
+    double gyro_data_imu[3], gyro_data_imu_t[3];
+    for(int i=0; i<3; i++)
+        gyro_data_imu[i] = gyro_data_raw[i]*m_gyro_range_scale_murata;
 
     // IMU原始坐标系-->大地坐标系(NED)
-    gyro_data_new[0] = -gyro_data_imu[2] - m_gyro_drift[0];
-    gyro_data_new[1] = -gyro_data_imu[1] - m_gyro_drift[1];
-    gyro_data_new[2] = -gyro_data_imu[0] - m_gyro_drift[2];
+    gyro_data_imu_t[0] = -gyro_data_imu[2];
+    gyro_data_imu_t[1] = -gyro_data_imu[1];
+    gyro_data_imu_t[2] = gyro_data_imu[0];
+
+    // 去掉drift
+    for(int i=0; i<3; i++)
+         gyro_data_new[i] = -gyro_data_imu_t[i] - m_gyro_A0_murata[i];
 
     return 1;
 }
 
 // 获取当前陀螺仪零偏
-void ImuAttitudeEstimate::GetGyroBias( double gyro_bias[3] )
+void ImuAttitudeEstimate::GetGyroBias( double gyro_A0[3] )
 {
-    gyro_bias[0] = m_gyro_drift[0];
-    gyro_bias[1] = m_gyro_drift[1];
-    gyro_bias[2] = m_gyro_drift[2];
+    gyro_A0[0] = m_gyro_A0[0];
+    gyro_A0[1] = m_gyro_A0[1];
+    gyro_A0[2] = m_gyro_A0[2];
 }
 
 // 设置陀螺仪新零偏
 void ImuAttitudeEstimate::SetGyroBias( const double gyro_bias_new[3] )
 {
-    m_gyro_drift[0] = gyro_bias_new[0];
-    m_gyro_drift[1] = gyro_bias_new[1];
-    m_gyro_drift[2] = gyro_bias_new[2];
+    m_gyro_A0[0] = gyro_bias_new[0];
+    m_gyro_A0[1] = gyro_bias_new[1];
+    m_gyro_A0[2] = gyro_bias_new[2];
 }
 
 // 陀螺仪新零偏清零
 void ImuAttitudeEstimate::ClearGyroBias(  )
 {
-    m_gyro_drift[0] = 0;
-    m_gyro_drift[1] = 0;
-    m_gyro_drift[2] = 0;
+    m_rw_lock.WriterLock();
+    m_gyro_A0[0] = 0;
+    m_gyro_A0[1] = 0;
+    m_gyro_A0[2] = 0;
+    m_rw_lock.WriterUnlock();
 }
 
-// 从配置文件中读取陀螺仪bias
-void ImuAttitudeEstimate::ReadGyroBias()
+
+// 设置imu参数
+int ImuAttitudeEstimate::SetImuParameter(const StructImuParameter imu_parameter)
 {
-    string imu_coeff_file_addr;
-    #if defined(ANDROID)
-    {
-        imu_coeff_file_addr = "/system/bin/imu_paramer.flag";
-    }
-    #else
-    {
-        imu_coeff_file_addr = "./data/doing/imu_paramer.flag";
-    }
-    #endif
+    m_rw_lock.WriterLock();
+    memcpy(m_gyro_A0, imu_parameter.gyro_A0, sizeof(m_gyro_A0));
+    memcpy(m_acc_A0, imu_parameter.acc_A0, sizeof(m_acc_A0));
+    memcpy(m_acc_A1, imu_parameter.acc_A1, sizeof(m_acc_A1));
+    m_rw_lock.WriterUnlock();
 
-    // 读入imu的参数
-    ifstream infile_imu_coeff;
-    infile_imu_coeff.open(imu_coeff_file_addr.c_str());
-    if(!infile_imu_coeff){
-        printf("open imu paramer: imu_paramer.flag ERROR!!\n");
-        printf("please calibrate the imu first!!\n");
-    }else{
-        string buffer_data, data_flag;
-        double gyro_bias[3];
-        stringstream ss_tmp;
-        getline(infile_imu_coeff, buffer_data);
-        ss_tmp.clear();
-        ss_tmp.str(buffer_data);
-        ss_tmp>>data_flag>>gyro_bias[0]>>gyro_bias[1]>>gyro_bias[2];
-        if(fabs(gyro_bias[0])<0.1 && fabs(gyro_bias[1])<0.1 && fabs(gyro_bias[2])<0.1){
-            m_gyro_drift[0] = gyro_bias[0];
-            m_gyro_drift[1] = gyro_bias[1];
-            m_gyro_drift[2] = gyro_bias[2];
-            std::cout<<"IAE:Initialize--"<<"gyro bias: "<<gyro_bias[0]<<", "<<gyro_bias[1]<<", "<<gyro_bias[2]<<endl;
-        }else{
-            std::cout<<"IAE:Initialize--"<<"gyro bias: "<<gyro_bias[0]<<", "<<gyro_bias[1]<<", "<<gyro_bias[2]<<endl;
-            printf("ERROR:the gyro bias is too large!!\n");
-        }
-    }
-    infile_imu_coeff.close();
+//    printf("set acc_A1: %f %f %f\n", imu_parameter.acc_A1[0][0], imu_parameter.acc_A1[1][1], imu_parameter.acc_A1[2][2]);
+    return 1;
 }
+
+// imu参数清零
+int ImuAttitudeEstimate::ResetImuParameter(  )
+{
+    m_rw_lock.WriterLock();
+    memset(m_gyro_A0, 0, sizeof(m_gyro_A0));
+    memset(m_acc_A0, 0, sizeof(m_acc_A0));
+    memset(m_acc_A1, 0, sizeof(m_acc_A1));
+    m_acc_A1[0][0] = 1;
+    m_acc_A1[1][1] = 1;
+    m_acc_A1[2][2] = 1;
+    m_rw_lock.WriterUnlock();
+    printf("reset imu parameter!!!!\n");
+    return 1;
+}
+
+
+
 
 }
 
