@@ -10,24 +10,15 @@ ENDIF()
 
 IF (WIN32)
 ELSEIF(ANDROID_ABI)
-
     MESSAGE(STATUS "LINK: ANDROID")
-    ADD_EXECUTABLE(imu_calibrate_online  "./imu_calibrate_online.cpp")
-    TARGET_LINK_LIBRARIES(imu_calibrate_online
-            -Wl,--start-group
-            imu halio
-            ${ARM_LIBS}
-            gflags
-            -Wl,--end-group
-    )
-    ADD_EXECUTABLE(turn_radius_andriod  "./turn_radius_andriod.cpp")
-    TARGET_LINK_LIBRARIES(turn_radius_andriod
-            -Wl,--start-group
-            imu halio
-            ${ARM_LIBS}
-            gflags
-            -Wl,--end-group
-    )
+#     ADD_EXECUTABLE(turn_radius_andriod  "./turn_radius_andriod.cpp")
+#     TARGET_LINK_LIBRARIES(turn_radius_andriod
+#             -Wl,--start-group
+#             imu halio
+#             ${ARM_LIBS}
+#             gflags
+#             -Wl,--end-group
+#     )
     ADD_EXECUTABLE(turnlamp_detection "./turnlamp_detection_main.cpp")
     TARGET_LINK_LIBRARIES(turnlamp_detection  
                           -Wl,--start-group
@@ -69,16 +60,22 @@ ELSEIF (UNIX)
     TARGET_LINK_LIBRARIES(turn_radius_calculate imu data_fusion halio
                           gflags glog  pthread
                           opencv_imgcodecs opencv_core opencv_highgui )
+                          
+    ADD_EXECUTABLE(vo_imu_att "./VO_IMU_att_main.cpp")
+    TARGET_LINK_LIBRARIES(vo_imu_att 
+                          VO data_fusion halio
+                          concurrency relative_locate time gflags glog
+                          opencv_imgcodecs opencv_core opencv_highgui pthread)
 
 
 #    ADD_EXECUTABLE(producer_consumer "./proudcer_consumer_test_main.cpp")
 #    TARGET_LINK_LIBRARIES(producer_consumer data_fusion
 #                             pthread concurrency )
-    ADD_EXECUTABLE(eigen_test  "./eigen_test.cpp")
-    TARGET_LINK_LIBRARIES(eigen_test
-            -Wl,--start-group
-            data_fusion
-            ${EIGEN3_LIBS}
-            -Wl,--end-group
-    )
+#     ADD_EXECUTABLE(eigen_test  "./eigen_test.cpp")
+#     TARGET_LINK_LIBRARIES(eigen_test
+#             -Wl,--start-group
+#             data_fusion
+#             ${EIGEN3_LIBS}
+#             -Wl,--end-group
+#     )
 ENDIF()

@@ -13,7 +13,7 @@ ENDIF ()
 SET(PROJECT_ROOT_PATH "${CMAKE_SOURCE_DIR}")
 MESSAGE(STATUS ${PROJECT_ROOT_PATH})
 SET(EXECUTABLE_OUTPUT_PATH "${PROJECT_BINARY_DIR}/bin")
-SET(LIBRARY_OUTPUT_PATH "${PROJECT_BINARY_DIR}/lib/")
+SET(LIBRARY_OUTPUT_PATH "${PROJECT_ROOT_PATH}/lib/")
 
 ######################### configuration ###########################
 OPTION(USE_GSENSOR_LOG_SWITCH "switch for using chip-gsensor-data instantly OR from gsensor-log" OFF)
@@ -44,6 +44,7 @@ IF (PRINT_LOG_INFO_SWITCH)
     MESSAGE(STATUS "print all the log data for debug")
     ADD_DEFINITIONS(-DLOG_STD_COUT) 
 ENDIF()
+
 # 是否开启摄像头选择，默认时开启的
 OPTION(IMU_MODE_AUTO_SELECT_SWITCH "switch for old or new camera" ON)
 IF (IMU_MODE_AUTO_SELECT_SWITCH)
@@ -122,6 +123,7 @@ ELSEIF (UNIX)
             "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/include/"
             "${PROJECT_ROOT_PATH}/src/"
             "${PROJECT_ROOT_PATH}/src/data_fusion/"
+            "${PROJECT_ROOT_PATH}/src/VO/"
             "${PROJECT_ROOT_PATH}"
     )
     LINK_DIRECTORIES(

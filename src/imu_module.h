@@ -24,6 +24,8 @@ public:
             int64_t image_timestamp_pre,
             int64_t image_timestamp_cur,
             std::vector<cv::Point2f>* vector_feature_predict);
+    
+    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] );
 
 private:
     ImuModule();

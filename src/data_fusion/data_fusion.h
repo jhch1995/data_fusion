@@ -42,6 +42,9 @@ public:
 
     // 线程循环函数
     void StartDataFusionTask();
+    
+    // 停止线程
+    void StopDataFusionTask();
 
     // 读取数据
     int ReadData();
@@ -198,6 +201,7 @@ private:
     RWLock m_feature_rw_lock;
     RWLock get_data_rw_lock; // get_timestamp_data
     RWLock m_rw_lock; 
+    RWLock m_thread_rw_lock; // 线程读写锁
 
     // 读取数据控制
     double m_cur_fusion_timestamp; // 当前在进行计算的时间点，

@@ -31,4 +31,9 @@ int ImuModule::GetPredictFeature(const std::vector<cv::Point2f>& vector_feature_
             vector_feature_predict);
 }
 
+int ImuModule::GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] )
+{
+    return m_data_fusion->GetTimestampData(timestamp_search, vehicle_pos, att, angle_z, att_gyro, acc, gyro);
+}
+
 }
