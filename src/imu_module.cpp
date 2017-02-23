@@ -12,8 +12,15 @@ ImuModule::~ImuModule() {
     m_data_fusion = NULL;
 }
 
-void ImuModule::StartDataFusionTask() {
-    m_data_fusion->StartDataFusionTask();
+void ImuModule::ImuModule_Init() 
+{
+    m_data_fusion->DataFusion_Init();
+    
+}
+
+void ImuModule::ImuModule_Destory( )
+{
+    m_data_fusion->DataFusion_Destory();
 }
 
 int ImuModule::GetTurnRadius(const int64_t &timestamp_search, double *R) {
@@ -31,9 +38,9 @@ int ImuModule::GetPredictFeature(const std::vector<cv::Point2f>& vector_feature_
             vector_feature_predict);
 }
 
-int ImuModule::GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] )
-{
-    return m_data_fusion->GetTimestampData(timestamp_search, vehicle_pos, att, angle_z, att_gyro, acc, gyro);
-}
+// int ImuModule::GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] )
+// {
+//     return m_data_fusion->GetTimestampData(timestamp_search, vehicle_pos, att, angle_z, att_gyro, acc, gyro);
+// }
 
 }

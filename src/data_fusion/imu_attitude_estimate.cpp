@@ -232,10 +232,9 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
 		m_is_imu_mod_set = true;
 		printf("imu mode: %d\n", m_imu_mode);
 	} 
-	
-	// 1: 旧摄像头
+		
 	if(m_imu_mode == 1){
-		// 这个配置是老摄像头的
+		// 1: 旧摄像头
 		// IMU原始坐标系-->大地坐标系(NED)  imu:
 		acc_data_raw_t[0] = -acc_data_raw[2]*m_accel_range_scale;
 		acc_data_raw_t[1] = -acc_data_raw[1]*m_accel_range_scale;

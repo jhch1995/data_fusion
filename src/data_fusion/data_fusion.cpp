@@ -6,29 +6,15 @@ namespace imu {
 
 DataFusion::DataFusion()
 {
-    Init();
+//    DataFusion_Init();
 }
 
 DataFusion::~DataFusion()
 {
-//     m_thread_rw_lock.WriterLock();
-//     cout<<"~DataFusion in "<<endl;
-// #if defined(DATA_FROM_LOG)
-//     infile_log.close();
-// #endif
-//     
-//     cout<<"~DataFusion doing1"<<endl;
-//     m_is_running = false;
-//     bool state = m_fusion_thread.StopAndWaitForExit();
-//     cout<<"~DataFusion doing2"<<endl;
-//     if(state)
-//         m_thread_rw_lock.WriterUnlock();
-//     else
-//         cout<<"waiting for release!! "<<state<<endl;
-//     cout<<"~DataFusion: "<<state<<endl;
+
 }
 
-void DataFusion::Init( )
+void DataFusion::DataFusion_Init( )
 {
     // IMU
     m_imu_sample_hz = 100.0;
@@ -148,6 +134,12 @@ void DataFusion::Init( )
         m_imu_log_flag = "Gsensor";
     #endif
     
+    StartDataFusionTask();
+}
+
+void DataFusion::DataFusion_Destory( )
+{
+    StopDataFusionTask();     
 }
 
 // 开始线程
@@ -166,20 +158,24 @@ void DataFusion::StopDataFusionTask()
         infile_log.close();
     #endif    
 
-//     m_thread_rw_lock.WriterLock();
+    m_thread_rw_lock.WriterLock();
     m_is_running = false;
+    m_thread_rw_lock.WriterUnlock();
+    
     m_fusion_thread.StopAndWaitForExit();
-//     m_thread_rw_lock.WriterUnlock();
-
 }
 
 // 线程循环执行的函数
 void DataFusion::RunFusion( )
 {
     struct timeval time_counter_start;
-    int64_t run_fusion_period_us = 1e6/m_imu_sample_hz;// 数据生成的频率是m_imu_sample_hz， 读取数据的频率最好时2×m_imu_sample_hz，保证数据的实时性
-    m_thread_rw_lock.ReaderLock(); // 读写锁，为了析构函数
-    while (m_is_running) {
+    int64_t run_fusion_period_us = 1e6/m_imu_sample_hz;// 数据生成的频率是m_imu_sample_hz， 读取数据的频率最好时2×m_imu_sample_hz，保证数据的实时性   
+    while (1) {
+        m_thread_rw_lock.ReaderLock(); // 读写锁，为了析构函数
+        if(!m_is_running)
+            break;
+        m_thread_rw_lock.ReaderUnlock();
+        
         if(m_init_state == 1){
             gettimeofday(&time_counter_start, NULL); // 用于控制频率
             int read_state = ReadData(); // 数据保存在  m_vector_imu_data; read_state>0，代表数据正常读取
@@ -208,7 +204,7 @@ void DataFusion::RunFusion( )
             LOG(ERROR)<<"DF:init imu failed!!!"<<endl;
         }
     }
-    m_thread_rw_lock.ReaderUnlock();
+    
 }
 
 // 线程循环周期控制

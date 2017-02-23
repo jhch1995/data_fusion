@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 // 初始化融合函数
 //    DataFusion data_fusion;
 //    data_fusion.StartDataFusionTask();
-    ImuModule::Instance().StartDataFusionTask();
+    ImuModule::Instance().ImuModule_Init();
 
     string frame_file_name = get_file_name(str_image_frame_add); // 读取图像所在文件夹名字
     string frame_file_addr = str_image_frame_add + "/" + frame_file_name;// 获取图片的max,min index

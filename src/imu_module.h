@@ -15,7 +15,9 @@ public:
 
     ~ImuModule();
 
-    void StartDataFusionTask();
+    void ImuModule_Init(); 
+
+    void ImuModule_Destory( );
 
     // timestamp_search in microseconds
     // 1: 数据正常
@@ -35,7 +37,7 @@ public:
             int64_t image_timestamp_cur,
             std::vector<cv::Point2f>* vector_feature_predict);
     
-    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] );
+//     int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] );
 
 private:
     ImuModule();

@@ -38,7 +38,9 @@ public:
 
     ~DataFusion();
 
-    void Init( );
+    void DataFusion_Init( );
+    
+    void DataFusion_Destory( );
 
     // 线程循环函数
     void StartDataFusionTask();
