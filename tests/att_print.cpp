@@ -67,7 +67,7 @@ void init()
         #if defined(ANDROID)
             FLAGS_v = 0;
         #else
-            FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
+            FLAGS_v = 0; //VLOG_DEBUG; // 设置VLOG打印等级;
             FLAGS_log_dir = "./log/";
         #endif
     #endif

@@ -22,6 +22,7 @@
 #include "datafusion_math.h"
 #include "turnlamp_detector.h"
 
+using namespace std;
 using namespace imu;
 
 #define MACH_INIT 11
@@ -107,6 +108,8 @@ int g_turnlamp_detect_delay_counter = g_turnlamp_detect_delay_num;
 double g_diff_acc_max = 100; // 最大的acc差值是2,大于这个数据不能用于进行拨杆绝对位置判断
 int g_average_num_counter = 0; // 有效的用于计算均值的acc_diff
 
+int g_turnlamp_state_pre = 0;// 前面的转向灯状态
+
 bool g_turnlamp_threshold_ok = false; // 左右拨杆的阈值是否计算ok
 double g_acc_diff_left_threshold[3] = {0, 0, 0};
 double g_acc_diff_right_threshold[3] = {0, 0, 0};
@@ -124,7 +127,7 @@ bool g_is_save_turnlamp_detect_parameter = false; // 是否保存参数
 
 // 保存检测结果
 ofstream  g_turnlamp_detect_log;
-string g_turnlamp_detect_log_addr = "./log_turnlamp_detect.txt"; 
+string g_turnlamp_detect_log_addr = "/storage/sdcard1/log_turnlamp_detect.txt"; 
 bool g_is_save_turnlamp_detect_log = false; // 是否保存参数
 int g_turnlamp_setect_state = 5;
 
@@ -134,7 +137,9 @@ int g_turnlamp_setect_state = 5;
     DEFINE_int32(v, 0, " ");
 #endif
 
-int main(int argc, char *argv[])
+int 
+
+main(int argc, char *argv[])
 {
     // init
     google::InitGoogleLogging(argv[0]);
@@ -149,22 +154,21 @@ int main(int argc, char *argv[])
         m_turnlamp_detector.StartTurnlampDetectTaskOnline();
         printf("!!! Start Turnlamp Detect Task Online\n");
     #endif
-
     
     while(1){
         GetReadAccDataTime();
         DoCommondSwitch();
         int rod_shift_state = TurnlampDetector::Instance().m_rod_shift_state;
-        if(rod_shift_state){
-            int cal_state = CalculateDiffAcc();
-            if(cal_state){
-                DiagnoseLeftRightTurnlamp();
-            }
+        if(1){
+            if(CalculateDiffAcc())
+                DiagnoseLeftRightTurnlamp();            
         }
         CalculateTurnlampThreshold();
+//         double turnlamp = HalIO::Instance().GetTurnLamp();
+//         cout<<"turnlamp: "<< turnlamp<<endl;
 
         SaveTurnlampResult();
-        usleep(10000);
+        usleep(20000);
     }
     printf("over!!\n");
 
@@ -177,23 +181,23 @@ void init()
         #if defined(ANDROID)
             FLAGS_v = 0;
         #else
-            FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
+            FLAGS_v = 0; //VLOG_DEBUG; // 设置VLOG打印等级;
             FLAGS_log_dir = "./log/";
         #endif
     #endif
 
     #if !defined(DATA_FROM_LOG)
         HalIO &halio = HalIO::Instance();
-        // string config_file_path = "./golf.json";
-        //const char config_file_path[20] = "./golf.json";
-        //HalioInitInfo info;
-        //int state = halio.LoadCANSignalConfig(config_file_path, &info);
-        //bool res = halio.Init(&info, 1);
-        bool res = halio.Init(NULL, 1);
+        string config_file_path = "./golf.json";
+        HalioInitInfo info;
+        int state = LoadCANSignalConfig(config_file_path.c_str(), &info);
+        bool res = halio.Init(&info, 1);
+//         bool res = halio.Init(NULL, 1);
         if (!res) {
             std::cerr << "HALIO init fail" << std::endl;
             exit(0);
         }
+        
         halio.EnableFMU(); // 使能CAN对应的filter 
 
         // 记录检测数据
@@ -212,8 +216,7 @@ void init()
     (void) signal(R_LAMP, CollectRightTurnlampAccData); 
     (void) signal(SAVE_PARAMETER, SaveTurnlampDetectParameter); 
     (void) signal(READ_PARAMETER, ReadTurnlampDetectParameter); 
-    (void) signal(RESET_ALL, ResetTurnlampDetectParameter); 
-    
+    (void) signal(RESET_ALL, ResetTurnlampDetectParameter);     
 }
 
 // 拨杆初始化坐标对准
@@ -301,20 +304,15 @@ int CalculateDiffAcc()
             g_turnlamp_detect_delay_counter = 0;
             g_average_num_counter = 0;
             memset(g_diff_acc_average, 0 , sizeof(g_diff_acc_average));
-            g_calculate_new_acc_diff_mean = true;
-
-            // 为了第一个能读到数据，增加延时，错过前面波动的数据
-            usleep(50000);
-    
+            g_calculate_new_acc_diff_mean = true;    
         }else{
             // 分析检测到可能的波动之后 对拨杆的绝对位置进行判断
             if(g_turnlamp_detect_delay_counter < g_turnlamp_detect_delay_num){
                 StructImuData rod_acc_data;
                 TurnlampDetector::Instance().GetRodAccData(&rod_acc_data);
                 usleep(10000); // 为了获取匹配的数据
-                int search_state = DataFusion::Instance().GetTimestampData(rod_acc_data.timestamp, vehicle_pos, att, &angle_z, att_gyro, acc_camera, gyro_camera);
+                int search_state = DataFusion::Instance().GetTimestampData(rod_acc_data.timestamp, vehicle_pos, att, &angle_z, att_gyro, acc_camera, gyro_camera);                
                 if(search_state == 1){
-                    printf("camera acc data: %f %f %f\n", acc_camera[0], acc_camera[1], acc_camera[2] );
                     for(int i=0; i<3; i++ )
                         g_diff_acc[i] = rod_acc_data.acc[i] - acc_camera[i];
 
@@ -328,32 +326,24 @@ int CalculateDiffAcc()
                             g_diff_acc_average[i] += g_diff_acc[i]; // 计算均值
                          g_average_num_counter++;
                     }
-                    printf("rod acc data: %f %f %f\n", rod_acc_data.acc[0], rod_acc_data.acc[1], rod_acc_data.acc[2] );
-//                    printf("camera acc data: %f %f %f\n", acc_camera[0], acc_camera[1], acc_camera[2] );
-                    printf("Rod&Camera_diff_acc--loop index: %03d, value index: %03d, data: %f %f %f\n", g_turnlamp_detect_delay_counter, g_average_num_counter, g_diff_acc[0], g_diff_acc[1], g_diff_acc[2] );
                 }else{
-                    printf("!!! no new camera acc data\n");
+//                     printf("!!! no new camera acc data, state: %d\n", search_state);
                 }
-                g_turnlamp_detect_delay_counter += 1;
+                g_turnlamp_detect_delay_counter++;
             }else {
-                if(g_average_num_counter>=3){ // 打印均值
+                if(g_average_num_counter>=g_turnlamp_detect_delay_num*0.3){ // 打印均值
                     for(int i=0; i<3; i++ )
                         g_diff_acc_average[i] = g_diff_acc_average[i]/g_average_num_counter;
                 }else{
                     // 没有足够符合规则的数据
                     memset(g_diff_acc_average, 0, sizeof(g_diff_acc_average));
-                    printf("!!!! no enough data to calculate diff_acc_average\n ");
+//                     printf("!!!! no enough data to calculate diff_acc_average\n ");
                     return -1;                    
                 }
-                g_calculate_new_acc_diff_mean = false; // 结束这次的计算
-
-                VLOG(VLOG_INFO)<<"Main--"<<"average num: "<<g_average_num_counter<<endl;
-                VLOG(VLOG_INFO)<<"Main--"<<"mean Fmu&Camera_diff_acc = "<<g_diff_acc_average[0]<<", "<<g_diff_acc_average[1]<<", "<<g_diff_acc_average[2]<<endl;
-                printf("mean nums = %02d, g_diff_acc = %f %f %f\n", g_average_num_counter, g_diff_acc_average[0], g_diff_acc_average[1], g_diff_acc_average[2]);
-                
+                g_calculate_new_acc_diff_mean = false; // 结束这次的计算            
+//                 printf("mean nums = %02d, g_diff_acc = %f %f %f\n", g_average_num_counter, g_diff_acc_average[0], g_diff_acc_average[1], g_diff_acc_average[2]);
                 return 1;
             }
-
             // 为了防止无限循环
             if(g_turnlamp_detect_delay_counter > g_turnlamp_detect_delay_num*2){
                 g_calculate_new_acc_diff_mean = false;
@@ -434,33 +424,39 @@ void CalculateTurnlampThreshold()
 // 判断是左还是右转向
 void DiagnoseLeftRightTurnlamp()
 {
+//     cout<<"init state: rotation_init: "<<g_rotation_init_ok<<" rod_self_shift_threshold:  "<<g_rod_self_shift_threshold_ok<<" turnlamp_threshold: "<<g_turnlamp_threshold_ok<<endl;
     if(g_rotation_init_ok && g_rod_self_shift_threshold_ok && g_turnlamp_threshold_ok){
         //根据所处的区间进行判断
         if(g_acc_diff_left_threshold[g_acc_diff_key_index] >= g_acc_diff_right_threshold[g_acc_diff_key_index]){
             // 分布情况: right|middle|left
             if(g_diff_acc_average[g_acc_diff_key_index] > DIFF_ACC_ERROR_RATIO*g_acc_diff_left_threshold[g_acc_diff_key_index]){
                 g_turnlamp_setect_state = 1;
-                printf("!!!!------LEFT------!!!!!\n");
             }else if(g_diff_acc_average[g_acc_diff_key_index] < DIFF_ACC_ERROR_RATIO*g_acc_diff_right_threshold[g_acc_diff_key_index]){
                 g_turnlamp_setect_state = -1;
-                printf("!!!!------RIGHT------!!!!!\n");
-            }else{
+               }else{
                 g_turnlamp_setect_state = 0;
-                printf("!!!!------Middle------!!!!!\n");
             }
-        }else if(g_acc_diff_left_threshold[g_acc_diff_key_index] < g_acc_diff_left_threshold[g_acc_diff_key_index]){
+        }else if(g_acc_diff_left_threshold[g_acc_diff_key_index] < g_acc_diff_right_threshold[g_acc_diff_key_index]){
             // 分布情况: left|middle|right
             if(g_diff_acc_average[g_acc_diff_key_index] < DIFF_ACC_ERROR_RATIO*g_acc_diff_left_threshold[g_acc_diff_key_index]){
                 g_turnlamp_setect_state = 1;
-                printf("!!!!------LEFT------!!!!!\n");
-            }else if(g_diff_acc_average[g_acc_diff_key_index] > DIFF_ACC_ERROR_RATIO*g_acc_diff_right_threshold[g_acc_diff_key_index]){
+              }else if(g_diff_acc_average[g_acc_diff_key_index] > DIFF_ACC_ERROR_RATIO*g_acc_diff_right_threshold[g_acc_diff_key_index]){
                 g_turnlamp_setect_state = -1;
-                printf("!!!!------RIGHT------!!!!!\n");
             }else{
                 g_turnlamp_setect_state = 0;
-                printf("!!!!------Middle------!!!!!\n");
             }
         }
+        
+        if(g_turnlamp_state_pre != g_turnlamp_setect_state){
+            g_turnlamp_state_pre = g_turnlamp_setect_state;
+            if(g_turnlamp_setect_state == 0)
+                printf("!!!!------Middle------!!!!!\n");
+            else if(g_turnlamp_setect_state == -1)
+                printf("!!!!------RIGHT------!!!!!\n");
+            else if(g_turnlamp_setect_state == 1)
+                printf("!!!!------LEFT------!!!!!\n");
+        }
+            
 
         // 基于差值判断  这个不是很合理
         // 判断left or right

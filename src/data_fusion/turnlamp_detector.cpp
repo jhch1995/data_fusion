@@ -25,6 +25,11 @@ void TurnlampDetector::Init( )
     memset(&m_rod_imu_data_pre, 0, sizeof(m_rod_imu_data_pre));
     m_is_first_detect_rod_shift = true;
     m_rod_shift_state = 0;
+    
+    //低通滤波
+    m_is_first_rod_acc_filter = true; // 是否是第一次进行低通滤波
+    memset(m_rod_acc_pre, 0, sizeof(m_rod_acc_pre));
+    m_acc_data_timestamp_pre = 0.0;
 
     // 计算自检测阈值
     m_rod_self_detect_threshold[0] = 5.0;
@@ -161,7 +166,7 @@ int TurnlampDetector::DetectRodShift()
         if(fabs(m_d_rod_acc[0])*m_rod_self_detect_threshold_weight[0]>=m_rod_self_detect_threshold[0] || fabs(m_d_rod_acc[1])*m_rod_self_detect_threshold_weight[1]>=m_rod_self_detect_threshold[1]
             || fabs(m_d_rod_acc[2])*m_rod_self_detect_threshold_weight[2]>=m_rod_self_detect_threshold[2]){
             VLOG(VLOG_INFO)<<"DetectRodShift--"<<"rod_d_acc = "<<m_d_rod_acc[0]<<" "<<m_d_rod_acc[1]<<" "<<m_d_rod_acc[2]<<" "<<endl;
-            printf("Detect Rod Shift: m_d_rod_acc= %f %f %f\n",m_d_rod_acc[0], m_d_rod_acc[1], m_d_rod_acc[2]);
+//             printf("Detect Rod Shift: m_d_rod_acc= %f %f %f\n",m_d_rod_acc[0], m_d_rod_acc[1], m_d_rod_acc[2]);
             return 1;
         }
     }
@@ -261,38 +266,38 @@ int TurnlampDetector::ReadFmuDataFromLog( )
 // 1: fmu数据更新
 int TurnlampDetector::ReadRodDataOnline( )
 {
-    double acc_data_raw[3], acc_data_ned[3], acc_data_ned_new[3];
-    double rod_timestamp;
-     
+    double acc_data_raw[3],acc_data_ned_new[3];
+    
     ROD_DATA rod_data[20];
     int read_rod_state = HalIO::Instance().ReadRodData(rod_data, 20);
     if(read_rod_state){
         // 比例因子缩放 和 坐标系变换
         for(int k=0; k<3; k++){
-            acc_data_ned[k] = rod_data[read_rod_state-1].acc[k]*m_accel_range_scale;  // scale: fmu /100
+            acc_data_raw[k] = rod_data[read_rod_state-1].acc[k]*m_accel_range_scale*ONE_G;  // scale: fmu /100
+        }
+        double time_cur = rod_data[read_rod_state-1].tv.tv_sec + rod_data[read_rod_state-1].tv.tv_usec*1e-6;
+
+        Array3Rotation(m_R_rod2camera, acc_data_raw, acc_data_ned_new);
+        // LowpassFilter3f
+        if(m_is_first_rod_acc_filter){
+            memcpy(m_rod_acc_pre, acc_data_ned_new, sizeof(acc_data_ned_new));
+            m_is_first_rod_acc_filter = false;
+            m_acc_data_timestamp_pre = time_cur;
         }
 
-        Array3Rotation(m_R_rod2camera, acc_data_ned, acc_data_ned_new);
-        m_rod_imu_data.timestamp = rod_data[0].tv.tv_sec + rod_data[0].tv.tv_usec*1e-6;
-        memcpy(m_rod_imu_data.acc, acc_data_ned_new, sizeof(m_rod_imu_data.acc));
-
+        double dt = time_cur - m_acc_data_timestamp_pre;
+        double acc_data_filter[3];
+        LowpassFilter3f(m_rod_acc_pre, acc_data_ned_new, dt, 10, acc_data_filter);  
+        memcpy(m_rod_imu_data.acc, acc_data_filter, sizeof(acc_data_filter));
+        m_rod_imu_data.timestamp = time_cur;
+        
+        //update
+        m_acc_data_timestamp_pre = time_cur;
+        memcpy(m_rod_acc_pre, acc_data_filter, sizeof(acc_data_filter));
         return 1;        
     }
     return 0;
 }
-
-
-//int TurnlampDetector::CalibrateAccData(const double acc_data_raw[3], double acc_data_ned[3] )
-//{
-//    double acc_data_t[3], acc_data_raw_t[3];
-//    // IMU原始坐标系-->大地坐标系(NED)
-//    acc_data_ned[0] = acc_data_raw[0]*m_accel_range_scale;
-//    acc_data_ned[1] = acc_data_raw[1]*m_accel_range_scale;
-//    acc_data_ned[2] = acc_data_raw[2]*m_accel_range_scale;
-
-//    return 1;
-//}
-
 
 
 // 两个IMU相互之间坐标转换矩阵
@@ -441,7 +446,7 @@ int TurnlampDetector:: CalculateRodSelfDetectThreshold( )
         }
 
         for(int i=0; i<3; i++)
-            m_rod_self_detect_threshold[i] = rod_acc_t[i]/ROD_ACC_THRESHOLD_SIZE/4; // 为了均衡
+            m_rod_self_detect_threshold[i] = rod_acc_t[i]/ROD_ACC_THRESHOLD_SIZE/8; // 为了均衡
         m_is_rod_self_detect_threshold_start = false;
 
         // 挑选最大的权值对应的轴

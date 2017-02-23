@@ -19,7 +19,7 @@ ELSEIF(ANDROID_ABI)
 #             gflags
 #             -Wl,--end-group
 #     )
-    ADD_EXECUTABLE(turnlamp_detection "./turnlamp_detection_main.cpp")
+    ADD_EXECUTABLE(turnlamp_detection "./turnlamp_detection_main_new.cpp")
     TARGET_LINK_LIBRARIES(turnlamp_detection  
                           -Wl,--start-group
                           data_fusion halio

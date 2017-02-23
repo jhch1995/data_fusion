@@ -33,9 +33,9 @@ void SaveVn300Data( );
 
 void SaveExData( );
 
+void SaveRodData( );
 
 void init();
-
 
 //---------------------variable--------------------------------//
 string g_att_log = "/storage/sdcard1/att.txt";  // = "./gflags.flag";
@@ -49,6 +49,12 @@ MatrixXd g_acc_calibrate_sequence(6,3);// 校准的acc的哪个面
     DEFINE_string(log_dir, "./log/", " ");
     DEFINE_int32(v, 0, " ");
 #endif
+    
+// 低通滤波
+bool g_is_first_rod_acc_filter = true; // 是否是第一次进行低通滤波
+double g_rod_acc_pre[3];
+double g_rod_acc_timestamp_pre;
+double g_rod_acc_range_scale = 8.0/32768;
 
 int main(int argc, char *argv[])
 {
@@ -64,10 +70,11 @@ int main(int argc, char *argv[])
 
     #if !defined(DATA_FROM_LOG)
         while(1){
-            SaveVn300Data();
-            SaveExData();
+            //SaveVn300Data();
+            //SaveExData();
+            SaveRodData();
             SaveImuAttData();
-            usleep(20000);
+            usleep(10000);
         }
     #endif
     
@@ -82,7 +89,7 @@ void init()
         #if defined(ANDROID)
             FLAGS_v = 0;
         #else
-            FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
+            FLAGS_v = 0; //VLOG_DEBUG; // 设置VLOG打印等级;
             FLAGS_log_dir = "./log/";
         #endif
     #endif
@@ -113,7 +120,6 @@ void init()
     }
     halio.EnableFMU(); // 使能CAN对应的filter 
 }
-
 
 // 获取当前循环需要读取数据的时间
 void GetTimeS(double* timestamp)
@@ -146,8 +152,8 @@ void SaveImuAttData()
 //        printf("att: %5.2f %5.2f %5.2f att_acc: %5.2f %5.2f\n", att[0]*R2D, att[1]*R2D, att[2]*R2D, acc_angle[0]*R2D, acc_angle[1]*R2D);
         if (g_file_log.is_open()) {
            char buffer[100];
-           sprintf(buffer, "att %f %5.2f %5.2f %5.2f\n", timestamp-0.01, att[0]*R2D, att[1]*R2D, att[2]*R2D);
-           g_file_log << buffer;
+//            sprintf(buffer, "att %f %5.2f %5.2f %5.2f\n", timestamp-0.01, att[0]*R2D, att[1]*R2D, att[2]*R2D);
+//            g_file_log << buffer;
            
            memset(buffer, 0, sizeof(buffer));
            sprintf(buffer, "imu %f %f %f %f %f %f %f\n", timestamp-0.01, acc_camera[0], acc_camera[1], acc_camera[2], gyro_camera[0], gyro_camera[1], gyro_camera[2]);
@@ -155,8 +161,8 @@ void SaveImuAttData()
            
         }
 
-        if(g_is_print_data)
-            printf("att: %5.2f %5.2f %5.2f att_acc: %5.2f %5.2f\n", att[0]*R2D, att[1]*R2D, att[2]*R2D, acc_angle[0]*R2D, acc_angle[1]*R2D);
+//         if(g_is_print_data)
+//             printf("att: %5.2f %5.2f %5.2f att_acc: %5.2f %5.2f\n", att[0]*R2D, att[1]*R2D, att[2]*R2D, acc_angle[0]*R2D, acc_angle[1]*R2D);
 
     }
 }
@@ -205,6 +211,44 @@ void SaveExData( )
 
         if(g_is_print_data)
             printf("fmu: %5.2f %5.2f %5.2f\n", att[0], att[1], att[2]);
+    }
+}
+
+void SaveRodData( )
+{
+    double acc_data_ned_new[3];
+     
+    ROD_DATA rod_data[20];
+    int read_rod_state = HalIO::Instance().ReadRodData(rod_data, 20);
+    if(read_rod_state){
+        // 比例因子缩放 和 坐标系变换
+        for(int k=0; k<3; k++){
+            acc_data_ned_new[k] = rod_data[read_rod_state-1].acc[k]*g_rod_acc_range_scale*ONE_G;  // scale: fmu /100
+        }
+        double time_cur = rod_data[read_rod_state-1].tv.tv_sec + rod_data[read_rod_state-1].tv.tv_usec*1e-6;
+
+        // LowpassFilter3f
+        if(g_is_first_rod_acc_filter){
+            memcpy(g_rod_acc_pre, acc_data_ned_new, sizeof(acc_data_ned_new));
+            g_is_first_rod_acc_filter = false;
+            g_rod_acc_timestamp_pre = time_cur;
+        }
+
+        double dt = time_cur - g_rod_acc_timestamp_pre;
+        double acc_data_filter[3];
+        LowpassFilter3f(g_rod_acc_pre, acc_data_ned_new, dt, 10, acc_data_filter);      
+        
+        if (g_file_log.is_open()) {
+            char buffer[100];
+                 sprintf(buffer, "rod %f %5.2f %5.2f %5.2f\n",time_cur, acc_data_filter[0], acc_data_filter[1], acc_data_filter[2]);
+            g_file_log << buffer;
+        }          
+        if(g_is_print_data)
+            printf("rod: %5.2f %5.2f %5.2f\n", acc_data_filter[0], acc_data_filter[1], acc_data_filter[2]);
+                
+        //update
+        g_rod_acc_timestamp_pre = time_cur;
+        memcpy(g_rod_acc_pre, acc_data_filter, sizeof(acc_data_filter));      
     }
 }
 
