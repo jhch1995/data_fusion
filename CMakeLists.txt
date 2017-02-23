@@ -55,6 +55,7 @@ ELSE()
 	MESSAGE(STATUS "set the imu mode: new camera!!")
 ENDIF()
 
+ADD_DEFINITIONS(-DUSE_GLOG)
 
 ######################### packet ###########################
 #LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_ROOT_PATH}/cmake) # 这个时ORB_SLAM2中的用法
@@ -75,11 +76,10 @@ IF (MSVC)
 ELSEIF (ANDROID_ABI)
     MESSAGE(STATUS "DEFINE: ANDORID platform")
     ADD_DEFINITIONS(-DANDROID)
-    ADD_DEFINITIONS(-DUSE_GLOG)
     ADD_CUSTOM_TARGET(MINIEYE_VERSION COMMAND ${SCRIPTS_PATH}/version.sh |tee ${PROJECT_ROOT_PATH}/version.h.in)
 ELSEIF (UNIX)
+    ADD_DEFINITIONS(-DDATA_FROM_LOG)
     MESSAGE(STATUS "DEFINE: UNIX platform")
-
     OPTION(SET_OPENCV_LIB_ADDR "switch for change opencv library address" OFF)
     IF (SET_OPENCV_LIB_ADDR)
         SET(OpenCV_DIR "/home/yj/bak/packet/opencv/opencv-3.1-install/share/OpenCV")
@@ -90,7 +90,6 @@ ELSEIF (UNIX)
     ENDIF()
 
     FIND_PACKAGE(OpenCV REQUIRED)
-    ADD_DEFINITIONS(-DUSE_GLOG)
 ENDIF ()
 
 IF (WIN32)

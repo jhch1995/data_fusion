@@ -15,9 +15,9 @@ public:
 
     ~ImuModule();
 
-    void ImuModule_Init(); 
+    void Init(); 
 
-    void ImuModule_Destory( );
+    void Destory( );
 
     // timestamp_search in microseconds
     // 1: 数据正常

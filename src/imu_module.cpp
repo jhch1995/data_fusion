@@ -12,15 +12,15 @@ ImuModule::~ImuModule() {
     m_data_fusion = NULL;
 }
 
-void ImuModule::ImuModule_Init() 
+void ImuModule::Init() 
 {
-    m_data_fusion->DataFusion_Init();
+    m_data_fusion->Init();
     
 }
 
-void ImuModule::ImuModule_Destory( )
+void ImuModule::Destory( )
 {
-    m_data_fusion->DataFusion_Destory();
+    m_data_fusion->Destory();
 }
 
 int ImuModule::GetTurnRadius(const int64_t &timestamp_search, double *R) {

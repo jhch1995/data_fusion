@@ -10,7 +10,6 @@
 
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
-#include "glog/logging.h"
 #include "common/base/stdint.h"
 #include "common/base/log_level.h"
 #include "common/time/time_utils.h"

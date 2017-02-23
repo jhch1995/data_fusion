@@ -6,7 +6,7 @@ namespace imu {
 
 DataFusion::DataFusion()
 {
-//    DataFusion_Init();
+
 }
 
 DataFusion::~DataFusion()
@@ -14,7 +14,7 @@ DataFusion::~DataFusion()
 
 }
 
-void DataFusion::DataFusion_Init( )
+void DataFusion::Init( )
 {
     // IMU
     m_imu_sample_hz = 100.0;
@@ -126,6 +126,7 @@ void DataFusion::DataFusion_Init( )
             m_imu_attitude_estimate.SetImuParameter(imu_parameter);
         }
     #endif
+    
 
     // 判断是从murata读数据还是mpu6500
     #if defined(DATA_FROM_MURATA)
@@ -137,7 +138,7 @@ void DataFusion::DataFusion_Init( )
     StartDataFusionTask();
 }
 
-void DataFusion::DataFusion_Destory( )
+void DataFusion::Destory( )
 {
     StopDataFusionTask();     
 }
