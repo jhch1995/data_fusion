@@ -802,7 +802,7 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
 
 // 给外部调用的接口:特征点预测
 // 1: 数据正常
-// 0: 没有找到合适数据
+// 0: 没有数据
 // -1:int_timestamp_search < all_data_time 落后
 // -2:int_timestamp_search > all_data_time 超前
 int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur,
