@@ -28,22 +28,22 @@ ELSEIF(ANDROID_ABI)
                          -Wl,--end-group
     )
 
-    ADD_EXECUTABLE(att_test  "./att_test.cpp")
-    TARGET_LINK_LIBRARIES(att_test
-            -Wl,--start-group
-            data_fusion halio
-            ${ARM_LIBS}
-            gflags
-            -Wl,--end-group
-    )
+#     ADD_EXECUTABLE(att_test  "./att_test.cpp")
+#     TARGET_LINK_LIBRARIES(att_test
+#             -Wl,--start-group
+#             data_fusion halio
+#             ${ARM_LIBS}
+#             gflags
+#             -Wl,--end-group
+#     )
 
-    ADD_EXECUTABLE(att_print  "./att_print.cpp")
-    TARGET_LINK_LIBRARIES(att_print
-            -Wl,--start-group
-            data_fusion 
-            ${ARM_LIBS}
-            -Wl,--end-group
-    )
+#     ADD_EXECUTABLE(att_print  "./att_print.cpp")
+#     TARGET_LINK_LIBRARIES(att_print
+#             -Wl,--start-group
+#             data_fusion 
+#             ${ARM_LIBS}
+#             -Wl,--end-group
+#     )
 ELSEIF (UNIX)
     MESSAGE(STATUS "LINK: UNIX")
     ADD_EXECUTABLE(lane_tracking "./lane_tracking_test_main.cpp")
@@ -61,11 +61,11 @@ ELSEIF (UNIX)
                           gflags glog  pthread
                           opencv_imgcodecs opencv_core opencv_highgui )
                           
-    ADD_EXECUTABLE(vo_imu_att "./VO_IMU_att_main.cpp")
-    TARGET_LINK_LIBRARIES(vo_imu_att 
-                          VO data_fusion halio
-                          concurrency relative_locate time gflags glog
-                          opencv_imgcodecs opencv_core opencv_highgui pthread)
+#     ADD_EXECUTABLE(vo_imu_att "./VO_IMU_att_main.cpp")
+#     TARGET_LINK_LIBRARIES(vo_imu_att 
+#                           VO data_fusion halio
+#                           concurrency relative_locate time gflags glog
+#                           opencv_imgcodecs opencv_core opencv_highgui pthread)
 
 
 #    ADD_EXECUTABLE(producer_consumer "./proudcer_consumer_test_main.cpp")
