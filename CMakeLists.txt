@@ -13,7 +13,7 @@ ENDIF ()
 SET(PROJECT_ROOT_PATH "${CMAKE_SOURCE_DIR}")
 MESSAGE(STATUS ${PROJECT_ROOT_PATH})
 SET(EXECUTABLE_OUTPUT_PATH "${PROJECT_BINARY_DIR}/bin")
-SET(LIBRARY_OUTPUT_PATH "${PROJECT_ROOT_PATH}/lib/")
+SET(LIBRARY_OUTPUT_PATH "${PROJECT_BINARY_DIR}/lib/")
 
 ######################### configuration ###########################
 OPTION(USE_GSENSOR_LOG_SWITCH "switch for using chip-gsensor-data instantly OR from gsensor-log" OFF)
@@ -123,6 +123,7 @@ ELSEIF (UNIX)
             "${OpenCV_INSTALL_PATH}/include"
             "${PROJECT_ROOT_PATH}/thirdparty/gflags/linux/include/"
             "${PROJECT_ROOT_PATH}/thirdparty/glog/linux/include/"
+            "${PROJECT_ROOT_PATH}/thirdparty/rapidjson-1.1.0/include/"
             "${PROJECT_ROOT_PATH}/src/"
             "${PROJECT_ROOT_PATH}/src/data_fusion/"
             "${PROJECT_ROOT_PATH}/src/VO/"
