@@ -11,11 +11,21 @@ DataFusion::DataFusion()
 
 DataFusion::~DataFusion()
 {
-#if defined(DATA_FROM_LOG)
-    infile_log.close();
-#endif
-    m_is_running = false;
-    m_fusion_thread.StopAndWaitForExit();
+//     m_thread_rw_lock.WriterLock();
+//     cout<<"~DataFusion in "<<endl;
+// #if defined(DATA_FROM_LOG)
+//     infile_log.close();
+// #endif
+//     
+//     cout<<"~DataFusion doing1"<<endl;
+//     m_is_running = false;
+//     bool state = m_fusion_thread.StopAndWaitForExit();
+//     cout<<"~DataFusion doing2"<<endl;
+//     if(state)
+//         m_thread_rw_lock.WriterUnlock();
+//     else
+//         cout<<"waiting for release!! "<<state<<endl;
+//     cout<<"~DataFusion: "<<state<<endl;
 }
 
 void DataFusion::Init( )
@@ -149,11 +159,26 @@ void DataFusion::StartDataFusionTask()
     m_fusion_thread.AddTask(cls);
 }
 
+// 停止线程
+void DataFusion::StopDataFusionTask()
+{
+    #if defined(DATA_FROM_LOG)
+        infile_log.close();
+    #endif    
+
+//     m_thread_rw_lock.WriterLock();
+    m_is_running = false;
+    m_fusion_thread.StopAndWaitForExit();
+//     m_thread_rw_lock.WriterUnlock();
+
+}
+
 // 线程循环执行的函数
 void DataFusion::RunFusion( )
 {
     struct timeval time_counter_start;
     int64_t run_fusion_period_us = 1e6/m_imu_sample_hz;// 数据生成的频率是m_imu_sample_hz， 读取数据的频率最好时2×m_imu_sample_hz，保证数据的实时性
+    m_thread_rw_lock.ReaderLock(); // 读写锁，为了析构函数
     while (m_is_running) {
         if(m_init_state == 1){
             gettimeofday(&time_counter_start, NULL); // 用于控制频率
@@ -183,6 +208,7 @@ void DataFusion::RunFusion( )
             LOG(ERROR)<<"DF:init imu failed!!!"<<endl;
         }
     }
+    m_thread_rw_lock.ReaderUnlock();
 }
 
 // 线程循环周期控制

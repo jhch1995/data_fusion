@@ -50,14 +50,14 @@ int main(int argc, char *argv[])
             acc_angle[0] = (atan2f(-acc_camera[1], -acc_camera[2]));       // Calculating pitch ACC angle
             acc_angle[1] = (atan2f(acc_camera[0], sqrtf(acc_camera[2]*acc_camera[2] + acc_camera[1]*acc_camera[1])));   //Calculating roll ACC angle  
             printf("attitude %5.2f %5.2f\n", att[0]*R2D, att[1]*R2D);
-//            printf("acc_camera %5.2f %5.2f\n", acc_angle[0]*R2D, acc_angle[1]*R2D);
-            return 0;
+            break;
         }else{
             printf("state: %d \n", search_state);
         }
         usleep(20000);
     }
     
+    data_fusion.StopDataFusionTask();
     return 0;
 }
 
@@ -67,7 +67,7 @@ void init()
         #if defined(ANDROID)
             FLAGS_v = 0;
         #else
-            FLAGS_v = VLOG_DEBUG; // 设置VLOG打印等级;
+            FLAGS_v = 0; //VLOG_DEBUG; // 设置VLOG打印等级;
             FLAGS_log_dir = "./log/";
         #endif
     #endif

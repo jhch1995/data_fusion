@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -7,12 +8,15 @@
 #include <queue>
 #include <dirent.h>
 #include <time.h>
+#include <iomanip>
+#include <stdexcept>
+#include <unistd.h> // sleep header
 
 #include "opencv2/opencv.hpp"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "common/base/stdint.h"
-#include "common/math/polyfit.h"
+// #include "common/math/polyfit.h"
 #include "common/base/log_level.h"
 #include "common/relative_locate/relative_locate.h"
 #include "common/relative_locate/bird_perspective_mapping.h"
@@ -21,6 +25,7 @@
 #include "data_fusion.h"
 #include "datafusion_math.h"
 #include "imu_module.h"
+#include "visual_odometry.h"
 
 using namespace std;
 using namespace cv;
@@ -44,47 +49,43 @@ DEFINE_double(x_res, 0.03, "x resolution");
 DEFINE_double(y_res, 0.08, "y resolution");
 
 //DEFINE_string(flagfile, "./data/doing/frame/detect.flag", " parameter address ");
+void Init();
 
 void LoadImage(cv::Mat* image, string image_name);
 
-// å¯¹å›¾ç‰‡è¿›è¡ŒIPMå˜åŒ–
+// ¶ÔÍ¼Æ¬½øĞĞIPM±ä»¯
 void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para);
 
 void image_IPM_color(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para);
 
-
-// è·å–æŒ‡å®šè·¯å¾„ä¸‹æ‰€æœ‰æ–‡ä»¶
+// »ñÈ¡Ö¸¶¨Â·¾¶ÏÂËùÓĞÎÄ¼ş
 string get_file_name(string file_path);
 
-// è·å–å›¾ç‰‡æ–‡ä»¶å¤¹ä¸­æ‰€æœ‰çš„å›¾ç‰‡çš„æœ€å¤§æœ€å°åºå·
+// »ñÈ¡Í¼Æ¬ÎÄ¼ş¼ĞÖĞËùÓĞµÄÍ¼Æ¬µÄ×î´ó×îĞ¡ĞòºÅ
 bool get_max_min_image_index(int &max_index, int &min_index, string file_path);
 
-// åœ¨IPMå›¾ä¸Šç”»è½¦é“çº¿
+// ÔÚIPMÍ¼ÉÏ»­³µµÀÏß
 void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  cv::Mat &ipm_image );
 
 void mark_IPM_radius_color(const IPMPara ipm_para, const double R, const Vec3b value_vec,  cv::Mat &ipm_image );
-
-
 
 void do_get_turn_radius();
 
 TimeUtils f_time_counter;
 double g_R_cur;
-double image_timestamp;
+double g_image_timestamp;
 double vehicle_L = 2.637;
 
 int main(int argc, char *argv[])
-{
-    //è§£æ
-    google::ParseCommandLineFlags(&argc, &argv, true);
+{   
+    google::ParseCommandLineFlags(&argc, &argv, true); //½âÎö
+    google::InitGoogleLogging(argv[0]);// ³õÊ¼»¯
+    
+    Init();
 
-    // åˆå§‹åŒ–
-    google::InitGoogleLogging(argv[0]);
-    FLAGS_log_dir = "./log/";
-
-    // è¯»å…¥logå’Œå›¾ç‰‡è·¯å¾„
+    // ¶ÁÈëlogºÍÍ¼Æ¬Â·¾¶
     string str_image_frame_add = FLAGS_jpg_data_addr; // jpg
-    ifstream infile_log(FLAGS_log_data_addr.c_str());       // æŒ‡å®šlogçš„è·¯å¾„
+    ifstream infile_log(FLAGS_log_data_addr.c_str());       // Ö¸¶¨logµÄÂ·¾¶
     string buffer_log;
     string data_flag;
     stringstream ss_log;
@@ -112,27 +113,32 @@ int main(int argc, char *argv[])
     ipm_para.y_scale = FLAGS_y_res;
     bp_mapping.GetUVLimitsFromXY(&ipm_para);
 
-    // è®¾ç½®VLOGæ‰“å°ç­‰çº§
-    #if defined(USE_GLOG)
-//        FLAGS_v = VLOG_DEBUG;
-        FLAGS_v = 0;
-    #endif
-
-
-// åˆå§‹åŒ–èåˆå‡½æ•°
-//    DataFusion data_fusion;
-//    data_fusion.StartDataFusionTask();
-    ImuModule::Instance().StartDataFusionTask();
-
-    string frame_file_name = get_file_name(str_image_frame_add); // è¯»å–å›¾åƒæ‰€åœ¨æ–‡ä»¶å¤¹åå­—
-    string frame_file_addr = str_image_frame_add + "/" + frame_file_name;// è·å–å›¾ç‰‡çš„max,min index
+    // ½øĞĞÊı¾İÈÚºÏµÄÀà
+    DataFusion &data_fusion = DataFusion::Instance();
+    data_fusion.StartDataFusionTask();
+    
+    //¶¨ÒåÏà»ú
+	double width = 1280;
+	double height = 720;
+	double fx = 1430.55007;
+	double fy = 1430.33280;
+	double cx = 646.9; 
+	double cy = 370.9;
+    PinholeCamera *cam = new PinholeCamera(width, height, fx, fy, cx, cy);
+	VisualOdometry vo(cam);
+ 
+    string frame_file_name = get_file_name(str_image_frame_add); // ¶ÁÈ¡Í¼ÏñËùÔÚÎÄ¼ş¼ĞÃû×Ö
+    string frame_file_addr = str_image_frame_add + "/" + frame_file_name;// »ñÈ¡Í¼Æ¬µÄmax,min index
     int max_frame_index, min_frame_index;
     get_max_min_image_index(max_frame_index, min_frame_index, frame_file_addr);
 
-    // å¤–éƒ¨å¾ªç¯æ§åˆ¶
+    // Íâ²¿Ñ­»·¿ØÖÆ
     int image_index_start = 1;
-    int image_cal_step = 5;// æ¯éš”å¤šå°‘å¸§è®¡ç®—ä¸€æ¬¡
-    bool is_camera_index_mached = 0; // æ˜¯å¦å·²ç»ä»logä¸­å¯»æ‰¾åˆ°å½“å‰å›¾åƒçš„åŒ¹é…çš„æ—¶é—´æˆ³
+    int image_cal_step = 5;// Ã¿¸ô¶àÉÙÖ¡¼ÆËãÒ»´Î
+    std::cout<<"please input the image_index_step: "<<endl;
+    std::cin >> image_cal_step;
+    std::cout<< "the step: "<<image_cal_step<<endl;
+    bool is_camera_index_mached = 0; // ÊÇ·ñÒÑ¾­´ÓlogÖĞÑ°ÕÒµ½µ±Ç°Í¼ÏñµÄÆ¥ÅäµÄÊ±¼ä´Á
     for(int image_index = image_index_start; image_index <= max_frame_index; image_index += image_cal_step){
         is_camera_index_mached = 0;
         double log_data_t[2];
@@ -143,16 +149,19 @@ int main(int argc, char *argv[])
             ss_tmp>>log_data_t[0]>>log_data_t[1]>>data_flag;
             ss_log.clear();
             ss_log.str(buffer_log);
-
-            if(data_flag == "cam_frame"){
+            
+            if(data_flag == "gsensor"){
+                // TODO:
+                
+            }else if(data_flag == "cam_frame"){
                 double camera_raw_timestamp[2];
                 string camera_flag, camera_add, image_index_str;
                 string image_name;
                 int log_image_index;
                 ss_log>>camera_raw_timestamp[0]>>camera_raw_timestamp[1]>>camera_flag>>camera_add>>log_image_index;
-                image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6;
+                g_image_timestamp = camera_raw_timestamp[0] + camera_raw_timestamp[1]*1e-6;
 
-                // åŒ¹é…å›¾ç‰‡çš„æ—¶é—´æˆ³
+                // Æ¥ÅäÍ¼Æ¬µÄÊ±¼ä´Á
                 int pos1 = camera_add.find_last_of('_');
                 int pos2 = camera_add.find_last_of('.');
                 string log_str_file_name = camera_add.substr(pos1+1, pos2-1-pos1);
@@ -160,50 +169,57 @@ int main(int argc, char *argv[])
                     is_camera_index_mached = 1;
                     VLOG(VLOG_INFO)<<"image_index: "<<image_index;
 
-                    // è¯»å–å›¾ç‰‡
-                    char str_iamge_name_index[20]; // æ–°æ•°æ®æ ¼å¼ï¼Œè¡¥å…¨8ä½
-                    sprintf(str_iamge_name_index, "%08d", image_index);
-                    image_name = frame_file_addr + "/" + str_iamge_name_index + ".jpg";
-
-                    // IPM
-//                    cv::Mat org_image;
-//                    LoadImage(&org_image, image_name);
-//                    cv::Mat ipm_image = cv::Mat::zeros(ipm_para.height+1, ipm_para.width+1, CV_32FC1);
-//                    image_IPM(ipm_image, org_image, ipm_para);
-
-                    // color IPM
-                    cv::Mat org_image_color = cv::imread(image_name, cv::IMREAD_COLOR);
-                    cv::Mat ipm_image_color(ipm_para.height+1, ipm_para.width+1, CV_8UC3);
-                    ipm_image_color.setTo(Scalar(0));
-                    image_IPM_color(ipm_image_color, org_image_color, ipm_para);
-
-                    // æ‰§è¡ŒæŸ¥è¯¢è½¬å¼¯åŠå¾„
-                    do_get_turn_radius();
-
-                    // ç”»è½¦é“çº¿  
-                    Vec3b value_vec(110, 255, 0); // ç»¿è‰²
-                    mark_IPM_radius_color(ipm_para, g_R_cur, value_vec, ipm_image_color);
+                    // ¶ÁÈ¡Í¼Æ¬
+                    char str_iamge_name_index[20]; // ĞÂÊı¾İ¸ñÊ½£¬²¹È«8Î»
+                    sprintf(str_iamge_name_index, "%06d", image_index);
+                    image_name = frame_file_addr + "/" + str_iamge_name_index + ".png";
+                    cv::Mat img(cv::imread(image_name.c_str(), 0));
+                    assert(!img.empty());                    
+                    vo.ProcessNewImage(img, image_index);// ´¦ÀíÖ¡
                     
-                    // ç”»å›¾åƒå…‰è½´ç›´çº¿
-                    Vec3b value_vec_1(250, 0, 0); // é»‘è‰²
-                    mark_IPM_radius_color(ipm_para, 0, value_vec_1, ipm_image_color);
+                    double diff_euler[3];
+                    vo.GetCurrentDiffEuler(diff_euler);
+                    std::cout<<"diff_angle: roll = "<<diff_euler[0]<<" pitch = "<<diff_euler[1]<<" yaw = "<<diff_euler[2]<<std::endl;
 
-//                    cv::imshow("ipm", ipm_image);
-                    cv::imshow("ipm", ipm_image_color);
-                    //æŒ‰é”®äº‹ä»¶ï¼Œç©ºæ ¼æš‚åœï¼Œå…¶ä»–è·³å‡ºå¾ªç¯
-                   int temp = cvWaitKey(100);
-                   if (temp == 32)
-                       while (cvWaitKey() == -1);
-                   else if (temp >= 0)
-                       break;
+                    cv::imshow("Road facing camera", img);        
+                    // °´¼üÌø³öÑ­»·
+                    while(-1 == cvWaitKey(2)){
+                        usleep(10000);
+                    }
+                    
+                    // Ö´ĞĞ²éÑ¯×ªÍä°ë¾¶
+                    do_get_turn_radius();
+                    
+                    // color IPM
+//                     cv::Mat org_image_color = cv::imread(image_name, cv::IMREAD_COLOR);
+//                     cv::Mat ipm_image_color(ipm_para.height+1, ipm_para.width+1, CV_8UC3);
+//                     ipm_image_color.setTo(Scalar(0));
+//                     image_IPM_color(ipm_image_color, org_image_color, ipm_para);    
+//                     cv::imshow("ipm", ipm_image_color);
+//                     //°´¼üÊÂ¼ş£¬¿Õ¸ñÔİÍ££¬ÆäËûÌø³öÑ­»·
+//                    int temp = cvWaitKey(100);
+//                    if (temp == 32)
+//                        while (cvWaitKey() == -1);
+//                    else if (temp >= 0)
+//                        break;
                 }
             }
         }
     }
 
+    delete cam;
     return 0;
 }
 
+void Init()
+{
+    FLAGS_log_dir = "./log/";
+    
+    // ÉèÖÃVLOG´òÓ¡µÈ¼¶
+    #if defined(USE_GLOG)
+        FLAGS_v = 0;
+    #endif
+}
 
 void LoadImage(cv::Mat* image, string image_name)
 {
@@ -216,7 +232,7 @@ void LoadImage(cv::Mat* image, string image_name)
 }
 
 
-// è·å–æŒ‡å®šè·¯å¾„ä¸‹çš„æ–‡ä»¶å(ä¸»è¦ç”¨äºè·å–å›¾ç‰‡æ‰€åœ¨æ–‡ä»¶å¤¹åå­—)
+// »ñÈ¡Ö¸¶¨Â·¾¶ÏÂµÄÎÄ¼şÃû(Ö÷ÒªÓÃÓÚ»ñÈ¡Í¼Æ¬ËùÔÚÎÄ¼ş¼ĞÃû×Ö)
 string get_file_name(string file_path)
 {
     DIR *dp;
@@ -243,7 +259,7 @@ string get_file_name(string file_path)
     }
 }
 
-// è¯»å–å›¾ç‰‡æ–‡ä»¶å¤¹ä¸­æ‰€æœ‰æ–‡ä»¶æœ€å°å’Œæœ€å¤§çš„index
+// ¶ÁÈ¡Í¼Æ¬ÎÄ¼ş¼ĞÖĞËùÓĞÎÄ¼ş×îĞ¡ºÍ×î´óµÄindex
 bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
 {
     DIR *dp;
@@ -280,7 +296,7 @@ bool get_max_min_image_index(int &max_index, int &min_index, string file_path)
 }
 
 
-// å›¾ç‰‡IPM
+// Í¼Æ¬IPM
 void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
 {
     for (int i = 0; i < ipm_para.height; ++i){
@@ -301,7 +317,7 @@ void image_IPM(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
     }
 }
 
-// å›¾ç‰‡IPM
+// Í¼Æ¬IPM
 void image_IPM_color(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
 {
     for (int i = 0; i < ipm_para.height; ++i){
@@ -323,17 +339,17 @@ void image_IPM_color(cv::Mat &ipm_image, cv::Mat org_image, IPMPara ipm_para)
 }
 
 
-//// æ ‡è®° IPM è½¬å¼¯åŠå¾„
+//// ±ê¼Ç IPM ×ªÍä°ë¾¶
 void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  cv::Mat &ipm_image )
 {
-    /// åœ¨IPMä¸­æ ‡æ³¨å½“å‰lane
+    /// ÔÚIPMÖĞ±ê×¢µ±Ç°lane
     std::vector<int> x(ipm_para.height+2);
     std::vector<int> y(ipm_para.height+2);
     double y_max_t, x_t;
     int u, v;
 
     if(R == 0)
-        y_max_t = ipm_para.y_limits[1];  // IPM æ¨ªå‘æ˜¯x
+        y_max_t = ipm_para.y_limits[1];  // IPM ºáÏòÊÇx
     else
          y_max_t = min(ipm_para.y_limits[1], fabs(R));
 
@@ -356,18 +372,18 @@ void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  c
     }
 }
 
-// åœ¨å½©å›¾ä¸Šæ ‡æ³¨R
-//// æ ‡è®° IPM è½¬å¼¯åŠå¾„
+// ÔÚ²ÊÍ¼ÉÏ±ê×¢R
+//// ±ê¼Ç IPM ×ªÍä°ë¾¶
 void mark_IPM_radius_color(const IPMPara ipm_para, const double R, const Vec3b value_vec,  cv::Mat &ipm_image )
 {
-    /// åœ¨IPMä¸­æ ‡æ³¨å½“å‰lane
+    /// ÔÚIPMÖĞ±ê×¢µ±Ç°lane
     std::vector<int> x(ipm_para.height+2);
     std::vector<int> y(ipm_para.height+2);
     double y_max_t, x_t;
     int u, v;
 
     if(R == 0)
-        y_max_t = ipm_para.y_limits[1];  // IPM æ¨ªå‘æ˜¯x
+        y_max_t = ipm_para.y_limits[1];  // IPM ºáÏòÊÇx
     else
          y_max_t = min(ipm_para.y_limits[1], fabs(R));
 
@@ -390,30 +406,20 @@ void mark_IPM_radius_color(const IPMPara ipm_para, const double R, const Vec3b v
 }
 
 
-// è·å–è½¬å¼¯åŠå¾„
+// »ñÈ¡×ªÍä°ë¾¶
 void do_get_turn_radius()
 {
-    int64 t_1, t_2;
-    int64 image_timestamp_cur_int = (int64)(image_timestamp*1000);
-
     int r_1 = -1;
-    int main_sleep_counter = 0; //  ä¸€æ¬¡å¤–éƒ¨è°ƒç”¨ï¼Œmain sleepçš„æ¬¡æ•°
+    int main_sleep_counter = 0; //  Ò»´ÎÍâ²¿µ÷ÓÃ£¬main sleepµÄ´ÎÊı
     while(r_1<0){
-        // æµ‹è¯•è¿è¡Œæ—¶é—´
-        t_1 = f_time_counter.Microseconds();
-//        r_1 = data_fusion.GetTurnRadius( image_timestamp_cur_int, &g_R_cur);
-        r_1 = ImuModule::Instance().GetTurnRadius( image_timestamp_cur_int*1000, &g_R_cur);
-        t_2 = f_time_counter.Microseconds();
-
-        int64 predict_cal_dt = (t_2 - t_1) ;
-        VLOG(VLOG_INFO)<<"DF:main- "<<"predict_cal_dt= "<<predict_cal_dt<<endl;
+        r_1 = DataFusion::Instance().GetTurnRadius( g_image_timestamp, &g_R_cur);
 
         if(main_sleep_counter > 0){
             printf("main timestamp dismatch conunter:%d, match state= %d, so sleep\n", main_sleep_counter, r_1);
             usleep(20000);
         }
         main_sleep_counter++;
-        // è®¡ç®—è½¦è½®è§’åº¦
+        // ¼ÆËã³µÂÖ½Ç¶È
         double sin_angle, tan_angle;
         if(g_R_cur != 0){
             double tmp1 = vehicle_L/g_R_cur;
@@ -423,8 +429,5 @@ void do_get_turn_radius()
             sin_angle = 0;
             tan_angle = 0;
         }
-        printf("state: %d, R = %f, sin_angle=%.2f, tan_angle=%.2f\n",r_1, g_R_cur, sin_angle*R2D, tan_angle*R2D);
     }
-
-
 }

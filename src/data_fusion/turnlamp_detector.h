@@ -21,7 +21,7 @@
 namespace imu {
 
 #define ROD_ACC_QUEUE_SIZE 100
-#define ROD_ACC_THRESHOLD_SIZE 100
+#define ROD_ACC_THRESHOLD_SIZE 30
 
 
 class TurnlampDetector: public SingletonBase<TurnlampDetector>
@@ -114,6 +114,12 @@ class TurnlampDetector: public SingletonBase<TurnlampDetector>
         double m_R_rod2camera[3][3];
         StructImuData m_rod_imu_data;
         StructImuData m_rod_imu_data_pre;
+        
+        // 低通滤波
+        bool m_is_first_rod_acc_filter; // 是否是第一次进行低通滤波
+        double m_rod_acc_pre[3];
+        double m_acc_data_timestamp_pre; 
+        
         int m_turnlamp_state; //  转向灯信号 -1: right 1: left
         int m_turnlamp_state_pre; // 上一时刻的数据 转向灯信号 -1: right 1: left
         bool m_turnlamp_state_change_CAN; // CAN 数据上显示turnlamp状态变化

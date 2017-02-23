@@ -33,7 +33,6 @@ DECLARE_string(jpg_data_addr); // 读取jpg数据文件夹
 DECLARE_string(turnlamp_detect_init_addr); // 拨杆检测的初始化配置
 
 
-
 // data_fusion
 #pragma pack(1)
     struct StructAtt
@@ -100,6 +99,8 @@ DECLARE_string(turnlamp_detect_init_addr); // 拨杆检测的初始化配置
 
 #pragma pack()
 
+// function
+int LowpassFilter3f(double y_pre[3], const double x_new[3], double dt, const double filt_hz, double y_new[3] );
 
 
 #endif  // DATA_FUSION_MATH_H
