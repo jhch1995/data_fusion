@@ -105,13 +105,13 @@ void DataFusion::Init( )
         // 读取imu参数
         StructImuParameter imu_parameter;
         int read_sate = ReadImuParameterFromTxt( &imu_parameter);
-        if(read_sate)
+        if(read_sate == 1)
             m_imu_attitude_estimate.SetImuParameter(imu_parameter);
     #else
         int stste = init_gsensor();
         if(stste >= 0){
            m_init_state = true;
-//           printf("init_gsensor OK!\n");
+           printf("init_gsensor OK!\n");
            LOG(ERROR) << "DataFusion::Init--init_gsensor OK!";
         }else{
            m_init_state = false;
@@ -126,7 +126,6 @@ void DataFusion::Init( )
             m_imu_attitude_estimate.SetImuParameter(imu_parameter);
         }
     #endif
-    
 
     // 判断是从murata读数据还是mpu6500
     #if defined(DATA_FROM_MURATA)
@@ -183,7 +182,7 @@ void DataFusion::RunFusion( )
             if(read_state > 0){
                 int vector_imu_length = m_vector_imu_data.size();
                 for (int i = 0; i < vector_imu_length; i++){
-                    // 只有当IMU有有效数据的时候，才进行fusion
+                    // 只有当IMU有效数据的时候，才进行fusion
                     m_imu_data = *(m_vector_imu_data.begin() + i);
                     EstimateAtt();
                     EstimateVehicelState();
@@ -234,21 +233,17 @@ void DataFusion::FusionScheduler(const timeval time_counter_start,  const int64_
 int DataFusion::ReadData( )
 {
     #if defined(DATA_FROM_LOG)
-    {
         int rtn_state = 0;
         //从log中离线读取数据，需要通过时间戳来确定是否要继续读取数据，更新is_continue_read_data
         bool is_continue_read_data = UpdateRreadDataState();
         if(is_continue_read_data)
             rtn_state = ReadDataFromLog();
         return rtn_state;
-    }
     #else
-    {
         int imu_state = ReadImuOnline();
         int speed_state = ReadSpeedOnline();
         //TODO: rtn_state
         return imu_state;
-    }
     #endif
 }
 
@@ -292,17 +287,19 @@ int DataFusion::ReadDataFromLog( )
 
         // 判断是从murata读数据还是mpu6500
         #if defined(DATA_FROM_MURATA)
-        {
             m_imu_attitude_estimate.AccDataCalibationMurata(acc_data_raw, acc_data_ned);// 原始数据校正
             m_imu_attitude_estimate.GyrocDataCalibationMurata(gyro_data_raw, gyro_data_ned);
-        }
         #else
-        {
             m_imu_attitude_estimate.AccDataCalibation(acc_data_raw, acc_data_ned);// 原始数据校正
             m_imu_attitude_estimate.GyrocDataCalibation(gyro_data_raw, gyro_data_ned);
-        }
         #endif      
-
+        
+        // read raw imu data
+        VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"acc_read_raw = "<<acc_data_raw[0]<<", "<<acc_data_raw[1]<<", "<<acc_data_raw[2]<<endl;
+//         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"acc_ned = "<<acc_data_ned[0]<<", "<<acc_data_ned[1]<<", "<<acc_data_ned[2]<<endl;
+        VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"gyro_read_raw = "<<gyro_data_raw[0]<<", "<<gyro_data_raw[1]<<", "<<gyro_data_raw[2]<<endl;
+//         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"gyro_ned = "<<gyro_data_ned[0]<<", "<<gyro_data_ned[1]<<", "<<gyro_data_ned[2]<<endl;
+        
         if(m_is_first_read_gsensor){
             m_is_first_read_gsensor = 0;
             m_pre_imu_timestamp = imu_timestamp;
@@ -326,10 +323,18 @@ int DataFusion::ReadDataFromLog( )
             imu_data.gyro_raw[i] = gyro_data_ned[i];
         }
         imu_data.timestamp = imu_timestamp;
-        imu_data.temp = imu_temperature;
-        m_vector_imu_data.push_back(imu_data); // 保存IMU data的 vector
+        imu_data.temp = imu_temperature;        
+        // 数据驱动，顺序执行，无需加锁
+        m_vector_imu_data.push_back(imu_data); // 保存IMU data的 vector                
         UpdateCurrentDataTimestamp(imu_timestamp);
         m_data_gsensor_update = 1;
+        
+        // print new imu data
+        VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"imu_acc_raw = "<<imu_data.acc_raw[0]<<", "<<imu_data.acc_raw[1]<<", "<<imu_data.acc_raw[2]<<endl;
+//         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"imu_acc_filter = "<<imu_data.acc[0]<<", "<<imu_data.acc[1]<<", "<<imu_data.acc[2]<<endl;
+        VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"imu_gyro_raw = "<<imu_data.gyro_raw[0]<<", "<<imu_data.gyro_raw[1]<<", "<<imu_data.gyro_raw[2]<<endl;
+//         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"imu_gyro_filter = "<<imu_data.gyro[0]<<", "<<imu_data.gyro[1]<<", "<<imu_data.gyro[2]<<endl;
+
     }else if(data_flag == "brake_signal"){
         string str_t[10],str_speed;
         int data_t[10];
@@ -560,27 +565,29 @@ void DataFusion::DeleteOldData( )
 // 根据设定最长记忆时间的历史数据，删除多余转弯半径的数据
 void DataFusion::DeleteOldRadiusData( )
 {
-    double dt;
-    int R_data_length = m_vector_turn_radius.size();
+    double dt;    
     int R_delete_conter = 0;
     double R_cur_timestamp = 0;
+    
+    // 防止读写冲突，拷贝数据到本地
+    std::vector<StructTurnRadius> vector_turn_radius;
+    m_radius_vector_rw_lock.ReaderLock();
+    vector_turn_radius.assign(m_vector_turn_radius.begin(), m_vector_turn_radius.end());
+    m_radius_vector_rw_lock.ReaderUnlock();
+    int R_data_length = vector_turn_radius.size();
 
     #if defined(DATA_FROM_LOG)
-    {
-        m_radius_rw_lock.ReaderLock();
+        m_radius_timestamp_rw_lock.ReaderLock();
         R_cur_timestamp = m_call_predict_timestamp;
-        m_radius_rw_lock.Unlock();
-    }
+        m_radius_timestamp_rw_lock.Unlock();
     #else
-    {
         struct timeval time_R;
         gettimeofday(&time_R, NULL);
         R_cur_timestamp = time_R.tv_sec + time_R.tv_usec*1e-6;
-    }
     #endif
 
     for(int i=0; i<R_data_length; i++){
-        dt = (m_vector_turn_radius.begin()+i)->timestamp - R_cur_timestamp;
+        dt = (vector_turn_radius.begin()+i)->timestamp - R_cur_timestamp;
         if(dt < -m_data_save_length)
             R_delete_conter++;
         else
@@ -919,12 +926,16 @@ void DataFusion::CalculateVehicleTurnRadius()
     }else{
         m_struct_turn_radius.is_imu_value_ok = false;
         R = 0;
+        VLOG(VLOG_INFO)<<"DF:CalculateVehicleTurnRadius--"<<"imu error, gyro_filter_R[2] = "<<gyro_filter_R[2]<<" imu_data.gyro_raw[2] = "<<imu_data.gyro_raw[2]<<" imu_data.acc_raw[2] = "<<imu_data.acc_raw[2]<<endl;
     }
 
     // save R
     m_struct_turn_radius.timestamp = imu_data.timestamp;
     m_struct_turn_radius.R = R;
+    
+    m_radius_vector_rw_lock.WriterLock();
     m_vector_turn_radius.push_back(m_struct_turn_radius);
+    m_radius_vector_rw_lock.WriterUnlock();
 }
 
 // 给外部调用的接口:
@@ -945,10 +956,13 @@ int DataFusion::GetTurnRadius( const int64 &int_timestamp_search, double *R)
 
     // 防止读写冲突，拷贝数据到本地
     std::vector<StructTurnRadius> vector_turn_radius;
-    m_radius_rw_lock.WriterLock();
+    m_radius_vector_rw_lock.ReaderLock();
     vector_turn_radius.assign(m_vector_turn_radius.begin(), m_vector_turn_radius.end());
+    m_radius_vector_rw_lock.ReaderUnlock();
+    
+    m_radius_timestamp_rw_lock.WriterLock();
     m_call_predict_timestamp  = timestamp_search;// 更新时间戳
-    m_radius_rw_lock.Unlock();
+    m_radius_timestamp_rw_lock.WriterUnlock();
 
     int R_data_length = vector_turn_radius.size();
     if(R_data_length >= 2){
@@ -1052,7 +1066,7 @@ int DataFusion::DoCalibrateGyroBiasOnline( double bias_drift_new[3])
 //                        printf("new gyro bias: %f %f %f\n", new_imu_parameter.gyro_A0[0], new_imu_parameter.gyro_A0[1], new_imu_parameter.gyro_A0[2]);
                         if(write_state == 1){
                             m_is_gyro_online_calibrate_ok = true;
-                            VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter sucess!!"<<endl;
+                            (SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter sucess!!"<<endl;
                             return 1;
                         }else{
                             VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter failed , state="<<write_state<<"!!"<<endl;
@@ -1308,25 +1322,24 @@ int DataFusion:: ReadImuParameterFromCamera( StructImuParameter *imu_parameter)
             return -1;
         }
         m_imu_attitude_estimate.SetImuParameter(*imu_parameter);
-//        printf("read imu parameter from camera state: %d\n", read_state);
-//        printf("read new gyro A0: %f %f %f\n", imu_parameter->gyro_A0[0], imu_parameter->gyro_A0[1], imu_parameter->gyro_A0[2]);
-//        printf("read new acc A0: %f %f %f\n", imu_parameter->acc_A0[0], imu_parameter->acc_A0[1], imu_parameter->acc_A0[2]);
-//        printf("read new acc A1:\n %f %f %f\n %f %f %f\n %f %f %f\n", imu_parameter->acc_A1[0][0], imu_parameter->acc_A1[0][1], 
-//            imu_parameter->acc_A1[0][2], imu_parameter->acc_A1[1][0], imu_parameter->acc_A1[1][1],
-//            imu_parameter->acc_A1[1][2], imu_parameter->acc_A1[2][0], imu_parameter->acc_A1[2][1], imu_parameter->acc_A1[2][2]);
+        printf("read imu parameter from camera state: %d\n", read_state);
+        printf("read new gyro A0: %f %f %f\n", imu_parameter->gyro_A0[0], imu_parameter->gyro_A0[1], imu_parameter->gyro_A0[2]);
+        printf("read new acc A0: %f %f %f\n", imu_parameter->acc_A0[0], imu_parameter->acc_A0[1], imu_parameter->acc_A0[2]);
+        printf("read new acc A1:\n %f %f %f\n %f %f %f\n %f %f %f\n", imu_parameter->acc_A1[0][0], imu_parameter->acc_A1[0][1], 
+            imu_parameter->acc_A1[0][2], imu_parameter->acc_A1[1][0], imu_parameter->acc_A1[1][1],
+            imu_parameter->acc_A1[1][2], imu_parameter->acc_A1[2][0], imu_parameter->acc_A1[2][1], imu_parameter->acc_A1[2][2]);
     }else{
         printf("camera_read_flash_file failed %d\n", read_state);
     }
     return read_state;
 }
-
 #endif
-int DataFusion:: ReadImuParameterFromTxt( StructImuParameter *imu_parameter)
+
+int DataFusion:: readReadImuParameterFromTxt( StructImuParameter *imu_parameter)
 {
     string buffer_log;
     stringstream ss_tmp, ss_log;
     string data_flag;
-    double gyro_A0[3];
     bool is_gyro_A0_ok = false, is_acc_A0_ok = false, is_acc_A1_ok = false;
 
     ifstream file_imu (m_imu_parameter_addr.c_str());
@@ -1346,35 +1359,44 @@ int DataFusion:: ReadImuParameterFromTxt( StructImuParameter *imu_parameter)
                 memcpy(imu_parameter->gyro_A0, gyro_A0, sizeof(gyro_A0));
                 LOG(ERROR)<<"DF:ReadImuParameterFromTxt--"<<"read imu parameter = "<<data_flag.c_str()<<", "<<imu_parameter->gyro_A0[0]<<", "
                         <<imu_parameter->gyro_A0[1]<<", "<<imu_parameter->gyro_A0[2]<<endl;
-//                printf("new gyro A0: %f %f %f\n", gyro_A0[0], gyro_A0[1], gyro_A0[2]);
+               printf("new gyro A0: %f %f %f\n", gyro_A0[0], gyro_A0[1], gyro_A0[2]);
                 is_gyro_A0_ok = true;
             }else if(data_flag == "acc_A0"){
                 double acc_A0[3];
                 ss_log>>data_flag>>acc_A0[0]>>acc_A0[1]>>acc_A0[2];
                 memcpy(imu_parameter->acc_A0, acc_A0, sizeof(acc_A0));
-//                printf("new acc A0: %f %f %f\n", acc_A0[0], acc_A0[1], acc_A0[2]);
+                VLOG(VLOG_DEBUG)<<"DF:ReadImuParameterFromTxt--"<<"read acc_A0 parameter = "<<imu_parameter->acc_A0[0]<<", "
+                        <<imu_parameter->acc_A0[1]<<", "<<imu_parameter->acc_A0[2]<<endl;
+                printf("new acc A0: %f %f %f\n", acc_A0[0], acc_A0[1], acc_A0[2]);
                 is_acc_A0_ok = true;
             }else if(data_flag == "acc_A1"){
                 double acc_A1[3][3];
                 ss_log>>data_flag>>acc_A1[0][0]>>acc_A1[0][1]>>acc_A1[0][2]>>acc_A1[1][0]>>acc_A1[1][1]>>acc_A1[1][2]>>acc_A1[2][0]>>acc_A1[2][1]>>acc_A1[2][2];
                 memcpy(imu_parameter->acc_A1, acc_A1, sizeof(acc_A1));
-//                printf("new acc A1:\n %f %f %f\n %f %f %f\n %f %f %f\n", acc_A1[0][0], acc_A1[0][1], acc_A1[0][2], acc_A1[1][0], acc_A1[1][1],
-//                    acc_A1[1][2], acc_A1[2][0], acc_A1[2][1], acc_A1[2][2]);
+                VLOG(VLOG_DEBUG)<<"DF:ReadImuParameterFromTxt--"<<"read acc_A1 parameter = "<<endl
+                        <<imu_parameter->acc_A1[0][0]<<" "<<imu_parameter->acc_A1[0][1]<<" "<<imu_parameter->acc_A1[0][2]<<endl
+                        <<imu_parameter->acc_A1[1][0]<<" "<<imu_parameter->acc_A1[1][1]<<" "<<imu_parameter->acc_A1[1][2]<<endl
+                        <<imu_parameter->acc_A1[2][0]<<" "<<imu_parameter->acc_A1[2][1]<<" "<<imu_parameter->acc_A1[2][2]<<endl;
+                printf("new acc A1:\n %f %f %f\n %f %f %f\n %f %f %f\n", acc_A1[0][0], acc_A1[0][1], acc_A1[0][2], acc_A1[1][0], acc_A1[1][1],
+                   acc_A1[1][2], acc_A1[2][0], acc_A1[2][1], acc_A1[2][2]);
                 is_acc_A1_ok = true;
             }
         }
     }else{
-        LOG(ERROR)<<"DF:ReadImuParameterFromTxt--"<<"open read imu parameter file error!!!"<<endl;
+        VLOG(VLOG_ERROR)<<"DF:ReadImuParameterFromTxt--"<<"open read imu parameter file error!!!"<<endl;
         return -1;
     }
     file_imu.close();
     
-    if(is_gyro_A0_ok && is_acc_A0_ok && is_acc_A1_ok)
+    if(is_gyro_A0_ok && is_acc_A0_ok && is_acc_A1_ok){
         return 1;
-    else{
+    }else{
         printf("read imu parameter state: gyro_A0: %d, acc_A0: %d, acc_A1: %d\n", is_gyro_A0_ok, is_acc_A0_ok, is_acc_A1_ok);
+        VLOG(VLOG_ERROR)<<"DF:ReadImuParameterFromTxt--"<<"read imu parameter state, gyro_A0 "<<is_gyro_A0_ok<<", acc_A0:  "
+                        <<is_acc_A0_ok<<", acc_A1:  "<<is_acc_A1_ok<<endl;
         return -2;
     }
+    return 0;
 }
 
 // 保存陀螺仪校准

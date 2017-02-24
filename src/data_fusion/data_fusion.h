@@ -199,7 +199,9 @@ private:
     string m_imu_parameter_log_addr; // 记录每次上电后校准的imu参数结果
 
     // 数据读写锁
-    RWLock m_radius_rw_lock;
+    RWLock m_imu_data_vector_rw_lock;
+    RWLock m_radius_vector_rw_lock;
+    RWLock m_radius_timestamp_rw_lock;
     RWLock m_feature_rw_lock;
     RWLock get_data_rw_lock; // get_timestamp_data
     RWLock m_rw_lock; 

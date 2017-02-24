@@ -16,7 +16,7 @@ void ImuAttitudeEstimate::Initialize( )
     memset(&m_gyro_angle, 0, sizeof(m_gyro_angle));
     m_angle_z = 0.0;
     m_att_init_counter = 30;
-    m_accel_range_scale = 8.0f/32768;
+    m_accel_range_scale = 8.0/32768;
     m_gyro_range_scale = 2000.0/180*3.141593/32768;
 	
 	// 摄像头版本
@@ -230,9 +230,17 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
 			#endif
 		#endif
 		m_is_imu_mod_set = true;
-		printf("imu mode: %d\n", m_imu_mode);
+		printf("imu mode: %d\n", m_imu_mode);   
+        VLOG(VLOG_DEBUG)<<"DF:ImuAttitudeEstimate::AccDataCalibation--"<<"imu mode: "<<m_imu_mode<<endl;
+        VLOG(VLOG_DEBUG)<<"DF:ImuAttitudeEstimate::AccDataCalibation--"<<"acc_scal = "<<m_accel_range_scale<<endl;
+        VLOG(VLOG_DEBUG)<<"DF:ImuAttitudeEstimate::AccDataCalibation--"<<"acc_A0 = "<<endl
+                        <<m_acc_A0[0]<<" "<<m_acc_A0[1]<<" "<<m_acc_A0[2]<<endl;
+        VLOG(VLOG_DEBUG)<<"DF:ImuAttitudeEstimate::AccDataCalibation--"<<"acc_A1 = "<<endl
+                    <<m_acc_A1[0][0]<<" "<<m_acc_A1[0][1]<<" "<<m_acc_A1[0][2]<<endl
+                    <<m_acc_A1[1][0]<<" "<<m_acc_A1[1][1]<<" "<<m_acc_A1[1][2]<<endl
+                    <<m_acc_A1[2][0]<<" "<<m_acc_A1[2][1]<<" "<<m_acc_A1[2][2]<<endl;    
 	} 
-		
+     
 	if(m_imu_mode == 1){
 		// 1: 旧摄像头
 		// IMU原始坐标系-->大地坐标系(NED)  imu:
@@ -246,7 +254,9 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
 		acc_data_raw_t[1] = acc_data_raw[1]*m_accel_range_scale;
 		acc_data_raw_t[2] = acc_data_raw[0]*m_accel_range_scale;
 	}else{
-		printf("error!!!!\n");
+        memset(acc_data_raw_t, 0, sizeof(acc_data_raw_t));  
+		printf("imu mode set error!!!!\n");
+        return 0;
 	}
 
     // 校正
@@ -257,22 +267,24 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
     acc_data_ned[0]= (m_acc_A1[0][0]*acc_data_t[0] + m_acc_A1[0][1]*acc_data_t[1] + m_acc_A1[0][2]*acc_data_t[2])*ONE_G; // 地理坐标系Z
     acc_data_ned[1]= (m_acc_A1[1][0]*acc_data_t[0] + m_acc_A1[1][1]*acc_data_t[1] + m_acc_A1[1][2]*acc_data_t[2])*ONE_G; // 地理坐标系Y
     acc_data_ned[2]= (m_acc_A1[2][0]*acc_data_t[0] + m_acc_A1[2][1]*acc_data_t[1] + m_acc_A1[2][2]*acc_data_t[2])*ONE_G;  // 地理坐标系X
-
+    
+//     VLOG(VLOG_DEBUG)<<"DF:ImuAttitudeEstimate::AccDataCalibation--"<<"acc_data_raw_t = "<<acc_data_raw_t[0]<<", "<<acc_data_raw_t[1]<<", "<<acc_data_raw_t[2]<<endl;
+//     VLOG(VLOG_DEBUG)<<"DF:ImuAttitudeEstimate::AccDataCalibation--"<<"acc_data_t = "<<acc_data_t[0]<<", "<<acc_data_t[1]<<", "<<acc_data_t[2]<<endl;
+//     VLOG(VLOG_DEBUG)<<"DF:ImuAttitudeEstimate::AccDataCalibation--"<<"acc_data_ned = "<<acc_data_ned[0]<<", "<<acc_data_ned[1]<<", "<<acc_data_ned[2]<<endl;
+    
     return 1;
 }
 
 int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], double gyro_data_ned[3] )
 {
-    double gyro_data_imu[3];
     double gyro_data_raw_t[3];
-
-		// 1: 旧摄像头
+   
 	if(m_imu_mode == 1){
-		// 这个配置是老摄像头的
-	// IMU原始坐标系-->大地坐标系(NED)
-	gyro_data_raw_t[0] = -gyro_data_raw[2]*m_gyro_range_scale;
-	gyro_data_raw_t[1] = -gyro_data_raw[1]*m_gyro_range_scale;
-	gyro_data_raw_t[2] = -gyro_data_raw[0]*m_gyro_range_scale;
+		// 1: 旧摄像头
+        // IMU原始坐标系-->大地坐标系(NED)
+        gyro_data_raw_t[0] = -gyro_data_raw[2]*m_gyro_range_scale;
+        gyro_data_raw_t[1] = -gyro_data_raw[1]*m_gyro_range_scale;
+        gyro_data_raw_t[2] = -gyro_data_raw[0]*m_gyro_range_scale;
 	}else if(m_imu_mode == 2){
 	    // 新摄像头 2017.02.10
 		// IMU原始坐标系-->大地坐标系(NED)
@@ -280,7 +292,9 @@ int ImuAttitudeEstimate::GyrocDataCalibation(const double gyro_data_raw[3], doub
 		gyro_data_raw_t[1] = gyro_data_raw[1]*m_gyro_range_scale;
 		gyro_data_raw_t[2] = gyro_data_raw[0]*m_gyro_range_scale;
 	}else{
-		printf("error!!!!\n");
+		memset(gyro_data_raw_t, 0, sizeof(gyro_data_raw_t));  
+		printf("imu mode set error!!!!\n");
+        return 0;
 	}
 	
     //校正
@@ -366,7 +380,7 @@ int ImuAttitudeEstimate::SetImuParameter(const StructImuParameter imu_parameter)
     memcpy(m_acc_A1, imu_parameter.acc_A1, sizeof(m_acc_A1));
     m_rw_lock.WriterUnlock();
 
-//    printf("set acc_A1: %f %f %f\n", imu_parameter.acc_A1[0][0], imu_parameter.acc_A1[1][1], imu_parameter.acc_A1[2][2]);
+   printf("set acc_A1: %f %f %f\n", imu_parameter.acc_A1[0][0], imu_parameter.acc_A1[1][1], imu_parameter.acc_A1[2][2]);
     return 1;
 }
 
