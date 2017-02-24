@@ -296,9 +296,9 @@ int DataFusion::ReadDataFromLog( )
         
         // read raw imu data
         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"acc_read_raw = "<<acc_data_raw[0]<<", "<<acc_data_raw[1]<<", "<<acc_data_raw[2]<<endl;
-//         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"acc_ned = "<<acc_data_ned[0]<<", "<<acc_data_ned[1]<<", "<<acc_data_ned[2]<<endl;
+        VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"acc_ned = "<<acc_data_ned[0]<<", "<<acc_data_ned[1]<<", "<<acc_data_ned[2]<<endl;
         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"gyro_read_raw = "<<gyro_data_raw[0]<<", "<<gyro_data_raw[1]<<", "<<gyro_data_raw[2]<<endl;
-//         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"gyro_ned = "<<gyro_data_ned[0]<<", "<<gyro_data_ned[1]<<", "<<gyro_data_ned[2]<<endl;
+        VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"gyro_ned = "<<gyro_data_ned[0]<<", "<<gyro_data_ned[1]<<", "<<gyro_data_ned[2]<<endl;
         
         if(m_is_first_read_gsensor){
             m_is_first_read_gsensor = 0;
@@ -1061,17 +1061,18 @@ int DataFusion::DoCalibrateGyroBiasOnline( double bias_drift_new[3])
 
                         memcpy(new_imu_parameter.gyro_A0, bias_drift_new, sizeof(new_imu_parameter.gyro_A0));
                         m_imu_attitude_estimate.SetGyroBias(new_imu_parameter.gyro_A0);
+                        m_is_gyro_online_calibrate_ok = true;
                         // 保存imu校准结果
                         int write_state = WriteImuCalibrationParameter( new_imu_parameter);
 //                        printf("new gyro bias: %f %f %f\n", new_imu_parameter.gyro_A0[0], new_imu_parameter.gyro_A0[1], new_imu_parameter.gyro_A0[2]);
-                        if(write_state == 1){
-                            m_is_gyro_online_calibrate_ok = true;
-                            (SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter sucess!!"<<endl;
-                            return 1;
-                        }else{
-                            VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter failed , state="<<write_state<<"!!"<<endl;
-                            return write_state;
-                        }
+//                         if(write_state == 1){
+//                             
+//                             (SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter sucess!!"<<endl;
+//                             return 1;
+//                         }else{
+//                             VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter failed , state="<<write_state<<"!!"<<endl;
+//                             return write_state;
+//                         }
                     }else{
                         VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"doing imu calibrate"<<endl;
                     }
@@ -1335,7 +1336,7 @@ int DataFusion:: ReadImuParameterFromCamera( StructImuParameter *imu_parameter)
 }
 #endif
 
-int DataFusion:: readReadImuParameterFromTxt( StructImuParameter *imu_parameter)
+int DataFusion:: ReadImuParameterFromTxt( StructImuParameter *imu_parameter)
 {
     string buffer_log;
     stringstream ss_tmp, ss_log;
