@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
 
 // 初始化融合函数
     DataFusion data_fusion;
-    data_fusion.StartDataFusionTask();
+    data_fusion.Init();
 //    ImuModule::Instance().StartDataFusionTask();
 
 // 本地利用标注的数据测试

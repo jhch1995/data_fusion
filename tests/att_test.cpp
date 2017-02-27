@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 
     // 进行数据融合的类
     DataFusion &data_fusion = DataFusion::Instance();
-    data_fusion.StartDataFusionTask();
+    data_fusion.Init();
 
     #if !defined(DATA_FROM_LOG)
         while(1){

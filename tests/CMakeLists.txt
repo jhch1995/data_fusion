@@ -37,13 +37,13 @@ ELSEIF(ANDROID_ABI)
 #             -Wl,--end-group
 #     )
 
-#     ADD_EXECUTABLE(att_print  "./att_print.cpp")
-#     TARGET_LINK_LIBRARIES(att_print
-#             -Wl,--start-group
-#             data_fusion 
-#             ${ARM_LIBS}
-#             -Wl,--end-group
-#     )
+    ADD_EXECUTABLE(att_print  "./att_print.cpp")
+    TARGET_LINK_LIBRARIES(att_print
+            -Wl,--start-group
+            data_fusion 
+            ${ARM_LIBS}
+            -Wl,--end-group
+    )
 ELSEIF (UNIX)
     MESSAGE(STATUS "LINK: UNIX")
     ADD_EXECUTABLE(lane_tracking "./lane_tracking_test_main.cpp")

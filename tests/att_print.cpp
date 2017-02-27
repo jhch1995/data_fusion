@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 
     // 进行数据融合的类
     DataFusion &data_fusion = DataFusion::Instance();
-    data_fusion.StartDataFusionTask();
+    data_fusion.Init();
 
     usleep(500000);
     double vehicle_pos[2], att[3], angle_z, att_gyro[3], acc_camera[3], acc_camera_pre[3], gyro_camera[3];
@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
             acc_angle[0] = (atan2f(-acc_camera[1], -acc_camera[2]));       // Calculating pitch ACC angle
             acc_angle[1] = (atan2f(acc_camera[0], sqrtf(acc_camera[2]*acc_camera[2] + acc_camera[1]*acc_camera[1])));   //Calculating roll ACC angle  
             printf("attitude %5.2f %5.2f\n", att[0]*R2D, att[1]*R2D);
-            break;
+//             break;
         }else{
             printf("state: %d \n", search_state);
         }

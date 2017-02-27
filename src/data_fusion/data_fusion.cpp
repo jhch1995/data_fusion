@@ -1060,10 +1060,15 @@ int DataFusion::DoCalibrateGyroBiasOnline( double bias_drift_new[3])
                             bias_drift_new[i] = old_gyro_bias[i] + bias_drift_tmp[i];
 
                         memcpy(new_imu_parameter.gyro_A0, bias_drift_new, sizeof(new_imu_parameter.gyro_A0));
+                        memset(new_imu_parameter.acc_A0, 0, sizeof(new_imu_parameter.acc_A0));
+                        memset(new_imu_parameter.acc_A1, 0, sizeof(new_imu_parameter.acc_A1));
+                        new_imu_parameter.acc_A1[0][0] = 1.0;
+                        new_imu_parameter.acc_A1[1][1] = 1.0;
+                        new_imu_parameter.acc_A1[2][2] = 1.0;
                         m_imu_attitude_estimate.SetGyroBias(new_imu_parameter.gyro_A0);
                         m_is_gyro_online_calibrate_ok = true;
                         // 保存imu校准结果
-                        int write_state = WriteImuCalibrationParameter( new_imu_parameter);
+//                         int write_state = WriteImuCalibrationParameter( new_imu_parameter);
 //                        printf("new gyro bias: %f %f %f\n", new_imu_parameter.gyro_A0[0], new_imu_parameter.gyro_A0[1], new_imu_parameter.gyro_A0[2]);
 //                         if(write_state == 1){
 //                             
@@ -1318,7 +1323,13 @@ int DataFusion:: ReadImuParameterFromCamera( StructImuParameter *imu_parameter)
 {
     int read_state = camera_read_flash_file(CAMERA_FLASH_FILE_IMU_CAL, imu_parameter, sizeof(*imu_parameter));
     if (read_state >= 0) {
-        if(abs(imu_parameter->acc_A1[0][0] - 1.0) > 0.15 || abs(imu_parameter->acc_A1[1][1] - 1.0) > 0.15 ||abs(imu_parameter->acc_A1[2][2] - 1.0) > 0.15){
+        if(abs(imu_parameter->acc_A1[0][0] - 1.0) > 0.15 || abs(imu_parameter->acc_A1[1][1] - 1.0) > 0.15 ||abs(imu_parameter->acc_A1[2][2] - 1.0) > 0.15
+            || abs(imu_parameter->acc_A1[0][1]) > 0.1 || abs(imu_parameter->acc_A1[0][2]) > 0.1
+            || abs(imu_parameter->acc_A1[1][0]) > 0.1 || abs(imu_parameter->acc_A1[1][2]) > 0.1
+            || abs(imu_parameter->acc_A1[2][0]) > 0.1 || abs(imu_parameter->acc_A1[2][1]) > 0.1
+            || abs(imu_parameter->acc_A0[0]) > 0.1 || abs(imu_parameter->acc_A0[1]) > 0.1 || abs(imu_parameter->acc_A0[2]) > 0.1
+            || abs(imu_parameter->gyro_A0[0]) > 5/57.3 || abs(imu_parameter->gyro_A0[1]) > 5/57.3 || abs(imu_parameter->gyro_A0[2]) > 5/57.3
+        ){
             printf("read imu parameter from camera value is illegal !!!\n");
             return -1;
         }

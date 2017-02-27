@@ -64,8 +64,6 @@ void mark_IPM_radius(const IPMPara ipm_para, const double R, const float val,  c
 
 void mark_IPM_radius_color(const IPMPara ipm_para, const double R, const Vec3b value_vec,  cv::Mat &ipm_image );
 
-
-
 void do_get_turn_radius();
 
 TimeUtils f_time_counter;
