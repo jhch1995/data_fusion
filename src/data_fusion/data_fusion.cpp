@@ -160,8 +160,7 @@ void DataFusion::StopDataFusionTask()
 
     m_thread_rw_lock.WriterLock();
     m_is_running = false;
-    m_thread_rw_lock.WriterUnlock();
-    
+    m_thread_rw_lock.WriterUnlock();    
     m_fusion_thread.StopAndWaitForExit();
 }
 
@@ -172,8 +171,10 @@ void DataFusion::RunFusion( )
     int64_t run_fusion_period_us = 1e6/m_imu_sample_hz;// 数据生成的频率是m_imu_sample_hz， 读取数据的频率最好时2×m_imu_sample_hz，保证数据的实时性   
     while (1) {
         m_thread_rw_lock.ReaderLock(); // 读写锁，为了析构函数
-        if(!m_is_running)
+        if(!m_is_running){
+            m_thread_rw_lock.ReaderUnlock();
             break;
+        }
         m_thread_rw_lock.ReaderUnlock();
         
         if(m_init_state == 1){
@@ -204,7 +205,6 @@ void DataFusion::RunFusion( )
             LOG(ERROR)<<"DF:init imu failed!!!"<<endl;
         }
     }
-    
 }
 
 // 线程循环周期控制
