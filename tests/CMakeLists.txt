@@ -19,6 +19,18 @@ ELSEIF(ANDROID_ABI)
 #             gflags
 #             -Wl,--end-group
 #     )
+
+    ADD_EXECUTABLE(turn_radius_calculate_andriod "./turn_radius_calculate_main_andriod.cpp")
+    TARGET_LINK_LIBRARIES(turn_radius_calculate_andriod 
+                         -Wl,--start-group
+                          data_fusion  
+                          imu 
+                          halio
+                          gflags   
+                          ${ARM_LIBS}
+                         -Wl,--end-group
+                         )
+                          
     ADD_EXECUTABLE(turnlamp_detection "./turnlamp_detection_main_new.cpp")
     TARGET_LINK_LIBRARIES(turnlamp_detection  
                           -Wl,--start-group

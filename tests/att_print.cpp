@@ -34,27 +34,41 @@ int main(int argc, char *argv[])
 {
     // 初始化
     init();
-
     // 进行数据融合的类
     DataFusion &data_fusion = DataFusion::Instance();
     data_fusion.Init();
 
     usleep(500000);
     double vehicle_pos[2], att[3], angle_z, att_gyro[3], acc_camera[3], acc_camera_pre[3], gyro_camera[3];
+    int acc_mean_length = 35; // 对加速度计的值进行平滑数据长度
+    int acc_data_mean_index = 0;
+    double acc_mean_sum[3] = {0, 0 ,0};
     while(1){
         double timestamp;
-        GetTimeS(&timestamp);
+        GetTimeS(&timestamp);        
         int search_state = DataFusion::Instance().GetTimestampData(timestamp-0.02, vehicle_pos, att, &angle_z, att_gyro, acc_camera, gyro_camera);
         if(search_state == 1){
-            double acc_angle[2];
-            acc_angle[0] = (atan2f(-acc_camera[1], -acc_camera[2]));       // Calculating pitch ACC angle
-            acc_angle[1] = (atan2f(acc_camera[0], sqrtf(acc_camera[2]*acc_camera[2] + acc_camera[1]*acc_camera[1])));   //Calculating roll ACC angle  
-            printf("attitude %5.2f %5.2f\n", att[0]*R2D, att[1]*R2D);
-            break;
+            if(++acc_data_mean_index <= acc_mean_length){
+                for(int i=0; i<3; i++ )
+                    acc_mean_sum[i] += acc_camera[i];
+            }else{
+                double acc_mean[3], acc_angle[2];
+                for(int i=0; i<3; i++)
+                    acc_mean[i] = acc_mean_sum[i]/acc_mean_length;
+                // reset data
+                acc_data_mean_index = 0;
+                memset(acc_mean_sum, 0, sizeof(acc_mean_sum));
+                
+                acc_angle[0] = (atan2f(-acc_mean[1], -acc_mean[2]));       // Calculating pitch ACC angle
+                acc_angle[1] = (atan2f(acc_mean[0], sqrtf(acc_mean[2]*acc_mean[2] + acc_mean[1]*acc_mean[1])));   //Calculating roll ACC angle  
+//                 printf("attitude %5.2f %5.2f\n", att[0]*R2D, att[1]*R2D);
+                printf("attitude %5.2f %5.2f\n", acc_angle[0]*R2D, acc_angle[1]*R2D);
+    //             break;
+            }           
         }else{
-            printf("state: %d \n", search_state);
+//             printf("state: %d \n", search_state);
         }
-        usleep(20000);
+        usleep(10000);
     }
     
     data_fusion.Destory();

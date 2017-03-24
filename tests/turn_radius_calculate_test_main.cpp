@@ -20,6 +20,11 @@
 
 using namespace imu;
 
+#if defined(ANDROID)
+    DEFINE_string(log_dir, "./log/", " ");
+    DEFINE_int32(v, 0, " ");
+#endif
+
 int main(int argc, char *argv[])
 {
     //解析
@@ -36,7 +41,7 @@ int main(int argc, char *argv[])
     // 写R
     ofstream  offile_log;
     string of_log_addr = "./data/doing/radius.txt";
-    bool is_save_R = true; //true; // 是否将R保存为txt
+    bool is_save_R = false; //true; // 是否将R保存为txt
 
     TimeUtils f_time_counter;
     double R_cur;
@@ -89,7 +94,7 @@ int main(int argc, char *argv[])
             int64_t R_cal_dt = (t_2 - t_1) ;
 
             if(r_1 <= 0){
-                printf("main timestamp diamatch, match state= %d, so sleep\n", r_1);
+                // printf("main timestamp diamatch, match state= %d, so sleep\n", r_1);
                 sleep(1);
             }
 
@@ -103,7 +108,7 @@ int main(int argc, char *argv[])
                     printf("write log file is not opened!");
                 }
             }
-//            printf("R = %f\n", R_cur);
+           printf("R = %f\n", R_cur);
         }
         usleep(10);
     }
