@@ -48,6 +48,61 @@ public:
     // 停止线程
     void StopDataFusionTask();
 
+    // 外部调用接口: 预测特征点的坐标
+    int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre, int64_t image_timestamp_pre,
+            int64_t image_timestamp_cur, std::vector<cv::Point2f>* vector_feature_predict);
+
+    // 外部调用接口:获取转弯半径
+    int GetTurnRadius( const int64 &timestamp_search, double *R);
+
+    // 根据时间戳查找对应的数据
+    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] );
+
+#ifdef ANDROID
+    // 从摄像头寄存器读取imu参数
+    int ReadImuParameterFromCamera( StructImuParameter *imu_parameter);
+#endif
+
+    // 写入imu校准结果
+    int WriteImuCalibrationParameter(const StructImuParameter &imu_parameter);
+
+    // 设置acc的校正参数
+    void SetAccCalibationParam(double A0[3], double A1[3][3]);
+    
+    // 设置陀螺仪自动校准的状态: 1:执行自动校准  0: 不自动校准
+    void SetGyroAutoCalibrateState(int auto_calibrate_state);
+
+    // 设置陀螺仪自动校准的状态: 1:执行自动校准  0: 不自动校准
+    int GetGyroCurrentBias(double gyro_bias[3]);
+    
+    // 校准陀螺仪零偏
+    int CalibrateGyroBias( double new_gyro_bias[3] );
+
+    // 重置imu参数
+    int ResetImuParameter( );
+
+    // 设置imu参数
+    int SetImuParameter(const StructImuParameter imu_parameter);
+    
+    // 设置imu的版本
+    int SetImuVersionMode(int imu_mode );
+    
+    // 配置是否打印IMU数据
+    void PrintImuData(const bool is_print_imu);
+
+     // 配置是否打印speed数据
+    void PrintSpeedData(const bool is_print_speed);
+    
+private:
+    // 估计汽车的运动状态数据
+    void EstimateVehicelState();
+
+    // 估计姿态数据
+    void EstimateAtt();
+
+    // 进行数据融合
+    void RunFusion( );
+    
     // 读取数据
     int ReadData();
 
@@ -59,13 +114,26 @@ public:
 
     // 在线读取speed数据
     int ReadSpeedOnline( );
+    
+        // 计算特征点预测坐标
+    int FeaturePredict(const std::vector<cv::Point2f>& vector_feature_pre ,
+            double vehicle_pos_pre[2], double att_pre[3], double angle_z_pre,
+            double vehicle_pos_cur[2], double att_cur[3], double angle_z_cur,
+            std::vector<cv::Point2f>* vector_feature_predict);
+    
+    // 计算测量的转弯半径
+    void CalculateVehicleTurnRadius();
 
-    // 配置是否打印IMU数据
-    void PrintImuData(const bool is_print_imu);
+    int DoCalibrateGyroBiasOnline( double bias_drift_new[3]);
 
-     // 配置是否打印speed数据
-    void PrintSpeedData(const bool is_print_speed);
+    int CalibrateGyroBiasOnline(double gyro_A0[3]);
+    
+    // 线程循环周期控制
+    void FusionScheduler(const timeval time_counter_pre, const int64_t period_us);
 
+    // imu温度原始数据转为摄氏度
+    double Raw2Degree(short raw);
+    
     // 更新当前读到数据的时间戳
     void UpdateCurrentDataTimestamp( double data_timestample);
 
@@ -76,74 +144,9 @@ public:
     void DeleteOldData( );
 
     void DeleteOldRadiusData( );
-
-    // 根据时间戳查找对应的数据
-    int GetTimestampData(double timestamp_search, double vehicle_pos[2], double att[3], double *angle_z, double att_gyro[3], double acc[3], double gyro[3] );
-
-    // 估计汽车的运动状态数据
-    void EstimateVehicelState();
-
-    // 估计姿态数据
-    void EstimateAtt();
-
-    // 进行数据融合
-    void RunFusion( );
-
-    // 线程循环周期控制
-    void FusionScheduler(const timeval time_counter_pre, const int64_t period_us);
-
-    double Raw2Degree(short raw);
-
-    // 校准陀螺仪零偏
-    int CalibrateGyroBias( double new_gyro_bias[3] );
-
-    int DoCalibrateGyroBiasOnline( double bias_drift_new[3]);
-
-    int CalibrateGyroBiasOnline(double gyro_A0[3]);
-
-#ifdef ANDROID
-    // 从摄像头寄存器读取imu参数
-    int ReadImuParameterFromCamera( StructImuParameter *imu_parameter);
-#endif
-
+    
     // 读取imu参数
     int ReadImuParameterFromTxt( StructImuParameter *imu_parameter);
-
-    // 写入imu校准结果
-    int WriteImuCalibrationParameter(const StructImuParameter &imu_parameter);
-
-    // 设置acc的校正参数
-    void SetAccCalibationParam(double A0[3], double A1[3][3]);
-
-    // 外部调用接口: 预测特征点的坐标
-    int GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,
-            int64_t image_timestamp_pre,
-            int64_t image_timestamp_cur,
-            std::vector<cv::Point2f>* vector_feature_predict);
-
-    // 计算特征点预测坐标
-    int FeaturePredict(const std::vector<cv::Point2f>& vector_feature_pre ,
-            double vehicle_pos_pre[2], double att_pre[3], double angle_z_pre,
-            double vehicle_pos_cur[2], double att_cur[3], double angle_z_cur,
-            std::vector<cv::Point2f>* vector_feature_predict);
-
-    // 外部调用接口:获取转弯半径
-    int GetTurnRadius( const int64 &timestamp_search, double *R);
-
-    // 计算测量的转弯半径
-    void CalculateVehicleTurnRadius();
-
-    // 设置陀螺仪自动校准的状态: 1:执行自动校准  0: 不自动校准
-    void SetGyroAutoCalibrateState(int auto_calibrate_state);
-
-    // 设置陀螺仪自动校准的状态: 1:执行自动校准  0: 不自动校准
-    int GetGyroCurrentBias(double gyro_bias[3]);
-
-    // 重置imu参数
-    int ResetImuParameter( );
-
-    // 设置imu参数
-    int SetImuParameter(const StructImuParameter imu_parameter);
 
 private:
     // 线程
@@ -205,6 +208,7 @@ private:
     RWLock m_feature_rw_lock;
     RWLock get_data_rw_lock; // get_timestamp_data
     RWLock m_rw_lock; 
+    RWLock m_set_gyro_auto_calibrate_rw_lock;
     RWLock m_thread_rw_lock; // 线程读写锁
 
     // 读取数据控制

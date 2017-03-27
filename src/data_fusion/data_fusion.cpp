@@ -168,7 +168,8 @@ void DataFusion::StopDataFusionTask()
 void DataFusion::RunFusion( )
 {
     struct timeval time_counter_start;
-    int64_t run_fusion_period_us = 1e6/m_imu_sample_hz;// 数据生成的频率是m_imu_sample_hz， 读取数据的频率最好时2×m_imu_sample_hz，保证数据的实时性   
+    // 数据生成的频率是m_imu_sample_hz， 读取数据的频率最好时2×m_imu_sample_hz，保证数据的实时性   
+    int64_t run_fusion_period_us = 1e6/m_imu_sample_hz;
     while (1) {
         m_thread_rw_lock.ReaderLock(); // 读写锁，为了析构函数
         if(!m_is_running){
@@ -188,10 +189,18 @@ void DataFusion::RunFusion( )
                     EstimateAtt();
                     EstimateVehicelState();
                     CalculateVehicleTurnRadius();
-                    if(m_is_auto_calibrate_gyro_online == 1){
-                        int calibrate_state = DoCalibrateGyroBiasOnline(m_gyro_bias_cur); // 在线自动校正陀螺仪
-                        if(calibrate_state == 1)
-                            m_gyro_calibrate_ok = true;
+                    
+                    // gyro auto calibrate
+                    int is_gyro_auto_calibrate = 0;
+                    m_set_gyro_auto_calibrate_rw_lock.ReaderLock();
+                        is_gyro_auto_calibrate = m_is_auto_calibrate_gyro_online;
+                    m_set_gyro_auto_calibrate_rw_lock.ReaderUnlock();                    
+                    if(is_gyro_auto_calibrate == 1){
+                        if(!m_gyro_calibrate_ok){
+                            int calibrate_state = DoCalibrateGyroBiasOnline(m_gyro_bias_cur); // 在线自动校正陀螺仪
+                            if(calibrate_state == 1)
+                                m_gyro_calibrate_ok = true;
+                        }
                     }
 
                     // 更新数据，清除历史数据
@@ -1038,73 +1047,46 @@ void DataFusion::PrintSpeedData(const bool is_print_speed)
 }
 
 // 在线gyro bias校准
-int DataFusion::DoCalibrateGyroBiasOnline( double bias_drift_new[3])
+int DataFusion::DoCalibrateGyroBiasOnline( double gyro_new_bias[3])
 {
-    if(!m_is_gyro_online_calibrate_ok){
-        if(m_can_speed_data.speed == 0){
-            if(m_is_first_zero_speed){
-                m_zero_speed_time_pre = m_can_speed_data.timestamp;
-                m_zero_speed_time_counter = 0;
-                m_is_first_zero_speed = false;
-            }else{
-                // 持续1s,车速为零,则进入进一步用imu数据判断是否静止，进而校正imu
-                if(m_zero_speed_time_counter > 1.0){
-                    double bias_drift_tmp[3];
-                    int calibrate_state = CalibrateGyroBiasOnline(bias_drift_tmp);
-                    if(calibrate_state == 1){
-                        // 读取imu参数
-                        StructImuParameter new_imu_parameter;
-                        double old_gyro_bias[3];
-                        m_imu_attitude_estimate.GetGyroBias(old_gyro_bias);
-                        for(int i=0; i<3; i++)
-                            bias_drift_new[i] = old_gyro_bias[i] + bias_drift_tmp[i];
-
-                        memcpy(new_imu_parameter.gyro_A0, bias_drift_new, sizeof(new_imu_parameter.gyro_A0));
-                        memset(new_imu_parameter.acc_A0, 0, sizeof(new_imu_parameter.acc_A0));
-                        memset(new_imu_parameter.acc_A1, 0, sizeof(new_imu_parameter.acc_A1));
-                        new_imu_parameter.acc_A1[0][0] = 1.0;
-                        new_imu_parameter.acc_A1[1][1] = 1.0;
-                        new_imu_parameter.acc_A1[2][2] = 1.0;
-                        m_imu_attitude_estimate.SetGyroBias(new_imu_parameter.gyro_A0);
-                        m_is_gyro_online_calibrate_ok = true;
-                        // 保存imu校准结果
-//                         int write_state = WriteImuCalibrationParameter( new_imu_parameter);
-//                        printf("new gyro bias: %f %f %f\n", new_imu_parameter.gyro_A0[0], new_imu_parameter.gyro_A0[1], new_imu_parameter.gyro_A0[2]);
-//                         if(write_state == 1){
-//                             
-//                             (SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter sucess!!"<<endl;
-//                             return 1;
-//                         }else{
-//                             VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"write imu calibation parameter failed , state="<<write_state<<"!!"<<endl;
-//                             return write_state;
-//                         }
-                    }else{
-                        VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"doing imu calibrate"<<endl;
-                    }
-                }else{
-                    m_zero_speed_time_counter += (m_can_speed_data.timestamp - m_zero_speed_time_pre);// 持续速度为0时间计数
-                    m_zero_speed_time_pre = m_can_speed_data.timestamp;
-                }
-            }
-        }else{
-            // 车子一旦动了，就重置状态
+    int gyro_bias_calibrate_state = 0;
+    if(m_can_speed_data.speed == 0){
+        if(m_is_first_zero_speed){
+            m_zero_speed_time_pre = m_can_speed_data.timestamp;
             m_zero_speed_time_counter = 0;
-            m_is_first_zero_speed = true;
-            // 重置 online calibrate state
-            m_is_need_reset_calibrate = true;
+            m_is_first_zero_speed = false;
+        }else{
+            // 持续1s,车速为零,则进入进一步用imu数据判断是否静止，进而校正imu
+            if(m_zero_speed_time_counter > 1.0){
+                double bias_drift_tmp[3];
+                int calibrate_state = CalibrateGyroBiasOnline(bias_drift_tmp);
+                if(calibrate_state == 1){
+                    // 读取imu参数
+                    StructImuParameter new_imu_parameter;
+                    double old_gyro_bias[3];
+                    m_imu_attitude_estimate.GetGyroBias(old_gyro_bias);
+                    for(int i=0; i<3; i++)
+                        gyro_new_bias[i] = old_gyro_bias[i] + bias_drift_tmp[i];
+
+                    m_imu_attitude_estimate.SetGyroBias(gyro_new_bias);
+                    gyro_bias_calibrate_state = 1;
+                }else{
+                    VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"doing imu calibrate"<<endl;
+                }
+            }else{
+                m_zero_speed_time_counter += (m_can_speed_data.timestamp - m_zero_speed_time_pre);// 持续速度为0时间计数
+                m_zero_speed_time_pre = m_can_speed_data.timestamp;
+            }
         }
+    }else{
+        // 车子一旦动了，就重置状态
+        printf("car is moving\n");
+        m_zero_speed_time_counter = 0;
+        m_is_first_zero_speed = true;
+        // 重置 online calibrate state
+        m_is_need_reset_calibrate = true;
     }
-    ////////////////////////////////////////////////////////////////////////
-    // for log test
-//    if(m_is_gyro_online_calibrate_ok){
-//        m_is_gyro_online_calibrate_ok = false;
-//        // 车子一旦动了，就重置状态
-//        m_zero_speed_time_counter = 0;
-//        m_is_first_zero_speed = true;
-//        // 重置 online calibrate state
-//        m_is_need_reset_calibrate = true;
-//    }
-    return 0;
+    return gyro_bias_calibrate_state;
 }
 
 // 1:　校正成功
@@ -1335,9 +1317,9 @@ int DataFusion:: ReadImuParameterFromCamera( StructImuParameter *imu_parameter)
         }
         m_imu_attitude_estimate.SetImuParameter(*imu_parameter);
         printf("read imu parameter from camera state: %d\n", read_state);
-        printf("read new gyro A0: %f %f %f\n", imu_parameter->gyro_A0[0], imu_parameter->gyro_A0[1], imu_parameter->gyro_A0[2]);
-        printf("read new acc A0: %f %f %f\n", imu_parameter->acc_A0[0], imu_parameter->acc_A0[1], imu_parameter->acc_A0[2]);
-        printf("read new acc A1:\n %f %f %f\n %f %f %f\n %f %f %f\n", imu_parameter->acc_A1[0][0], imu_parameter->acc_A1[0][1], 
+        printf("read new gyro A0:\n  %f %f %f\n", imu_parameter->gyro_A0[0], imu_parameter->gyro_A0[1], imu_parameter->gyro_A0[2]);
+        printf("read new acc A0:\n  %f %f %f\n", imu_parameter->acc_A0[0], imu_parameter->acc_A0[1], imu_parameter->acc_A0[2]);
+        printf("read new acc A1:\n  %f %f %f\n  %f %f %f\n  %f %f %f\n", imu_parameter->acc_A1[0][0], imu_parameter->acc_A1[0][1], 
             imu_parameter->acc_A1[0][2], imu_parameter->acc_A1[1][0], imu_parameter->acc_A1[1][1],
             imu_parameter->acc_A1[1][2], imu_parameter->acc_A1[2][0], imu_parameter->acc_A1[2][1], imu_parameter->acc_A1[2][2]);
     }else{
@@ -1485,12 +1467,12 @@ void DataFusion::SetAccCalibationParam(double A0[3], double A1[3][3])
 // 设置陀螺仪自动校准的状态: 1:执行自动校准  0: 不自动校准
 void DataFusion::SetGyroAutoCalibrateState(int auto_calibrate_state)
 {
-    m_rw_lock.WriterLock();
+    m_set_gyro_auto_calibrate_rw_lock.WriterLock();
     m_is_auto_calibrate_gyro_online = auto_calibrate_state;
-    m_rw_lock.WriterUnlock();
+    m_gyro_calibrate_ok = false;
+    m_set_gyro_auto_calibrate_rw_lock.WriterUnlock();
 }
 
-// 设置陀螺仪自动校准的状态: 1:执行自动校准  0: 不自动校准
 int DataFusion::GetGyroCurrentBias(double gyro_bias[3])
 {
     
@@ -1518,6 +1500,12 @@ int DataFusion::SetImuParameter(const StructImuParameter imu_parameter)
     return ret;
 }
 
+// 设置imu的版本
+int DataFusion::SetImuVersionMode(int imu_mode )
+{
+    int ret = m_imu_attitude_estimate.SetImuVersionMode(imu_mode);
+    return ret;
+}
 
 
 

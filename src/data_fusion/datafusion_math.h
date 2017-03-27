@@ -2,8 +2,8 @@
 #define DATA_FUSION_MATH_H
 
 #define R2D 180.0f/M_PI
-#define D2R M_PI/180.0f
-#define ONE_G 9.80665f;
+#define D2R M_PI/180.0
+#define ONE_G 9.80665
 #define GET_ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
 
 // 设置关于VLOG的打印等级

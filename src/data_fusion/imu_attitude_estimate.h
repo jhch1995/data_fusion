@@ -72,6 +72,9 @@ public:
     
     // imu参数清零
     int ResetImuParameter();
+    
+    // 设置imu的版本
+    int SetImuVersionMode(int imu_mode);
 
 
 private:
@@ -107,6 +110,7 @@ private:
 
     // 读写锁
     RWLock m_rw_lock; 
+    RWLock m_imu_mode_set_rw_lock; 
 };
 
 }

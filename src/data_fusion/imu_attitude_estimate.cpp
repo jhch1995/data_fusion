@@ -214,6 +214,7 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
 {
     double acc_data_t[3], acc_data_raw_t[3];
 	// 选择摄像头版本
+    m_imu_mode_set_rw_lock.ReaderLock();
 	if(!m_is_imu_mod_set){
 		#if defined(IMU_MODE_AUTO_SELECT)// 新旧版本的摄像头模组自动选择
 			double acc_z_tmp = acc_data_raw[0]*m_accel_range_scale;
@@ -258,6 +259,7 @@ int ImuAttitudeEstimate::AccDataCalibation(const double acc_data_raw[3], double 
 		printf("imu mode set error!!!!\n");
         return 0;
 	}
+	m_imu_mode_set_rw_lock.ReaderUnlock();
 
     // 校正
     acc_data_t[0] = acc_data_raw_t[0] - m_acc_A0[0];
@@ -380,7 +382,6 @@ int ImuAttitudeEstimate::SetImuParameter(const StructImuParameter imu_parameter)
     memcpy(m_acc_A1, imu_parameter.acc_A1, sizeof(m_acc_A1));
     m_rw_lock.WriterUnlock();
 
-   printf("set acc_A1: %f %f %f\n", imu_parameter.acc_A1[0][0], imu_parameter.acc_A1[1][1], imu_parameter.acc_A1[2][2]);
     return 1;
 }
 
@@ -399,6 +400,22 @@ int ImuAttitudeEstimate::ResetImuParameter(  )
     return 1;
 }
 
+// 设置imu的版本
+int ImuAttitudeEstimate::SetImuVersionMode(int imu_mode )
+{
+    if(imu_mode >=1 && imu_mode <= 2){
+        m_imu_mode_set_rw_lock.WriterLock();
+        m_is_imu_mod_set = 1;
+        m_imu_mode = imu_mode;
+        m_imu_mode_set_rw_lock.WriterUnlock();
+        printf("set imu version mod %d!!!!\n", imu_mode);
+        return 1;
+    }else{
+        printf("the input imu_mode value: %d is inlegal which shoulde be:[1 2] !!!!\n", imu_mode);
+        printf("set imu default mod: 2!!!!\n");
+        return 0;
+    }
+}
 
 
 

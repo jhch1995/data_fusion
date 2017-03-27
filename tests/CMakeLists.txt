@@ -27,14 +27,22 @@ ELSEIF(ANDROID_ABI)
             gflags
             -Wl,--end-group
     )
-    ADD_EXECUTABLE(imu_calibrate_online  "./imu_calibrate_online.cpp")
-    TARGET_LINK_LIBRARIES(imu_calibrate_online
+    ADD_EXECUTABLE(imu_test  "./imu_test_main.cpp")
+    TARGET_LINK_LIBRARIES(imu_test
             -Wl,--start-group
-            imu halio
+            data_fusion halio
             ${ARM_LIBS}
             gflags
             -Wl,--end-group
     )
+#     ADD_EXECUTABLE(gyro_calibrate_online  "./gyro_calibrate_online.cpp")
+#     TARGET_LINK_LIBRARIES(gyro_calibrate_online
+#             -Wl,--start-group
+#             imu halio
+#             ${ARM_LIBS}
+#             gflags
+#             -Wl,--end-group
+#     )
 
     ADD_EXECUTABLE(turn_radius_calculate_andriod "./turn_radius_calculate_main_andriod.cpp")
     TARGET_LINK_LIBRARIES(turn_radius_calculate_andriod 
