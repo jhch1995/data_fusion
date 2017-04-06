@@ -187,7 +187,9 @@ int GetAccAverageData(const int data_num, const int acc_sequence_index, MatrixXd
                 // 不满足条件 退出这次采集数据
                 read_acc_data_index = 0;
                 acc_vector_sum_tmp.setZero();
-//                 printf("acc_diff: %.3f\n", acc_diff_normal);
+                printf("acc:     %.3f %.3f %.3f\n", acc_vector_tmp(0), acc_vector_tmp(1), acc_vector_tmp(2));
+                printf("acc_std: %.3f %.3f %.3f\n", acc_standard(0), acc_standard(1), acc_standard(2));
+                printf("acc_diff: %.3f %.3f %.3f, normal: %.3f\n", acc_diff(0), acc_diff(1), acc_diff(2), acc_diff_normal);
 //                 printf("请确认校准模块是否放置平整，并且 %d 号面朝天，然后按 n !!!\n", acc_sequence_index+1);
                 printf("Make sure the module is placed level，and place the index %d to sky，then press next!!!\n", acc_sequence_index+1);
                 fflush(stdout);

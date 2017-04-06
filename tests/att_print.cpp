@@ -63,6 +63,7 @@ int main(int argc, char *argv[])
                 acc_angle[1] = (atan2f(acc_mean[0], sqrtf(acc_mean[2]*acc_mean[2] + acc_mean[1]*acc_mean[1])));   //Calculating roll ACC angle  
 //                 printf("attitude %5.2f %5.2f\n", att[0]*R2D, att[1]*R2D);
                 printf("attitude %5.2f %5.2f\n", acc_angle[0]*R2D, acc_angle[1]*R2D);
+                fflush(stdout);
     //             break;
             }           
         }else{
