@@ -1,3 +1,4 @@
+// 考虑功耗，做自检测
 #include <iostream>
 #include <fstream>
 #include <string>

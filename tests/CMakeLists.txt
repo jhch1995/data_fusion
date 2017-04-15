@@ -11,14 +11,6 @@ ENDIF()
 IF (WIN32)
 ELSEIF(ANDROID_ABI)
     MESSAGE(STATUS "LINK: ANDROID")
-#     ADD_EXECUTABLE(turn_radius_andriod  "./turn_radius_andriod.cpp")
-#     TARGET_LINK_LIBRARIES(turn_radius_andriod
-#             -Wl,--start-group
-#             imu halio
-#             ${ARM_LIBS}
-#             gflags
-#             -Wl,--end-group
-#     )
     ADD_EXECUTABLE(imu_calibrate  "./imu_calibrate_main.cpp")
     TARGET_LINK_LIBRARIES(imu_calibrate
             -Wl,--start-group
@@ -35,15 +27,6 @@ ELSEIF(ANDROID_ABI)
             gflags
             -Wl,--end-group
     )
-#     ADD_EXECUTABLE(gyro_calibrate_online  "./gyro_calibrate_online.cpp")
-#     TARGET_LINK_LIBRARIES(gyro_calibrate_online
-#             -Wl,--start-group
-#             imu halio
-#             ${ARM_LIBS}
-#             gflags
-#             -Wl,--end-group
-#     )
-
     ADD_EXECUTABLE(turn_radius_calculate_andriod "./turn_radius_calculate_main_andriod.cpp")
     TARGET_LINK_LIBRARIES(turn_radius_calculate_andriod 
                          -Wl,--start-group
@@ -64,15 +47,6 @@ ELSEIF(ANDROID_ABI)
                          -Wl,--end-group
     )
 
-#     ADD_EXECUTABLE(att_test  "./att_test.cpp")
-#     TARGET_LINK_LIBRARIES(att_test
-#             -Wl,--start-group
-#             data_fusion halio
-#             ${ARM_LIBS}
-#             gflags
-#             -Wl,--end-group
-#     )
-
     ADD_EXECUTABLE(att_print  "./att_print.cpp")
     TARGET_LINK_LIBRARIES(att_print
             -Wl,--start-group
@@ -91,18 +65,16 @@ ELSEIF (UNIX)
     TARGET_LINK_LIBRARIES(turn_radius_ipm data_fusion imu halio
                           concurrency relative_locate time gflags glog
                           opencv_imgcodecs opencv_core opencv_highgui pthread)
-
-    ADD_EXECUTABLE(turn_radius_calculate "./turn_radius_calculate_test_main.cpp")
-    TARGET_LINK_LIBRARIES(turn_radius_calculate imu data_fusion halio
-                          gflags glog  pthread
-                          opencv_imgcodecs opencv_core opencv_highgui )
                           
+    ADD_EXECUTABLE(fcw_ttc "./fcw_ttc_main.cpp")
+    TARGET_LINK_LIBRARIES(fcw_ttc  ttc_module gflags glog
+                                opencv_imgcodecs opencv_core opencv_highgui pthread)
+
 #     ADD_EXECUTABLE(vo_imu_att "./VO_IMU_att_main.cpp")
 #     TARGET_LINK_LIBRARIES(vo_imu_att 
 #                           VO data_fusion halio
 #                           concurrency relative_locate time gflags glog
 #                           opencv_imgcodecs opencv_core opencv_highgui pthread)
-
 
 #    ADD_EXECUTABLE(producer_consumer "./proudcer_consumer_test_main.cpp")
 #    TARGET_LINK_LIBRARIES(producer_consumer data_fusion

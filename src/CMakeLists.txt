@@ -13,4 +13,5 @@ ELSEIF(UNIX)
 endif()
 
 ADD_SUBDIRECTORY(data_fusion/)
+ADD_SUBDIRECTORY(ttc_module/)
 # ADD_SUBDIRECTORY(VO/)
