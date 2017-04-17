@@ -16,21 +16,31 @@ class KalmanFilter
 public:
 
     /// @brief construct  obj
-    KalmanFilter() {}
+    KalmanFilter(MatrixXd X0, MatrixXd P0, MatrixXd Q0, MatrixXd R0) 
+    {
+        m_Xk = X0;
+        m_Pk = P0;
+        m_Q = Q0;
+        m_R = R0;
+    }
 	
     ~KalmanFilter() {}
 
     void Init( );
     
-    static void kf_update(const MatrixXd Xk_pre, const MatrixXd Pk_pre, 
-                             const MatrixXd Q, const MatrixXd R, 
-                             const MatrixXd F, const MatrixXd H, const MatrixXd z,  
-                             MatrixXd &Xk_new, MatrixXd &Pk_new );
+    void KfUpdate( const MatrixXd F, const MatrixXd H, const MatrixXd z );
     
-    static int LowpassFilter1D(const double y_pre, const double x_new, double dt, 
+    void GetState(MatrixXd Xk);
+    
+    int LowpassFilter1D(const double y_pre, const double x_new, double dt, 
                                      const double filt_hz, double &y_new );
 
 private:
+    MatrixXd m_Xk;
+    MatrixXd m_Pk;
+    MatrixXd m_Q;
+    MatrixXd m_R;
+    
 
 };
 

@@ -11,21 +11,16 @@ void KalmanFilter::Init( )
 
 
 // KF function
-void KalmanFilter::kf_update(const MatrixXd Xk_pre, const MatrixXd Pk_pre, 
-                             const MatrixXd Q, const MatrixXd R, 
-                             const MatrixXd F, const MatrixXd H, 
-                             const MatrixXd Z,  
-                             MatrixXd &Xk_new, MatrixXd &Pk_new )
+void KalmanFilter::KfUpdate(const MatrixXd F, const MatrixXd H, const MatrixXd Z )
 {
-    MatrixXd Xk_predict = F*Xk_pre;     // 1.状态一步预测   
-    MatrixXd P_predict = F*Pk_pre*F.transpose() + Q;    // 2.预测误差协方差阵
-    MatrixXd S = H*P_predict*H.transpose() + R;     // 信息协方差阵
+    MatrixXd Xk_predict = F*m_Xk;     // 1.状态一步预测   
+    MatrixXd P_predict = F*m_Pk*F.transpose() + m_Q;    // 2.预测误差协方差阵
+    MatrixXd S = H*P_predict*H.transpose() + m_R;     // 信息协方差阵
     MatrixXd Kk = P_predict*H.transpose()*S.inverse(); // 3. 增益矩阵
     MatrixXd Z_predict = H*Xk_predict;
     MatrixXd Z_residual = Z - Z_predict;    // 残差
-    Xk_new = Xk_predict + Kk*Z_residual;    // 4.状态估计
-    Pk_new = P_predict - Kk*H*P_predict;    // 5.协方差估计
-  
+    m_Xk = Xk_predict + Kk*Z_residual;    // 4.状态估计
+    m_Pk = P_predict - Kk*H*P_predict;    // 5.协方差估计
 }
 
 
