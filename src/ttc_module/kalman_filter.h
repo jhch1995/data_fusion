@@ -9,37 +9,36 @@
 #include <Eigen/Dense>  
 using namespace Eigen;
 
-namespace kf {
+namespace ttc {
     
 class KalmanFilter
 {
 public:
 
     /// @brief construct  obj
-    KalmanFilter(MatrixXd X0, MatrixXd P0, MatrixXd Q0, MatrixXd R0) 
+    KalmanFilter() 
     {
-        m_Xk = X0;
-        m_Pk = P0;
-        m_Q = Q0;
-        m_R = R0;
     }
 	
     ~KalmanFilter() {}
 
-    void Init( );
+    void Init(const MatrixXd X0, const MatrixXd P0, const MatrixXd Q0, const MatrixXd R0);
+    
+    // reset all the KF state(X,P,Q,R)
+    void ResetKfState();
     
     void KfUpdate( const MatrixXd F, const MatrixXd H, const MatrixXd z );
     
-    void GetState(MatrixXd Xk);
+    void GetXk(MatrixXd &Xk);
     
-    int LowpassFilter1D(const double y_pre, const double x_new, double dt, 
+    static int LowpassFilter1D(const double y_pre, const double x_new, double dt, 
                                      const double filt_hz, double &y_new );
 
 private:
-    MatrixXd m_Xk;
-    MatrixXd m_Pk;
-    MatrixXd m_Q;
-    MatrixXd m_R;
+    MatrixXd m_Xk, m_X0;
+    MatrixXd m_Pk, m_P0;
+    MatrixXd m_Q, m_Q0;
+    MatrixXd m_R, m_R0;
     
 
 };

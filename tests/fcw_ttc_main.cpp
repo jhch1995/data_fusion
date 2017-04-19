@@ -371,6 +371,10 @@ int main(int argc, char *argv[])
     // ttc
     double ttc_est = 0;
     
+    // kf class
+    ttc::KalmanFilter m_ttc_kf_v;
+    ttc::KalmanFilter m_ttc_kf_h;
+    
     int mobileye_fcw_state = 0;
     while(fid_vision_log.is_open() && fid_raw_log.is_open() && !fid_vision_log.eof() && !fid_raw_log.eof() ){
         // 1.1. read log data
@@ -505,17 +509,20 @@ int main(int argc, char *argv[])
                 // Xk_v = [vision_vertial_dist_filter, speed_t, speed_s, acc_t, acc_s]
                 KF_Xk_v << vision_vertial_dist_filter, speed_cur ,speed_cur, 0 , 0;
                 KF_Pk_v = KF_P0_v;
+                m_ttc_kf_v.Init(KF_Xk_v, KF_Pk_v, KF_Q_v, KF_R_v); // init kf
                 
                 // horizion state = [horizon vel acc]
                 KF_Xk_h << vision_horiz_dist_filter, 0 ,0;
                 KF_Pk_h = KF_P0_h;
+                m_ttc_kf_h.Init(KF_Xk_h, KF_Pk_h, KF_Q_h, KF_R_h); // init kf
+                
                 is_KF_need_reset = false;
                 VLOG(VLOG_DEBUG)<<"reset kf state, dt_image: "<<dt_image<<endl;
             }else{
                 // 2.2 --KF
                 // measure lowpass filter            
-                kf::KalmanFilter::LowpassFilter1D(vision_vertial_dist_filter, vision_vertial_dist_raw, dt_image, 0.5, vision_vertial_dist_filter);
-                kf::KalmanFilter::LowpassFilter1D(vision_horiz_dist_filter, vision_horiz_dist_raw, dt_image, 0.2, vision_horiz_dist_filter);
+                ttc::KalmanFilter::LowpassFilter1D(vision_vertial_dist_filter, vision_vertial_dist_raw, dt_image, 0.5, vision_vertial_dist_filter);
+                ttc::KalmanFilter::LowpassFilter1D(vision_horiz_dist_filter, vision_horiz_dist_raw, dt_image, 0.2, vision_horiz_dist_filter);
                 
                 VLOG(VLOG_DEBUG)<<"vertial dist raw: "<<vision_vertial_dist_raw<<endl
                                 <<"vertial dist filter: "<< vision_vertial_dist_filter<<endl;
@@ -530,7 +537,9 @@ int main(int argc, char *argv[])
                 KF_F_v(1,3) = dt_image;
                 KF_F_v(2,4) = dt_image;
                 
-                kf::KalmanFilter::kf_update(KF_Xk_v, KF_Pk_v, KF_Q_v, KF_R_v, KF_F_v, KF_H_v, Z_v, KF_Xk_v, KF_Pk_v);
+//                 kf::KalmanFilter::kf_update(KF_Xk_v, KF_Pk_v, KF_Q_v, KF_R_v, KF_F_v, KF_H_v, Z_v, KF_Xk_v, KF_Pk_v);
+                m_ttc_kf_v.KfUpdate(KF_F_v, KF_H_v, Z_v);
+                m_ttc_kf_v.GetXk(KF_Xk_v);
                 VLOG(VLOG_DEBUG)<<"KF_F_v: "<<endl<<KF_F_v<<endl;
                 VLOG(VLOG_DEBUG)<<"KF_H_v: "<<endl<<KF_H_v<<endl;
                 VLOG(VLOG_DEBUG)<<"kf measure: "<<endl<<Z_v<<endl;
@@ -543,7 +552,9 @@ int main(int argc, char *argv[])
                 KF_F_h(0,1) = dt_image;
                 KF_F_h(0,2) = 0.5*dt_image*dt_image;
                 KF_F_h(1,2) = dt_image;                
-                kf::KalmanFilter::kf_update(KF_Xk_h, KF_Pk_h, KF_Q_h, KF_R_h, KF_F_h, KF_H_h, Z_h, KF_Xk_h, KF_Pk_h);
+//                 kf::KalmanFilter::kf_update(KF_Xk_h, KF_Pk_h, KF_Q_h, KF_R_h, KF_F_h, KF_H_h, Z_h, KF_Xk_h, KF_Pk_h);
+                m_ttc_kf_h.KfUpdate(KF_F_h, KF_H_h, Z_h);
+                m_ttc_kf_h.GetXk(KF_Xk_h);
                 
                 // --2.3 ttc calculate
                 double vertial_dist_est = KF_Xk_v(0, 0);

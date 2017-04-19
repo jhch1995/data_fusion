@@ -2,13 +2,28 @@
 
 using namespace Eigen;  
 
-namespace kf {
+namespace ttc {
     
-void KalmanFilter::Init( )
+void KalmanFilter::Init(const MatrixXd X0, const MatrixXd P0, const MatrixXd Q0, const MatrixXd R0)
 {
-  
+    m_X0 = X0;
+    m_P0 = P0;
+    m_Q0 = Q0;
+    m_R0 = R0;
+        
+    m_Xk = m_X0 ;
+    m_Pk = m_P0;
+    m_Q = m_Q0;
+    m_R = m_R0;
 }
 
+void KalmanFilter::ResetKfState()
+{
+    m_Xk = m_X0 ;
+    m_Pk = m_P0;
+    m_Q = m_Q0;
+    m_R = m_R0;
+}
 
 // KF function
 void KalmanFilter::KfUpdate(const MatrixXd F, const MatrixXd H, const MatrixXd Z )
@@ -38,6 +53,12 @@ int KalmanFilter::LowpassFilter1D(const double y_pre, const double x_new, double
     }
     y_new = y_pre + alpha*(x_new - y_pre);
     return 1;
+}
+
+
+void KalmanFilter::GetXk(MatrixXd &Xk)
+{
+    Xk = m_Xk;
 }
 
 
