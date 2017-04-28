@@ -1070,6 +1070,7 @@ int DataFusion::DoCalibrateGyroBiasOnline( double gyro_new_bias[3])
 
                     m_imu_attitude_estimate.SetGyroBias(gyro_new_bias);
                     gyro_bias_calibrate_state = 1;
+                    printf("new gyro bias: %f %f %f\n", gyro_new_bias[0], gyro_new_bias[1], gyro_new_bias[2]);
                 }else{
                     VLOG(SUBMODULE_LOG)<<"DF:DoCalibrateGyroBiasOnline--"<<"doing imu calibrate"<<endl;
                 }
