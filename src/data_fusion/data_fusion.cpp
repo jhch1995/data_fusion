@@ -104,9 +104,12 @@ void DataFusion::Init( )
 
         // 读取imu参数
         StructImuParameter imu_parameter;
-        int read_sate = ReadImuParameterFromTxt( &imu_parameter);
-        if(read_sate == 1)
-            m_imu_attitude_estimate.SetImuParameter(imu_parameter);
+        memset(&imu_parameter, NAN, sizeof(imu_parameter));
+        m_imu_attitude_estimate.SetImuParameter(imu_parameter);
+        printf("gyro A0: %f, %f\n", imu_parameter.gyro_A0[0], imu_parameter.gyro_A1[0][0]);
+//         int read_sate = ReadImuParameterFromTxt( &imu_parameter);
+//         if(read_sate == 1)
+//             m_imu_attitude_estimate.SetImuParameter(imu_parameter);
     #else
         int stste = init_gsensor();
         if(stste >= 0){
