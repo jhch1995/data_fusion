@@ -1,3 +1,4 @@
+// 没有拨杆的自身检测，直接是高频率拨杆跟板子IMU实时通信，计算相对姿态差值
 #include <iostream>
 #include <fstream>
 #include <string>

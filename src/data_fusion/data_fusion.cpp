@@ -1,6 +1,6 @@
 #include "data_fusion.h"
 
-using namespace common;
+// using namespace common;
 
 namespace imu {
 
@@ -1305,6 +1305,7 @@ int DataFusion:: ReadImuParameterFromCamera( StructImuParameter *imu_parameter)
 {
     int read_state = camera_read_flash_file(CAMERA_FLASH_FILE_IMU_CAL, imu_parameter, sizeof(*imu_parameter));
     if (read_state >= 0) {
+        // illegal data
         if(abs(imu_parameter->acc_A1[0][0] - 1.0) > 0.15 || abs(imu_parameter->acc_A1[1][1] - 1.0) > 0.15 ||abs(imu_parameter->acc_A1[2][2] - 1.0) > 0.15
             || abs(imu_parameter->acc_A1[0][1]) > 0.1 || abs(imu_parameter->acc_A1[0][2]) > 0.1
             || abs(imu_parameter->acc_A1[1][0]) > 0.1 || abs(imu_parameter->acc_A1[1][2]) > 0.1
@@ -1315,7 +1316,18 @@ int DataFusion:: ReadImuParameterFromCamera( StructImuParameter *imu_parameter)
             printf("read imu parameter from camera value is illegal !!!\n");
             return -1;
         }
-        m_imu_attitude_estimate.SetImuParameter(*imu_parameter);
+        
+        if( std::isnan(imu_parameter->acc_A1[0][0]) || std::isnan(imu_parameter->acc_A1[0][1]) || std::isnan(imu_parameter->acc_A1[0][2]) 
+            || std::isnan(imu_parameter->acc_A1[1][0]) || std::isnan(imu_parameter->acc_A1[1][1]) || std::isnan(imu_parameter->acc_A1[1][2])
+            || std::isnan(imu_parameter->acc_A1[2][0]) || std::isnan(imu_parameter->acc_A1[2][1]) || std::isnan(imu_parameter->acc_A1[2][2])
+            || std::isnan(imu_parameter->acc_A0[0]) || std::isnan(imu_parameter->acc_A0[1]) || std::isnan(imu_parameter->acc_A0[2])
+            || std::isnan(imu_parameter->gyro_A0[0]) || std::isnan(imu_parameter->gyro_A0[1]) || std::isnan(imu_parameter->gyro_A0[2])
+        ){
+            printf("read imu parameter from camera value is NAN !!!\n");
+            return -2;
+        }
+        
+//         m_imu_attitude_estimate.SetImuParameter(*imu_parameter);
         printf("read imu parameter from camera state: %d\n", read_state);
         printf("read new gyro A0:\n  %f %f %f\n", imu_parameter->gyro_A0[0], imu_parameter->gyro_A0[1], imu_parameter->gyro_A0[2]);
         printf("read new acc A0:\n  %f %f %f\n", imu_parameter->acc_A0[0], imu_parameter->acc_A0[1], imu_parameter->acc_A0[2]);

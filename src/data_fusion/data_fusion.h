@@ -11,7 +11,7 @@
 
 #include "gflags/gflags.h"
 #include "opencv2/opencv.hpp"
-#include "common/relative_locate/linear_r3.h"
+// #include "common/relative_locate/linear_r3.h"
 #include "common/base/stdint.h"
 #include "common/base/log_level.h"
 #include "common/concurrency/work_thread.h"

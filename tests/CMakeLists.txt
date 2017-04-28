@@ -54,21 +54,31 @@ ELSEIF(ANDROID_ABI)
             ${ARM_LIBS}
             -Wl,--end-group
     )
+    
+        ADD_EXECUTABLE(read_can "./read_can_data_main_test.cpp")
+    TARGET_LINK_LIBRARIES(read_can  
+                         -Wl,--start-group
+                        data_fusion 
+                        ${ARM_LIBS}
+                        -Wl,--end-group
+    )
+                                
 ELSEIF (UNIX)
     MESSAGE(STATUS "LINK: UNIX")
-    ADD_EXECUTABLE(lane_tracking "./lane_tracking_test_main.cpp")
-    TARGET_LINK_LIBRARIES(lane_tracking imu  data_fusion halio
-                          concurrency relative_locate time glog gflags pthread
-                          opencv_imgcodecs opencv_core opencv_highgui )
-
-    ADD_EXECUTABLE(turn_radius_ipm "./turn_radius_ipm_test_main.cpp")
-    TARGET_LINK_LIBRARIES(turn_radius_ipm data_fusion imu halio
-                          concurrency relative_locate time gflags glog
-                          opencv_imgcodecs opencv_core opencv_highgui pthread)
+#     ADD_EXECUTABLE(lane_tracking "./lane_tracking_test_main.cpp")
+#     TARGET_LINK_LIBRARIES(lane_tracking imu  data_fusion halio
+#                           concurrency relative_locate time glog gflags pthread
+#                           opencv_imgcodecs opencv_core opencv_highgui )
+# 
+#     ADD_EXECUTABLE(turn_radius_ipm "./turn_radius_ipm_test_main.cpp")
+#     TARGET_LINK_LIBRARIES(turn_radius_ipm data_fusion imu halio
+#                           concurrency relative_locate time gflags glog
+#                           opencv_imgcodecs opencv_core opencv_highgui pthread)
                           
     ADD_EXECUTABLE(fcw_ttc "./fcw_ttc_main.cpp")
     TARGET_LINK_LIBRARIES(fcw_ttc  ttc_module gflags glog
                                 opencv_imgcodecs opencv_core opencv_highgui pthread)
+                                
 
 #     ADD_EXECUTABLE(vo_imu_att "./VO_IMU_att_main.cpp")
 #     TARGET_LINK_LIBRARIES(vo_imu_att 
