@@ -92,7 +92,7 @@ void DataFusion::Init( )
     m_call_predict_timestamp = 0;
     m_is_first_run_read_data = 1; // 第一次运行读取数据
 
-    #if defined(DATA_FROM_LOG)
+    #if defined(DATA_FROM_LOG) || defined(UNIX)
         m_init_state = true; // 读取log的时候,认为imu初始化是OK的
         // read data from log
         infile_log.open(FLAGS_log_data_addr.c_str()); // ifstream
@@ -133,6 +133,9 @@ void DataFusion::Init( )
     #else
         m_imu_log_flag = "Gsensor";
     #endif
+        
+    m_is_set_speed = 0;
+    m_speed_set = 60;
     
     StartDataFusionTask();
 }
@@ -338,11 +341,17 @@ int DataFusion::ReadDataFromLog( )
         UpdateCurrentDataTimestamp(imu_timestamp);
         m_data_gsensor_update = 1;
         
+        // 如果设置了固定的车速
+        if(m_is_set_speed){
+            m_can_speed_data.timestamp = imu_timestamp;
+            m_can_speed_data.speed = m_speed_set/3.6;
+            UpdateCurrentDataTimestamp(imu_timestamp);
+            m_data_speed_update = 1;
+        }
+    
         // print new imu data
         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"imu_acc_raw = "<<imu_data.acc_raw[0]<<", "<<imu_data.acc_raw[1]<<", "<<imu_data.acc_raw[2]<<endl;
-//         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"imu_acc_filter = "<<imu_data.acc[0]<<", "<<imu_data.acc[1]<<", "<<imu_data.acc[2]<<endl;
         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"imu_gyro_raw = "<<imu_data.gyro_raw[0]<<", "<<imu_data.gyro_raw[1]<<", "<<imu_data.gyro_raw[2]<<endl;
-//         VLOG(VLOG_DEBUG)<<"DF:ReadDataFromLog--"<<"imu_gyro_filter = "<<imu_data.gyro[0]<<", "<<imu_data.gyro[1]<<", "<<imu_data.gyro[2]<<endl;
 
     }else if(data_flag == "brake_signal"){
         string str_t[10],str_speed;
@@ -375,6 +384,9 @@ int DataFusion::ReadDataFromLog( )
         UpdateCurrentDataTimestamp(speed_timestamp);
         m_data_speed_update = 1;
     }
+    
+
+
     return 1;
 }
 

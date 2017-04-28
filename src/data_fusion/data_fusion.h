@@ -255,6 +255,9 @@ private:
     std::vector<StructTurnRadius> m_vector_turn_radius;
 //    folly::ProducerConsumerQueue<StructTurnRadius> m_queue_turn_radius(500);
     bool m_is_R_ok;
+    
+    bool m_is_set_speed;
+    double m_speed_set;
 };
 
 }
