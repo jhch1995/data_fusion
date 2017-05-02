@@ -14,8 +14,7 @@
 #include "common/base/stdint.h"
 #include "common/math/polyfit.h"
 #include "common/base/log_level.h"
-// #include "common/relative_locate/relative_locate.h"
-// #include "common/relative_locate/bird_perspective_mapping.h"
+#include "common/coordinate_trans/bird_perspective_mapping.h"
 #include "common/time/time_utils.h"
 
 #include "data_fusion.h"

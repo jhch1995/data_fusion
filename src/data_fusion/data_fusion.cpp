@@ -104,12 +104,18 @@ void DataFusion::Init( )
 
         // 读取imu参数
         StructImuParameter imu_parameter;
-        memset(&imu_parameter, NAN, sizeof(imu_parameter));
-        m_imu_attitude_estimate.SetImuParameter(imu_parameter);
-        printf("gyro A0: %f, %f\n", imu_parameter.gyro_A0[0], imu_parameter.gyro_A1[0][0]);
-//         int read_sate = ReadImuParameterFromTxt( &imu_parameter);
-//         if(read_sate == 1)
-//             m_imu_attitude_estimate.SetImuParameter(imu_parameter);
+//         for(int i=0; i<3; i++){
+//             imu_parameter.gyro_A0[i] = NAN;
+//             imu_parameter.acc_A0[i] = NAN;
+//             for(int j=0; j<3; j++){
+//                 imu_parameter.gyro_A1[i][j] = NAN;
+//                 imu_parameter.acc_A1[i][j] = NAN;
+//             }
+//         }
+//         m_imu_attitude_estimate.SetImuParameter(imu_parameter);
+        int read_sate = ReadImuParameterFromTxt( &imu_parameter);
+        if(read_sate == 1)
+            m_imu_attitude_estimate.SetImuParameter(imu_parameter);
     #else
         int stste = init_gsensor();
         if(stste >= 0){
@@ -833,9 +839,14 @@ int DataFusion::GetTimestampData(double timestamp_search, double vehicle_pos[2],
 // 0: 没有数据
 // -1:int_timestamp_search < all_data_time 落后
 // -2:int_timestamp_search > all_data_time 超前
+// -3:imu的值异常，默认返回R=0
+// -4:imu初始化失败
 int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_feature_pre ,int64 image_timestamp_pre, int64 image_timestamp_cur,
                                                std::vector<cv::Point2f>* vector_feature_predict)
 {
+    if(!m_init_state) 
+        return -4; // imu 初始化失败
+            
     int data_search_state_cur=0, data_search_state_pre = 0; // 搜索指定时间戳的数据是否成功
     double att_cur[3], att_pre[3], vehicle_pos_cur[2], vehicle_pos_pre[2];
     double image_timestamp_cur_t = image_timestamp_cur/1000.0;
@@ -851,6 +862,12 @@ int DataFusion::GetPredictFeature( const std::vector<cv::Point2f>& vector_featur
     double acc_t[3], gyro_t[3];
     data_search_state_pre = GetTimestampData( image_timestamp_pre_t, vehicle_pos_pre, att_pre, &m_angle_z_pre, att_gyro_pre, acc_t, gyro_t);
     data_search_state_cur = GetTimestampData( image_timestamp_cur_t, vehicle_pos_cur, att_cur, &m_angle_z_cur, att_gyro_cur, acc_t, gyro_t);
+    
+    if(fabs(gyro_t[2]) > 50/57.3 || fabs(gyro_t[2]) > 50/57.3 || fabs(acc_t[2])>40){
+        VLOG(VLOG_INFO)<<"DF:GetPredictFeature--"<<"imu error, gyro_t[2] = "<<gyro_t[2]<<" acc_t = "<<acc_t[2]<<endl;
+        return -3;
+    }
+    
 
     VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: pre(s) = "<<std::fixed<<image_timestamp_pre_t<<", cur(s): "<<std::fixed<<image_timestamp_cur_t<<endl;
     VLOG(VLOG_DEBUG)<<"DF:GetPredictFeature--"<<"call: dt(ms) = "<<image_timestamp_cur - image_timestamp_pre<<endl;
@@ -1096,7 +1113,7 @@ int DataFusion::DoCalibrateGyroBiasOnline( double gyro_new_bias[3])
         }
     }else{
         // 车子一旦动了，就重置状态
-        printf("car is moving\n");
+//         printf("car is moving\n");
         m_zero_speed_time_counter = 0;
         m_is_first_zero_speed = true;
         // 重置 online calibrate state

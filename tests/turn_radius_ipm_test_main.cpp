@@ -14,8 +14,7 @@
 #include "common/base/stdint.h"
 #include "common/math/polyfit.h"
 #include "common/base/log_level.h"
-#include "common/relative_locate/relative_locate.h"
-#include "common/relative_locate/bird_perspective_mapping.h"
+#include "common/coordinate_trans/bird_perspective_mapping.h"
 #include "common/time/time_utils.h"
 
 #include "data_fusion.h"
@@ -181,11 +180,11 @@ int main(int argc, char *argv[])
 
                     // 画车道线  
                     Vec3b value_vec(110, 255, 0); // 绿色
-                    mark_IPM_radius_color(ipm_para, g_R_cur, value_vec, ipm_image_color);
+//                     mark_IPM_radius_color(ipm_para, g_R_cur, value_vec, ipm_image_color);
                     
                     // 画图像光轴直线
                     Vec3b value_vec_1(250, 0, 0); // 黑色
-                    mark_IPM_radius_color(ipm_para, 0, value_vec_1, ipm_image_color);
+//                     mark_IPM_radius_color(ipm_para, 0, value_vec_1, ipm_image_color);
 
 //                    cv::imshow("ipm", ipm_image);
                     cv::imshow("ipm", ipm_image_color);

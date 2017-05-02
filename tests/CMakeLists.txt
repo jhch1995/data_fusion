@@ -67,13 +67,13 @@ ELSEIF (UNIX)
     MESSAGE(STATUS "LINK: UNIX")
 #     ADD_EXECUTABLE(lane_tracking "./lane_tracking_test_main.cpp")
 #     TARGET_LINK_LIBRARIES(lane_tracking imu  data_fusion halio
-#                           concurrency relative_locate time glog gflags pthread
+#                           concurrency coordinate_trans time glog gflags pthread
 #                           opencv_imgcodecs opencv_core opencv_highgui )
 # 
-#     ADD_EXECUTABLE(turn_radius_ipm "./turn_radius_ipm_test_main.cpp")
-#     TARGET_LINK_LIBRARIES(turn_radius_ipm data_fusion imu halio
-#                           concurrency relative_locate time gflags glog
-#                           opencv_imgcodecs opencv_core opencv_highgui pthread)
+    ADD_EXECUTABLE(turn_radius_ipm "./turn_radius_ipm_test_main.cpp")
+    TARGET_LINK_LIBRARIES(turn_radius_ipm data_fusion imu halio
+                          concurrency coordinate_trans time gflags glog
+                          opencv_imgcodecs opencv_core opencv_highgui pthread)
                           
     ADD_EXECUTABLE(fcw_ttc "./fcw_ttc_main.cpp")
     TARGET_LINK_LIBRARIES(fcw_ttc  ttc_module gflags glog
@@ -83,7 +83,7 @@ ELSEIF (UNIX)
 #     ADD_EXECUTABLE(vo_imu_att "./VO_IMU_att_main.cpp")
 #     TARGET_LINK_LIBRARIES(vo_imu_att 
 #                           VO data_fusion halio
-#                           concurrency relative_locate time gflags glog
+#                           concurrency coordinate_trans time gflags glog
 #                           opencv_imgcodecs opencv_core opencv_highgui pthread)
 
 #    ADD_EXECUTABLE(producer_consumer "./proudcer_consumer_test_main.cpp")
