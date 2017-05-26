@@ -1356,7 +1356,8 @@ int DataFusion:: ReadImuParameterFromCamera( StructImuParameter *imu_parameter)
             || std::isnan(imu_parameter->acc_A0[0]) || std::isnan(imu_parameter->acc_A0[1]) || std::isnan(imu_parameter->acc_A0[2])
             || std::isnan(imu_parameter->gyro_A0[0]) || std::isnan(imu_parameter->gyro_A0[1]) || std::isnan(imu_parameter->gyro_A0[2])
         ){
-            printf("read imu parameter from camera value is NAN !!!\n");
+            printf("read imu parameter from camera value is NAN !\n");
+			printf("This IMU is not calibrated !!!\n");
             return -2;
         }
         
