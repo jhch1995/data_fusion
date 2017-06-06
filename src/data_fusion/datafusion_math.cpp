@@ -7,6 +7,8 @@ DEFINE_double(gyro_bias_x, 0, "imu gyro bias x ");
 DEFINE_double(gyro_bias_y, 0, "imu gyro bias y ");
 DEFINE_double(gyro_bias_z, 0, "imu gyro bias z ");
 
+DEFINE_double(gyro_R_filt_hz, 0.6, "gyro lowpass filter for radius");
+
 #if defined DATA_FROM_LOG
     DEFINE_string(imu_init_addr, "./imu.ini", "imu calibrate result base address");
     DEFINE_string(imu_parameter_log_addr, "./imu_paramer_log.txt", "save all the imu calibrate results");

@@ -63,7 +63,11 @@ void DataFusion::Init( )
 
     // 转弯半径R
     m_is_first_R_filter = 1;
-    m_gyro_R_filt_hz = 0.6;
+	if(FLAGS_gyro_R_filt_hz > 0 && FLAGS_gyro_R_filt_hz < 5)
+		m_gyro_R_filt_hz = FLAGS_gyro_R_filt_hz;
+	else
+		m_gyro_R_filt_hz = 0.6;
+	
     m_can_speed_R_filt_hz = 1.0;
     m_call_radius_timestamp = 0;
     m_is_R_ok = false;
