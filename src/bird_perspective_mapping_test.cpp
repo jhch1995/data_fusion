@@ -9,7 +9,7 @@ DEFINE_double(fu, 309.4362, "fu");
 DEFINE_double(fv, 344.2161, "fv");
 DEFINE_double(cu, 317.9034, "cu");
 DEFINE_double(cv, 256.5352, "cv");
-DEFINE_double(camera_height, 2.1798, "camera height mm");
+DEFINE_double(camera_height, 2.1798, "camera height m");
 DEFINE_double(pitch, 14.0, "pitch angle (degree)");
 DEFINE_double(yaw, -12.0, "yaw angle (degree)");
 DEFINE_int32(image_width, 640, "image width");
@@ -27,9 +27,11 @@ void LoadImage(cv::Mat* image)
     cv::Mat channels[3];
     std::cerr << "org:" << int(org_image.at<uint8_t>(220, 100, 0)) << std::endl;
     cv::split(org_image, &channels[0]);
+    // org_image row cols
     image->create(org_image.rows, org_image.cols, CV_32FC1);
     std::cerr << "channel: " << int(channels[0].at<uint8_t>(220, 100)) << std::endl;
     channels[0].convertTo(*image, CV_32FC1);
+    // pixel normalize
     *image = *image * (1.0 / 255);
     std::cerr << "image: " << image->at<float>(220, 100) << std::endl;
 }
@@ -49,17 +51,22 @@ int main(int argc, char *argv[])
     camera_para.pitch = FLAGS_pitch * CV_PI / 180;
     camera_para.yaw = FLAGS_yaw * CV_PI / 180;
 
+    // camera parameter image_width image_height
     camera_para.image_width = FLAGS_image_width;
     camera_para.image_height = FLAGS_image_height;
 
+    // camera parameter initial
     BirdPerspectiveMapping bp_mapping(camera_para);
 
     // ipm para
     IPMPara ipm_para;
+    // world coordinates length??? x [x_start_offset, x_end_offset]
+    // y [y_start_offset, y_end_offset]
     ipm_para.x_limits[0] = FLAGS_x_start_offset;
     ipm_para.x_limits[1] = FLAGS_x_end_offset;
     ipm_para.y_limits[0] = FLAGS_y_start_offset;
     ipm_para.y_limits[1] = FLAGS_y_end_offset;
+    // x, y scale
     ipm_para.x_scale = FLAGS_x_res;
     ipm_para.y_scale = FLAGS_y_res;
 

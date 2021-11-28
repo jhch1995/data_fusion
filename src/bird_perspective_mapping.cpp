@@ -25,10 +25,14 @@ BirdPerspectiveMapping::BirdPerspectiveMapping(const CameraPara& camera_para)
 void BirdPerspectiveMapping::Initialize(const CameraPara& camera_para)
 {
     m_camera_para = camera_para;
+    // world to camera
     InitYawTransformMatrix();
     InitPitchTransformMatrix();
+    // K Matrix
     InitShiftMatrix();
+    // get projective matrix P=K*R
     GetGround2ImageMatrix();
+    // image to ground matirx
     GetImage2GroundMatrix();
 }
 
@@ -36,6 +40,7 @@ BirdPerspectiveMapping::~BirdPerspectiveMapping()
 {
 }
 
+// yaw to matrix
 void BirdPerspectiveMapping::InitYawTransformMatrix()
 {
     // transform from world to camera coordinates
@@ -57,6 +62,7 @@ void BirdPerspectiveMapping::InitYawTransformMatrix()
 //    std::cerr << "yaw_matrix: " << m_yaw_matrix << std::endl;
 }
 
+// pitch to matrix
 void BirdPerspectiveMapping::InitPitchTransformMatrix()
 {
     // rotation matrix for pitch
@@ -76,7 +82,7 @@ void BirdPerspectiveMapping::InitPitchTransformMatrix()
 //    std::cerr << "pitch_matrix: " << m_pitch_matrix << std::endl;
 }
 
-// 重新设定当前pitch
+// 锟斤拷锟斤拷锟借定锟斤拷前pitch
 void BirdPerspectiveMapping::SetPitchTransformMatrix(double pitch_new)
 {
     // rotation matrix for pitch
@@ -96,7 +102,7 @@ void BirdPerspectiveMapping::SetPitchTransformMatrix(double pitch_new)
 
 }
 
-
+// K matrix (Intrinsic Matrix )
 void BirdPerspectiveMapping::InitShiftMatrix()
 {
     // transformation from (xc, yc) in camera coordinates
@@ -120,6 +126,7 @@ void BirdPerspectiveMapping::InitShiftMatrix()
 
 void BirdPerspectiveMapping::GetGround2ImageMatrix()
 {
+    // can consider roll matrix
     m_ground2image_matrix = m_pitch_matrix * m_yaw_matrix;
     m_ground2image_matrix = m_shift_matrix * m_ground2image_matrix;
 //    std::cerr << "ground2image  matrix: " << m_ground2image_matrix << std::endl;
@@ -168,12 +175,13 @@ void BirdPerspectiveMapping::GetXYLimitsFromUV(IPMPara* ipm_para)
     ipm_para->y_scale = (ipm_para->y_limits[1] - ipm_para->y_limits[0]) / ipm_para->height;
 }
 
-
+// from word coordinate comput ipm image width and height
 void BirdPerspectiveMapping::GetUVLimitsFromXY(IPMPara* ipm_para)
 {
+    // iamge width height by scale(one pixel represent real word scale)
     ipm_para->width = static_cast<int>((ipm_para->x_limits[1] - ipm_para->x_limits[0]) / ipm_para->x_scale);
     ipm_para->height = static_cast<int>((ipm_para->y_limits[1] - ipm_para->y_limits[0]) / ipm_para->y_scale);
-    // calc uv limits
+    // calc uv limits  2*4*1
     cv::Mat xy_limits_pts = cv::Mat::zeros(2, 4, CV_32FC1);
     xy_limits_pts.at<float>(0, 0) = ipm_para->x_limits[0];
     xy_limits_pts.at<float>(0, 1) = ipm_para->x_limits[1];
@@ -190,10 +198,11 @@ void BirdPerspectiveMapping::GetUVLimitsFromXY(IPMPara* ipm_para)
 
     cv::Mat row1 = uv_limits.row(0);
     cv::Mat row2 = uv_limits.row(1);
+    // returm max min pointer
     cv::minMaxLoc(row1, &(ipm_para->u_limits[0]), &(ipm_para->u_limits[1]));
     cv::minMaxLoc(row2, &(ipm_para->v_limits[0]), &(ipm_para->v_limits[1]));
 
-    // confined
+    // confined  u v
     float u = m_camera_para.image_width;
     float v = m_camera_para.image_height;
 
@@ -202,6 +211,7 @@ void BirdPerspectiveMapping::GetUVLimitsFromXY(IPMPara* ipm_para)
     GetVanishingPoint(&vp);
     vp.y = std::max(float(0), vp.y);
 
+    // 20211126...........
     // get extent of the image in the xfyf plane
     float eps = ipm_para->vp_portion * v;
     ipm_para->u_limits[0] = std::max(double(0), ipm_para->u_limits[0]);
@@ -232,10 +242,13 @@ void BirdPerspectiveMapping::GetImage2GroundMatrix()
     float s1 = sin(m_camera_para.pitch);
     float c2 = cos(m_camera_para.yaw);
     float s2 = sin(m_camera_para.yaw);
-    float h = m_camera_para.height; // unit: mm
+    // camera install height
+    float h = m_camera_para.height; // unit: m
 
     m_image2ground_matrix = cv::Mat::zeros(4, 3, CV_32FC1);
 
+    // homogeneous matrix seems correct
+    // https://github.com/maitham/LaneDetectionAversion/blob/b05f8a3465745192a24096d9f63b810a177af521/FinalCodeLaneAversion/createFourPointsForIPM.cpp
     m_image2ground_matrix.at<float>(0, 0) = -h * c2 / m_camera_para.fu;
     m_image2ground_matrix.at<float>(0, 1) = h * s1 * s2 / m_camera_para.fv;
     m_image2ground_matrix.at<float>(0, 2) = (h * c2 * m_camera_para.cu / m_camera_para.fu) -
@@ -295,6 +308,7 @@ void BirdPerspectiveMapping::GetVanishingPoint(cv::Point2f* vpt)
     vpt->y = vp.at<float>(1, 0);
 }
 
+// input 2*4  output 2*4
 void BirdPerspectiveMapping::TransformGround2Image(const cv::Mat& in_points, cv::Mat* out_points)
 {
     cv::Mat in_points3 = cv::Mat::zeros(in_points.rows + 1, in_points.cols, in_points.type());
